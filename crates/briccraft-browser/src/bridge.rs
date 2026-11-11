@@ -190,6 +190,13 @@ pub fn key(code: &str, down: bool, command: bool, repeat: bool) -> bool {
                 handled = true;
                 None
             }
+            ("KeyO", false) => {
+                let open = !state.gameplay_open.get_untracked();
+                state.close_panels();
+                state.gameplay_open.set(open);
+                handled = true;
+                None
+            }
             _ if modal => None,
             ("KeyR", false) => Some(UiAction::Rotate),
             ("KeyF" | "KeyV", false) => Some(UiAction::ActivateVehicle("auto".into())),
@@ -310,6 +317,16 @@ pub fn command(name: &str, value: &str) {
                 r.state.imports_open.set(value != "false");
                 None
             }
+            "expedition" => match value {
+                "on" | "true" => Some(UiAction::SetExpedition(true)),
+                "off" | "false" => Some(UiAction::SetExpedition(false)),
+                _ => None,
+            },
+            "gameplay" | "objectives" => {
+                r.state.close_panels();
+                r.state.gameplay_open.set(value != "false");
+                None
+            }
             "new" => value.parse().ok().map(UiAction::NewWorld),
             "worlds" => Some(UiAction::ShowWorlds),
             "landmark" => Some(UiAction::ImportLandmark),
@@ -348,43 +365,67 @@ pub fn state() -> String {
             RENDER_TARGET_KIND_SOFTWARE => "software",
             _ => "none",
         };
-        result = serde_json::json!({
-            "parts":game.world.len(),"revision":game.world.revision(),"catalog":briccraft_parts::CATALOG.len(),
-            "selectedPart":game.selected_part,"color":game.color,"mode":game.mode_name(),"status":game.status,"seed":game.seed.to_string(),
-            "camera":game.camera.position.to_array(),"globalCamera":game.global_camera_position(),"cursor":game.cursor,
-            "vehicle":game.active_vehicle.as_ref().map(|v|v.vehicle.position),
+        // Keep each object bounded: deeply nested, growing json! expansions
+        // otherwise consume the macro recursion budget despite a flat schema.
+        let renderer = serde_json::json!({
+            "uploads":render.uploads,"bytes":render.texture_bytes,"effectFrames":render.effect_frames,
+            "uniformFrames":render.uniform_only_frames,"activeCells":render.active_cells,
+            "shaderQuality":render.shader_quality,"shaderVariant":render.shader_variant,
+        });
+        let rendering = serde_json::json!({
+            "kind":render_kind,"frameKind":presented.frame_kind,"glMajorVersion":presented.frame_gl_major_version,
+            "frames":presented.frames,"frameThread":presented.frame_thread,
+            "width":presented.frame_width,"height":presented.frame_height,
+            "ticks":presented.ticks,"proxiedCalls":presented.tick_proxied_calls,"panics":presented.render_thread_panics,
+        });
+        let world_rendering = serde_json::json!({
+            "scale":world_rendering.render_scale,
+            "width":world_rendering.pixel_width,"height":world_rendering.pixel_height,
+            "effectWidth":world_rendering.effect_width,"effectHeight":world_rendering.effect_height,
+            "pixels":world_rendering.pixel_width as u64 * world_rendering.pixel_height as u64,
+            "pixelBudget":world_rendering.pixel_budget,
+            "requestedQuality":world_rendering.requested_quality,
+            "effectiveQuality":world_rendering.effective_quality,
+            "presentedFps":world_rendering.presented_fps,
+        });
+        let interface = serde_json::json!({
+            "width":interface.width,"height":interface.height,"insets":interface.insets,
+            "compact":interface.compact,"landscape":interface.landscape,
+            "touch":interface.touch,"keyboard":interface.keyboard,
+            "modal":r.state.modal_untracked(),"panelWidth":interface.panel_width(),
+            "catalogOpen":r.state.catalog_open.get_untracked(),"studioOpen":r.state.imports_open.get_untracked(),
+            "gameplayOpen":r.state.gameplay_open.get_untracked(),
+            "sourceCount":r.state.credits.get_untracked().len(),
+        });
+        let serde_json::Value::Object(world) = serde_json::json!({
             "worldId":game.world_info.id,"worldName":game.world_info.name,"preset":game.world_info.preset,
             "streamed":game.is_streamed(),"origin":{"x":game.world_origin().x.to_string(),"z":game.world_origin().z.to_string()},
             "cachedChunks":game.stream_stats().map(|s|s.cached_chunks),"sceneGeneration":game.scene_generation,
             "attributions":game.world_info.attributions,"importBusy":r.state.import_busy.get_untracked(),
             "worldBusy":r.state.world_busy.get_untracked(),"worldsOpen":r.state.worlds_open.get_untracked(),"worldCount":r.state.worlds.get_untracked().len(),
-            "renderer":{"uploads":render.uploads,"bytes":render.texture_bytes,"effectFrames":render.effect_frames,"uniformFrames":render.uniform_only_frames,"activeCells":render.active_cells,"shaderQuality":render.shader_quality,"shaderVariant":render.shader_variant},
-            "rendering":{
-                "kind":render_kind,"frameKind":presented.frame_kind,"glMajorVersion":presented.frame_gl_major_version,
-                "frames":presented.frames,"frameThread":presented.frame_thread,
-                "width":presented.frame_width,"height":presented.frame_height,
-                "ticks":presented.ticks,"proxiedCalls":presented.tick_proxied_calls,"panics":presented.render_thread_panics
-            },
-            "worldRendering":{
-                "scale":world_rendering.render_scale,
-                "width":world_rendering.pixel_width,"height":world_rendering.pixel_height,
-                "effectWidth":world_rendering.effect_width,"effectHeight":world_rendering.effect_height,
-                "pixels":world_rendering.pixel_width as u64 * world_rendering.pixel_height as u64,
-                "pixelBudget":world_rendering.pixel_budget,
-                "requestedQuality":world_rendering.requested_quality,
-                "effectiveQuality":world_rendering.effective_quality,
-                "presentedFps":world_rendering.presented_fps
-            },
-            "interface":{
-                "width":interface.width,"height":interface.height,"insets":interface.insets,
-                "compact":interface.compact,"landscape":interface.landscape,
-                "touch":interface.touch,"keyboard":interface.keyboard,
-                "modal":r.state.modal_untracked(),"panelWidth":interface.panel_width(),
-                "catalogOpen":r.state.catalog_open.get_untracked(),"studioOpen":r.state.imports_open.get_untracked(),
-                "sourceCount":r.state.credits.get_untracked().len()
-            },
-            "ready":r.world_effect.get_untracked().is_some(),"fps":r.state.fps.get_untracked()
-        }).to_string();
+        }) else {
+            unreachable!("world diagnostics are an object")
+        };
+        let mut snapshot = serde_json::json!({
+            "parts":game.world.len(),"revision":game.world.revision(),"catalog":briccraft_parts::CATALOG.len(),
+            "selectedPart":game.selected_part,"color":game.color,"mode":game.mode_name(),"status":game.status,"seed":game.seed.to_string(),
+            "camera":game.camera.position.to_array(),"globalCamera":game.global_camera_position(),"cursor":game.cursor,
+            "vehicle":game.active_vehicle.as_ref().map(|v|v.vehicle.position),
+            "ready":r.world_effect.get_untracked().is_some(),"fps":r.state.fps.get_untracked(),
+        });
+        let fields = snapshot
+            .as_object_mut()
+            .expect("session diagnostics are an object");
+        fields.extend(world);
+        fields.insert(
+            "gameplay".into(),
+            crate::runtime::gameplay::diagnostics(&game),
+        );
+        fields.insert("renderer".into(), renderer);
+        fields.insert("rendering".into(), rendering);
+        fields.insert("worldRendering".into(), world_rendering);
+        fields.insert("interface".into(), interface);
+        result = snapshot.to_string();
     });
     result
 }

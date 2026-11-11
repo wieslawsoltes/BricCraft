@@ -7,17 +7,19 @@ impl Session {
             self.status = "Park your vehicle before inserting another construction.".into();
             return;
         }
-        let blueprint = match name {
-            "rover" | "car" => Blueprint::Rover,
-            "plane" => Blueprint::Airplane,
-            "train" => Blueprint::Locomotive,
-            "boat" => Blueprint::Sailboat,
-            "house" => Blueprint::House,
-            "tower" => Blueprint::Tower,
-            "windmill" => Blueprint::Windmill,
-            "bridge" => Blueprint::Bridge,
-            _ => return,
+        let Some(blueprint) = named(name) else {
+            return;
         };
+        let quote = self.blueprint_quote(name).expect("known blueprint quote");
+        if !quote.affordable {
+            self.status = format!(
+                "{} costs {} studs; you have {}. Recycle parts or complete objectives first.",
+                blueprint.name(),
+                quote.studs,
+                self.gameplay.studs()
+            );
+            return;
+        }
         let center = self
             .hit
             .as_ref()
@@ -96,19 +98,28 @@ impl Session {
                 .into_iter()
                 .map(BuildOp::Place)
                 .collect();
-            if let Ok(ids) = self.history.execute(&mut self.world, &operations) {
-                result = Some((ids, origin, blueprint.size(rotation)));
+            if let Ok((ids, reward)) = self.execute_construction(&operations) {
+                result = Some((ids, origin, blueprint.size(rotation), reward));
                 break;
             }
         }
-        if let Some((ids, origin, size)) = result {
+        if let Some((ids, origin, size, mut reward)) = result {
             let count = ids.len();
             self.last_blueprint = ids;
-            if let Err(error) = self.capture_streamed_edits() {
-                self.last_blueprint.clear();
-                self.status = format!("Construction was not saved: {error}");
-                self.update_pick();
-                return;
+            if let Some(state) = &mut self.streaming {
+                state.last_blueprint_keys = self
+                    .last_blueprint
+                    .iter()
+                    .filter_map(|id| state.snapshot.part_key(*id))
+                    .collect();
+            }
+            if matches!(
+                blueprint,
+                Blueprint::House | Blueprint::Tower | Blueprint::Windmill | Blueprint::Bridge
+            ) {
+                reward.push_str(&crate::gameplay::reward_text(
+                    self.gameplay.record(briccraft_play::Activity::Structure),
+                ));
             }
             self.camera.focus(
                 [
@@ -119,7 +130,7 @@ impl Session {
                 size[0].max(size[2]) as f32 * 1.8 + 12.0,
             );
             self.status = format!(
-                "{} assembled from {count} parts. Choose Drive to bring a vehicle to life.",
+                "{} assembled from {count} parts. Choose Drive to bring a vehicle to life.{reward}",
                 blueprint.name()
             );
         } else {
@@ -129,4 +140,18 @@ impl Session {
         }
         self.update_pick();
     }
+}
+
+pub(crate) fn named(name: &str) -> Option<Blueprint> {
+    Some(match name {
+        "rover" | "car" => Blueprint::Rover,
+        "plane" => Blueprint::Airplane,
+        "train" => Blueprint::Locomotive,
+        "boat" => Blueprint::Sailboat,
+        "house" => Blueprint::House,
+        "tower" => Blueprint::Tower,
+        "windmill" => Blueprint::Windmill,
+        "bridge" => Blueprint::Bridge,
+        _ => return None,
+    })
 }

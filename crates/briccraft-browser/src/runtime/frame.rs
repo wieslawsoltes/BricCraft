@@ -88,7 +88,7 @@ impl Runtime {
             game.preview.map(|p| PlacementPreview {
                 position: p.position,
                 size: p.size(),
-                valid: game.world.can_place(&p).is_ok(),
+                valid: game.world.can_place(&p).is_ok() && game.selected_part_quote().affordable,
             })
         };
         let camera = &game.camera;

@@ -7,6 +7,8 @@ license.workspace = true
 
 [dependencies]
 briccraft-parts.workspace = true
+briccraft-character.workspace = true
+briccraft-play.workspace = true
 briccraft-world.workspace = true
 briccraft-mechanics.workspace = true
 briccraft-stream = { path = "../briccraft-stream" }

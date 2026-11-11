@@ -15,6 +15,8 @@ struct Save {
     origin: WindowOrigin,
     #[serde(default)]
     world_info: Option<WorldInfo>,
+    #[serde(default)]
+    gameplay: briccraft_play::Gameplay,
     camera: CameraRig,
     seed: u64,
     selected_part: u16,
@@ -31,6 +33,7 @@ fn invalid(error: impl std::fmt::Display) -> BuildError {
 impl Session {
     pub fn to_json(&self) -> Result<String, BuildError> {
         validate_info(&self.world_info)?;
+        self.gameplay.validate().map_err(invalid)?;
         if self.active_vehicle.is_some() {
             return Err(invalid("Park the active vehicle before saving."));
         }
@@ -58,6 +61,7 @@ impl Session {
             stream,
             origin: self.world_origin(),
             world_info: Some(self.world_info.clone()),
+            gameplay: self.gameplay.clone(),
             camera: self.camera.clone(),
             seed: self.seed,
             selected_part: self.selected_part,
@@ -130,6 +134,7 @@ impl Session {
         self.world = world;
         self.streaming = streaming;
         self.world_info = info;
+        self.gameplay = save.gameplay;
         self.camera = save.camera;
         self.seed = save.seed;
         self.selected_part = save.selected_part;
@@ -153,6 +158,7 @@ impl Session {
 }
 
 fn validate_settings(save: &Save) -> Result<(), BuildError> {
+    save.gameplay.validate().map_err(invalid)?;
     if !save.camera.position.is_finite()
         || !save.camera.target.is_finite()
         || !save.camera.yaw.is_finite()

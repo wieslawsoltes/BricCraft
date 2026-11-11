@@ -7,6 +7,13 @@ impl StreamWorld {
     pub fn can_redo(&self) -> bool {
         !self.redo.is_empty()
     }
+    /// Inspect the next complete logical edit without mutating global state.
+    pub fn undo_change(&self) -> Option<&GlobalChange> {
+        self.undo.back()
+    }
+    pub fn redo_change(&self) -> Option<&GlobalChange> {
+        self.redo.last()
+    }
 
     pub fn clear_history(&mut self) {
         self.undo.clear();

@@ -30,7 +30,8 @@ for (let attempt = 1; attempt <= 12; attempt++) {
     assert.ok(metrics && typeof metrics === "object", "Browser evidence is missing");
     assert.equal(metrics.terrain?.parts, 12820, "Complete-area browser evidence is missing");
     assert.ok(metrics.mobile, "Mobile browser evidence is missing");
-    for (const name of ["brandenburg", "telegraph-hill", "mobile-terrain", "mobile-studio", "mobile-landscape"]) {
+    assert.ok(metrics.gameplay?.saveRoundTrip, "Expedition persistence evidence is missing");
+    for (const name of ["brandenburg", "telegraph-hill", "expedition", "mobile-expedition", "mobile-terrain", "mobile-studio", "mobile-landscape"]) {
       const preview = await resource(`previews/${name}.png`);
       assert.match(preview.headers.get("content-type") ?? "", /^image\/png\b/i);
       assert.ok((await preview.arrayBuffer()).byteLength > 1_024, `${name} preview is empty`);

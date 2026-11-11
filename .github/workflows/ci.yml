@@ -23,6 +23,7 @@ jobs:
       browser-script: |
         node tests/import-host.mjs
         node tests/elevation-host.mjs
+        node tests/canvas-size.mjs
         bash scripts/build-import-worker.sh "$SITE"
         node tests/import-engine.mjs "$SITE"
         rustc --edition=2021 --test crates/briccraft-browser/src/runtime/resolution.rs -o "$RUNNER_TEMP/resolution-tests"
@@ -34,7 +35,7 @@ jobs:
         timeout 2m node tests/storage.mjs
         timeout 20m node tests/browser.mjs "$SITE" "$RUNNER_TEMP/smoke"
         mkdir -p "$SITE/previews"
-        for name in island rover world-library brandenburg telegraph-hill compact-world-library mobile-terrain mobile-studio mobile-landscape; do
+        for name in island rover world-library brandenburg telegraph-hill expedition mobile-expedition compact-world-library mobile-terrain mobile-studio mobile-landscape; do
           cp "$RUNNER_TEMP/smoke/$name.png" "$SITE/previews/$name.png"
         done
         cp "$RUNNER_TEMP/smoke/browser-metrics.json" "$SITE/previews/metrics.json"
@@ -71,6 +72,7 @@ jobs:
           -p briccraft-parts -p briccraft-world -p briccraft-mechanics
           -p briccraft-game -p briccraft-stream -p briccraft-import
           -p briccraft-import-worker -p briccraft-render-data -p briccraft-terrain
+          -p briccraft-play -p briccraft-character
       - name: Native SDK and Python capabilities
         run: |
           xcrun --find clang

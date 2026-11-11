@@ -26,6 +26,14 @@ impl History {
     pub fn can_redo(&self) -> bool {
         !self.redo.is_empty()
     }
+    /// Read-only transaction inspection lets callers authorize external state
+    /// (for example a construction wallet) before applying an undo or redo.
+    pub fn undo_change(&self) -> Option<&ChangeSet> {
+        self.undo.last()
+    }
+    pub fn redo_change(&self) -> Option<&ChangeSet> {
+        self.redo.last()
+    }
     pub fn clear(&mut self) {
         self.undo.clear();
         self.redo.clear();

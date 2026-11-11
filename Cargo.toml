@@ -283,6 +283,8 @@ getrandom = { version = "0.4" }
 briccraft-parts = { path = "crates/briccraft-parts" }
 briccraft-world = { path = "crates/briccraft-world" }
 briccraft-terrain = { path = "crates/briccraft-terrain" }
+briccraft-character = { path = "crates/briccraft-character" }
+briccraft-play = { path = "crates/briccraft-play" }
 briccraft-mechanics = { path = "crates/briccraft-mechanics" }
 briccraft-render = { path = "crates/briccraft-render" }
 briccraft-game = { path = "crates/briccraft-game" }

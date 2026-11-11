@@ -94,6 +94,8 @@ pub enum UiAction {
     SetQuality(u8),
     SetGrid(bool),
     SetPaused(bool),
+    /// Switch the ruleset while keeping this world's balance and objective history.
+    SetExpedition(bool),
     /// Set held movement in camera-local axes; all zero releases the input.
     Move {
         forward: f64,
@@ -138,6 +140,7 @@ pub struct UiState {
     pub world_busy: Signal<bool>,
     pub import_progress: Signal<f64>,
     pub mechanics: Signal<String>,
+    pub gameplay: Signal<crate::gameplay_model::GameplayView>,
     pub catalog_open: Signal<bool>,
     pub blueprints_open: Signal<bool>,
     pub help_open: Signal<bool>,
@@ -145,6 +148,7 @@ pub struct UiState {
     pub worlds_open: Signal<bool>,
     pub imports_open: Signal<bool>,
     pub credits_open: Signal<bool>,
+    pub gameplay_open: Signal<bool>,
     pub sound: Signal<bool>,
     pub grid: Signal<bool>,
     pub compact: Signal<bool>,
@@ -184,6 +188,7 @@ impl UiState {
             mechanics: signal(
                 "Connect a chassis, motor, axles and wheels to bring your build to life.".into(),
             ),
+            gameplay: signal(crate::gameplay_model::GameplayView::default()),
             catalog_open: signal(false),
             blueprints_open: signal(false),
             help_open: signal(false),
@@ -191,6 +196,7 @@ impl UiState {
             worlds_open: signal(false),
             imports_open: signal(false),
             credits_open: signal(false),
+            gameplay_open: signal(false),
             sound: signal(true),
             grid: signal(false),
             compact: signal(false),
@@ -213,6 +219,7 @@ impl UiState {
             self.worlds_open.set(false);
             self.imports_open.set(false);
             self.credits_open.set(false);
+            self.gameplay_open.set(false);
         });
     }
 
@@ -224,6 +231,7 @@ impl UiState {
             || self.worlds_open.get()
             || self.imports_open.get()
             || self.credits_open.get()
+            || self.gameplay_open.get()
             || self.import_busy.get()
             || self.world_busy.get()
     }
@@ -236,6 +244,7 @@ impl UiState {
             || self.worlds_open.get_untracked()
             || self.imports_open.get_untracked()
             || self.credits_open.get_untracked()
+            || self.gameplay_open.get_untracked()
             || self.import_busy.get_untracked()
             || self.world_busy.get_untracked()
     }

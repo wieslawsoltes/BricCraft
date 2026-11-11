@@ -26,7 +26,12 @@ pub fn view(state: UiState, dispatch: Dispatch) -> Element {
             check_box().content("Use this map's meters per stud").is_checked(move || Some(map_scale.get()))
                 .on_click(move |_| map_scale.set(!map_scale.get_untracked())),
             button().content("Add a model to this world")
+                .is_enabled(move || !state.gameplay.get().expedition)
                 .on_click(move |_| append(UiAction::AppendModel { size: size.get_untracked(), map_scale: map_scale.get_untracked() })),
+            text_block().text("Adding models requires Creative. Opening a model file creates a separate Creative world.")
+                .is_visible(move || state.gameplay.get().expedition)
+                .font_size(12.0).foreground("#F2BD7B")
+                .text_wrapping(ferroui_base::media::TextWrapping::Wrap),
             controls::caption("Place at the construction target. Meter scale aligns a glTF model's dimensions with the map. Choose a clear area; overlapping imports are rejected."),
         )),
         button().class("quiet").content("Try Khronos ToyCar · CC0")

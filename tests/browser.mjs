@@ -5,6 +5,8 @@ import path from 'node:path';
 import {open,sleep,assert,differing} from '../FerroUI/scripts/browser/harness.mjs';
 import {checkTerrainArea} from './terrain-browser.mjs';
 import {checkMobile} from './mobile.mjs';
+import {checkCanvasPresentation} from './graphics-browser.mjs';
+import {checkGameplay} from './gameplay-browser.mjs';
 const site=process.argv[2],out=process.argv[3] || 'target/browser-checks';
 const page=await open(site,{width:1280,height:800,network:true});
 const state=async()=>JSON.parse(await page.evaluate('briccraft.briccraftState()'));
@@ -54,6 +56,7 @@ try {
     assert(worldLayer.effectiveQuality<=worldLayer.requestedQuality && start.renderer.shaderQuality===worldLayer.effectiveQuality,
         'The actual shader must respect the requested and adaptive quality limits');
     measurements.presented=await presentedSample();
+    measurements.canvasSizing=await checkCanvasPresentation(page,presentedSample);
     console.log('Presented frames over elapsed wall time:',JSON.stringify(measurements.presented));
     assert(start.parts>5000,'The initial world must contain actual geometry');
     const before=await page.screenshot(undefined,{x:300,y:110,width:640,height:440});
@@ -134,6 +137,9 @@ try {
 
     stage('Generating a complete real area with measured elevation');
     measurements.terrain=await checkTerrainArea({page,state,command,wait,current,out,presentedSample});
+
+    stage('Playing a funded expedition with persistent objectives');
+    measurements.gameplay=await checkGameplay({page,state,command,wait,current,out});
 
     stage('Checking the compact native world library');
     await page.resize(390,844); await sleep(350); await page.press('g'); await sleep(200);

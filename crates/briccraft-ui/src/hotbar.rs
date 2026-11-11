@@ -46,12 +46,26 @@ pub fn hotbar(
                                 text_block()
                                     .text(state.selected_name)
                                     .max_width(
-                                        move || if state.compact.get() { 234.0 } else { 350.0 },
+                                        move || if state.compact.get() { 154.0 } else { 300.0 },
                                     )
                                     .max_lines(1)
                                     .text_trimming(<dyn TextTrimming>::character_ellipsis())
                                     .font_size(12.0)
                                     .font_weight(FontWeight::SemiBold),
+                                text_block()
+                                    .name("HotbarCost")
+                                    .text(move || {
+                                        format!("{} Studs", state.gameplay.get().selected_cost)
+                                    })
+                                    .is_visible(move || state.gameplay.get().expedition)
+                                    .font_size(10.0)
+                                    .foreground(move || {
+                                        if state.gameplay.get().selected_affordable {
+                                            "#AFE5BC"
+                                        } else {
+                                            "#FFBEA3"
+                                        }
+                                    }),
                                 text_block()
                                     .text(state.selected_size)
                                     .font_size(10.0)
@@ -75,6 +89,7 @@ pub fn hotbar(
                                 button()
                                     .class("primary")
                                     .content("Place")
+                                    .is_enabled(move || state.gameplay.get().selected_affordable)
                                     .height(32.0)
                                     .min_height(32.0)
                                     .padding((8.0, 2.0))

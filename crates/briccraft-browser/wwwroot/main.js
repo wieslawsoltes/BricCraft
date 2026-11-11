@@ -1,10 +1,13 @@
-import { FerroExports } from './ferroui.js';
+import { FerroExports, WebRenderTarget } from './ferroui.js';
 import { loadModule } from './ferroui-loader.js';
 import { installStorage } from './storage-host.js';
 import { installInput } from './input-host.js';
 import { installImports } from './import-host.js';
 import { installAudio } from './audio-host.js';
 import { installGraphics } from './graphics-host.js';
+import { installCanvasSizing } from './canvas-size.js';
+
+export let canvasSizing;
 
 const mount = document.getElementById('out');
 const loading = document.getElementById('loading');
@@ -20,6 +23,7 @@ try {
         installAudio();
         installInput(runtime, mount);
         installGraphics(mount);
+        canvasSizing=installCanvasSizing(mount,WebRenderTarget);
         message.textContent = 'Snapping the last pieces into place…';
         runtime.runMain(location.search);
         storage.ready().finally(() => runtime.briccraftWorldReady());

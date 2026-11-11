@@ -8,6 +8,7 @@ pub struct Session {
     pub history: History,
     pub streaming: Option<StreamSession>,
     pub world_info: WorldInfo,
+    pub gameplay: briccraft_play::Gameplay,
     /// Changes whenever a complete World is replaced, even if its local revision number repeats.
     pub scene_generation: u64,
     pub camera: CameraRig,
@@ -43,6 +44,7 @@ impl Session {
             history: History::default(),
             streaming: None,
             world_info: WorldInfo::classic(seed),
+            gameplay: briccraft_play::Gameplay::default(),
             scene_generation: 0,
             camera: CameraRig::default(),
             input: Input::default(),
@@ -79,7 +81,9 @@ impl Session {
         while self.accumulator >= STEP {
             self.accumulator -= STEP;
             self.time += STEP;
+            let mut travel = None;
             if let Some(active) = &mut self.active_vehicle {
+                let previous = active.vehicle.position;
                 let axes = self.input.axes();
                 let controls = briccraft_mechanics::VehicleControl {
                     throttle: axes[2],
@@ -117,13 +121,47 @@ impl Session {
                     active.vehicle.velocity[2] = 0.0;
                     self.status = "World edge · turn or reverse to continue. Your construction remains inside the build area.".into();
                 }
+                let current = active.vehicle.position;
+                let horizontal = ((current[0] - previous[0]).powi(2)
+                    + (current[2] - previous[2]).powi(2))
+                .sqrt();
+                let airborne = active.vehicle.kind == briccraft_mechanics::VehicleKind::Plane
+                    && current[1]
+                        > world.surface_height_excluding(current[0], current[2], ids) + 1.5;
+                travel = Some((
+                    if airborne {
+                        briccraft_play::TravelKind::Flight
+                    } else {
+                        briccraft_play::TravelKind::Drive
+                    },
+                    if airborne {
+                        (horizontal.powi(2) + (current[1] - previous[1]).powi(2)).sqrt()
+                    } else {
+                        horizontal
+                    },
+                ));
                 self.camera
                     .follow(active.vehicle.position, active.vehicle.yaw, STEP);
             } else {
-                let world = &self.world;
-                self.camera.tick(STEP, &self.input, |x, z| {
-                    world.surface_height(x, z).max(2.4)
+                let previous = self.camera.position;
+                self.camera.tick_world(STEP, &self.input, &self.world);
+                if self.camera.mode == CameraMode::Walk {
+                    let delta = self.camera.position - previous;
+                    travel = Some((
+                        briccraft_play::TravelKind::Walk,
+                        (delta.x * delta.x + delta.z * delta.z).sqrt(),
+                    ));
+                }
+            }
+            if let Some((kind, distance)) = travel {
+                let reward = self.gameplay.record(briccraft_play::Activity::Travel {
+                    kind,
+                    studs: distance as f64,
                 });
+                let message = crate::gameplay::reward_text(reward);
+                if !message.is_empty() {
+                    self.status = message.trim().into();
+                }
             }
         }
         self.update_pick();
@@ -179,8 +217,20 @@ impl Session {
             self.change_streamed_history(false);
             return;
         }
+        let permit = match self.approve_local_history(false) {
+            Ok(permit) => permit,
+            Err(error) => {
+                self.status = error;
+                return;
+            }
+        };
         self.status = match self.history.undo(&mut self.world) {
-            Ok(true) => "Construction undone.".into(),
+            Ok(true) => {
+                self.gameplay
+                    .commit(permit.expect("history exists"))
+                    .expect("approved undo wallet");
+                "Construction undone. Resource change reversed; objective rewards are never replayed.".into()
+            }
             Ok(false) => "No earlier construction to undo.".into(),
             Err(e) => e.to_string(),
         };
@@ -195,8 +245,20 @@ impl Session {
             self.change_streamed_history(true);
             return;
         }
+        let permit = match self.approve_local_history(true) {
+            Ok(permit) => permit,
+            Err(error) => {
+                self.status = error;
+                return;
+            }
+        };
         self.status = match self.history.redo(&mut self.world) {
-            Ok(true) => "Construction restored.".into(),
+            Ok(true) => {
+                self.gameplay
+                    .commit(permit.expect("history exists"))
+                    .expect("approved redo wallet");
+                "Construction restored. Resources accounted once; objective rewards are never replayed.".into()
+            }
             Ok(false) => "No construction to redo.".into(),
             Err(e) => e.to_string(),
         };

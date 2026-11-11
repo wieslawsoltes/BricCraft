@@ -59,6 +59,7 @@ impl Runtime {
                     game.paused = value;
                     game.input.clear();
                 }
+                UiAction::SetExpedition(enabled) => game.set_expedition(enabled),
                 UiAction::Move {
                     forward,
                     strafe,

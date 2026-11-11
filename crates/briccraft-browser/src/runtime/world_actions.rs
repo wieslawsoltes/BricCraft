@@ -76,6 +76,10 @@ impl Runtime {
 
     fn append_model(&self, size: f64, map_scale: bool) {
         let mut game = self.session.borrow_mut();
+        if game.gameplay.is_expedition() {
+            game.status = "Switch this world to Creative before importing additional geometry. Your expedition progress stays saved.".into();
+            return;
+        }
         if !game.is_streamed() {
             game.status = "Open a streamed world before adding a model.".into();
             return;

@@ -177,7 +177,16 @@ pub fn controls(state: UiState, dispatch: Dispatch) -> Element {
                                     .name("TouchPlace")
                                     .grid_column_span(2)
                                     .class("primary")
-                                    .content("Place brick")
+                                    .content(move || {
+                                        let play = state.gameplay.get();
+                                        if play.expedition {
+                                            format!("Place · {}", play.selected_cost)
+                                        } else {
+                                            "Place brick".into()
+                                        }
+                                    })
+                                    .font_size(12.0)
+                                    .is_enabled(move || state.gameplay.get().selected_affordable)
                                     .height(48.0)
                                     .margin(2.0)
                                     .padding((8.0, 0.0))

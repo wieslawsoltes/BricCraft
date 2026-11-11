@@ -79,6 +79,13 @@ pub fn blueprints(state: UiState, dispatch: Dispatch) -> Element {
                 .padding(11.0)
                 .background("#1E303A")
                 .corner_radius(10.0)
+                .is_enabled(move || {
+                    state
+                        .gameplay
+                        .get()
+                        .blueprint(id)
+                        .is_some_and(|quote| quote.affordable)
+                })
                 .on_click(move |_| {
                     dispatch(UiAction::SpawnBlueprint(id.into()));
                     state.blueprints_open.set(false);
@@ -103,6 +110,40 @@ pub fn blueprints(state: UiState, dispatch: Dispatch) -> Element {
                                     .font_size(10.0)
                                     .foreground(theme::MUTED)
                                     .text_wrapping(TextWrapping::Wrap),
+                                text_block()
+                                    .text(move || {
+                                        let play = state.gameplay.get();
+                                        match play.blueprint(id) {
+                                            Some(quote) if !play.expedition => format!(
+                                                "Creative · unlimited | Expedition: {} Studs",
+                                                quote.studs
+                                            ),
+                                            Some(quote) if quote.affordable => format!(
+                                                "{} Studs · within your balance",
+                                                quote.studs
+                                            ),
+                                            Some(quote) => format!(
+                                                "{} Studs · {} more needed",
+                                                quote.studs,
+                                                quote.studs.saturating_sub(play.studs)
+                                            ),
+                                            None => "Construction quote unavailable".into(),
+                                        }
+                                    })
+                                    .font_size(10.0)
+                                    .text_wrapping(TextWrapping::Wrap)
+                                    .foreground(move || {
+                                        if state
+                                            .gameplay
+                                            .get()
+                                            .blueprint(id)
+                                            .is_some_and(|quote| quote.affordable)
+                                        {
+                                            "#A8D3B4"
+                                        } else {
+                                            "#FFBEA3"
+                                        }
+                                    }),
                             )),
                     )),
                 )
@@ -149,6 +190,12 @@ pub fn settings(state: UiState, dispatch: Dispatch) -> Element {
                 controls::action_button("Import", "Open an exported world file", UiAction::Import, dispatch),
             ]),
             controls::caption("Worlds stay in your browser. Export a file to keep a backup or move a world to another device."),
+            grid().column_definitions("*,*").children((
+                button().content("Play & objectives").margin((0.0, 0.0, 4.0, 0.0))
+                    .on_click(move |_| crate::gameplay::toggle(state)),
+                button().grid_column(1).content("Controls & help").margin((4.0, 0.0, 0.0, 0.0))
+                    .on_click(move |_| { state.close_panels(); state.help_open.set(true); }),
+            )),
             stack_panel().spacing(12.0).children((
             separator(), controls::label("DAYLIGHT"),
             slider().name("Daylight").minimum(0.0).maximum(1.0).value(state.daylight)
@@ -215,6 +262,7 @@ pub fn help(state: UiState) -> Element {
         ("R", "Rotate the part by a quarter turn"),
         ("1–8", "Select a hotbar part"),
         ("B", "Open the library; brake while driving"),
+        ("O", "Gameplay, resources and objectives"),
         ("TAB", "Switch builder / first-person mode"),
         ("WASD", "Move, drive, or steer"),
         ("SPACE", "Jump or climb when flying"),

@@ -107,6 +107,7 @@ impl Runtime {
 
 mod actions;
 mod frame;
+pub(crate) mod gameplay;
 mod hud;
 mod layout;
 mod resolution;

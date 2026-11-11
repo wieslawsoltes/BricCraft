@@ -50,18 +50,13 @@ impl Session {
             self.status = "Point at a brick face to attach a part.".into();
             return;
         };
-        self.status = match self
-            .history
-            .execute(&mut self.world, &[BuildOp::Place(placement)])
-        {
-            Ok(_) => match self.capture_streamed_edits() {
-                Ok(_) => format!(
-                    "Placed {} · R rotates · Ctrl Z undoes.",
-                    part(self.selected_part).map_or("brick", |p| p.name)
-                ),
-                Err(error) => format!("Placement was not saved: {error}"),
-            },
-            Err(e) => e.to_string(),
+        self.status = match self.execute_construction(&[BuildOp::Place(placement)]) {
+            Ok((_, reward)) => format!(
+                "Placed {} · R rotates · Ctrl Z undoes.{}",
+                part(self.selected_part).map_or("brick", |p| p.name),
+                reward
+            ),
+            Err(error) => error,
         };
         self.update_pick();
     }
@@ -74,15 +69,21 @@ impl Session {
         let Some(hit) = &self.hit else {
             return;
         };
-        self.status = match self
-            .history
-            .execute(&mut self.world, &[BuildOp::Remove(hit.id)])
-        {
-            Ok(_) => match self.capture_streamed_edits() {
-                Ok(_) => "Part removed. Ctrl Z restores it.".into(),
-                Err(error) => format!("Removal was not saved: {error}"),
-            },
-            Err(e) => e.to_string(),
+        let id = hit.id;
+        let value = self
+            .world
+            .instance(id)
+            .and_then(|p| briccraft_play::part_cost(p.part_id))
+            .unwrap_or(0);
+        self.status = match self.execute_construction(&[BuildOp::Remove(id)]) {
+            Ok((_, reward)) => {
+                if self.gameplay.is_expedition() {
+                    format!("Recycled part · +{value} studs. Ctrl Z restores it and repays the refund.{reward}")
+                } else {
+                    "Part removed. Ctrl Z restores it.".into()
+                }
+            }
+            Err(error) => error,
         };
         self.update_pick();
     }

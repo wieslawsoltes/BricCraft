@@ -3,6 +3,7 @@ use super::*;
 impl Runtime {
     pub fn sync_hud(&self) {
         let game = self.session.borrow();
+        let gameplay = gameplay::project(&game);
         let state = self.state;
         let selected_part = game.selected_part;
         let selected_color = game.color;
@@ -82,8 +83,7 @@ impl Runtime {
                 active.vehicle.gear
             )
         } else {
-            "Connect a chassis, motor, axles and wheels. Insert a blueprint or build your own."
-                .into()
+            format!("{} · {}", gameplay.workshop.title, gameplay.workshop.detail)
         };
         drop(game);
         batch(|| {
@@ -109,6 +109,7 @@ impl Runtime {
             state.paused.set_if_changed(paused);
             state.daylight.set_if_changed(daylight);
             state.mechanics.set_if_changed(mechanics);
+            state.gameplay.set_if_changed(gameplay);
         });
     }
 }

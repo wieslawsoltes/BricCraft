@@ -3,6 +3,7 @@
 mod blueprints;
 pub mod camera;
 mod construction;
+mod gameplay;
 mod importing;
 pub mod input;
 mod persistence;
@@ -18,6 +19,8 @@ pub use input::Input;
 pub use session::Session;
 pub use streaming::StreamSession;
 pub use world_info::{GameAttribution, WorldInfo};
+pub use briccraft_play::{BuildQuote, GameMode, Gameplay, ObjectiveView};
+pub use vehicle::WorkshopStatus;
 
 #[cfg(test)]
 mod import_tests;

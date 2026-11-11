@@ -31,6 +31,9 @@ impl Session {
         label: String,
         attributions: Vec<GameAttribution>,
     ) -> Result<(), StreamError> {
+        if self.gameplay.is_expedition() {
+            return Err(StreamError::InvalidSave("Switch to Creative before importing maps or models. Imported geography uses unlimited construction; expedition resources are not charged.".into()));
+        }
         if self.active_vehicle.is_some() {
             return Err(StreamError::InvalidSave(
                 "Park the active vehicle before importing a construction".into(),

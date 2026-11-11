@@ -177,6 +177,24 @@ impl Session {
             self.status = error.to_string();
             return;
         }
+        let permit = {
+            let state = self.streaming.as_ref().expect("streamed history caller");
+            let change = if redo {
+                state.stream.redo_change()
+            } else {
+                state.stream.undo_change()
+            };
+            match change
+                .map(|change| self.approve_global_history(change, redo))
+                .transpose()
+            {
+                Ok(permit) => permit,
+                Err(error) => {
+                    self.status = error;
+                    return;
+                }
+            }
+        };
         let state = self.streaming.as_mut().expect("streamed history caller");
         let result = if redo {
             state.stream.redo()
@@ -184,16 +202,21 @@ impl Session {
             state.stream.undo()
         };
         self.status = match result {
-            Ok(Some(_)) => match self.refresh_streamed_world() {
-                Ok(()) => {
-                    if redo {
-                        "Construction restored across the open world.".into()
-                    } else {
-                        "Construction undone across the open world.".into()
+            Ok(Some(_)) => {
+                self.gameplay
+                    .commit(permit.expect("global history exists"))
+                    .expect("approved global history wallet");
+                match self.refresh_streamed_world() {
+                    Ok(()) => {
+                        if redo {
+                            "Construction restored across the open world.".into()
+                        } else {
+                            "Construction undone across the open world.".into()
+                        }
                     }
+                    Err(error) => error.to_string(),
                 }
-                Err(error) => error.to_string(),
-            },
+            }
             Ok(None) => {
                 if redo {
                     "No construction to redo.".into()

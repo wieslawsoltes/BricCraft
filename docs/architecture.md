@@ -13,6 +13,8 @@ BricCraft is a Rust workspace with a pinned FerroUI submodule. All visible game 
 | `briccraft-import` | OSM geometry, georeferencing, OBJ/glTF/GLB parsing, texture sampling, surface voxelization and exact-cover brick packing | None |
 | `briccraft-import-worker` | Small wasm-bindgen conversion boundary for a dedicated Web Worker | wasm-bindgen only |
 | `briccraft-mechanics` | Gear constraints, shafts, transmission, differential, steering, springs, rails and vehicle dynamics | None |
+| `briccraft-character` | Generic voxel collision interface, swept character movement, wall sliding, stepping, gravity and grounded jumps | None |
+| `briccraft-play` | Catalog costs, resource permits, Creative/Expedition rules, movement objectives and one-time rewards | None |
 | `briccraft-game` | Input state, cameras, construction/vehicle session and session persistence | None |
 | `briccraft-render-data` | Bounded occupancy/descriptor atlases, independent body namespaces and packing metrics | None |
 | `briccraft-render` | GPU ray traversal, procedural part surfaces, lighting, water and animated assemblies | FerroUI Base effects and bitmaps |
@@ -126,6 +128,14 @@ The world effect belongs to a child visual inside a separate parent `BitmapCache
 
 An adaptive controller uses actual presented frames and elapsed time to adjust the world's physical pixel budget. It starts with a bounded 65,536-pixel world surface, accounts for browser device scale, reduces work promptly on slow devices, and raises detail only after sustained headroom. The user's quality selection is an upper bound. Fast and Balanced use analytic part intersections; Cinematic retains the detailed signed-distance part shapes. Their shader programs are separate effect types, so the fast program excludes the expensive secondary traversal instead of only hiding it behind a uniform branch. Diagnostics expose requested/effective quality, world surface dimensions, scale and measured presentation rate. None of these changes lowers native UI resolution.
 
+The browser adapter also skips repeated `WebRenderTarget.setSize` calls when its
+owned WebGL canvas already has exactly the requested backing dimensions. Real size
+changes and all foreign, software, and worker targets retain the framework's
+behavior. This avoids redundant width/height assignments without changing the
+submodule or DOM prototypes. The browser gate records a same-page A/B/A comparison
+of actual presented frames, size calls, world resolution, and shader quality;
+different adaptive configurations are explicitly marked as incomparable.
+
 A conservative hierarchy stores maximum occupied heights for 4-, 16- and 64-stud
 columns in 576 RGB texels. Rays skip air only above the full part envelope plus its
 studs; roofs, caves and overhangs still use ordinary three-dimensional intersections.
@@ -153,6 +163,47 @@ native scrollable panel rather than occupying the world with a long attribution 
 
 The session samples held input at 60 Hz. Vehicle integration subdivides to 120 Hz; display frame spikes are bounded. Input is cleared on focus loss, panel interaction and pause. Picking and placement share the same world coordinate conventions as rendering.
 
+Walking uses a reusable upright cylindrical controller over the occupancy grid. Its
+0.32-stud radius, 2.5-unit body and 2.2-unit eye height are explicit configuration.
+Horizontal sweeps resolve faces and rounded corners, then project remaining movement
+along contact planes. Continuous vertical sweeps prevent tunneling through plate floors
+or ceilings. A step is at most two plates and needs clear headroom and destination
+support. Gravity and acceleration integrate in bounded 1/120-second substeps. Jump is
+grounded and press-triggered. Fly and Orbit remain separate; Walk panning cannot bypass
+collision. Controller state is ephemeral while the camera's serialized schema remains
+compatible. Position belongs to the caller, so streaming can rebase without resetting
+velocity. The occupancy contract and bottom safety plane are documented in the character
+crate; shaped visual holes are conservative solids and swimming is not implemented.
+
+### Expedition transactions and progression
+
+`briccraft-play` has no world, rendering or UI dependency. A stable catalog price combines
+part-envelope material volume with functional-component cost. A `ChangeValue` contains
+the actual added and removed catalog values. `Gameplay::approve` produces a non-cloneable,
+single-use `ResourcePermit` without mutating the wallet. Session first validates and
+commits the world transaction and captures streamed edits; only then does it consume
+the permit and record successful gameplay activity. A failed local or global edit does
+not consume funds or advance objectives.
+
+History exposes read-only next-change views. Undo and redo quote the actual forward or
+inverse change before mutation; an unaffordable inverse leaves geometry and history in
+place. Parking changes pose without changing part value. Objective rewards are not
+replayed by history. Mode changes clear both local and global construction history to
+avoid repricing an earlier free action under the paid ruleset.
+
+Eight objective tracks record committed placements, recycling, structures, mechanical
+activation and actual Walk/vehicle movement. Distances are accumulated from simulation
+steps, with bounded millistud counters; camera focus, free flight and origin changes do
+not add travel. A bitset records rewards already granted. Balance, mode, counters and
+claimed rewards persist in a validated optional gameplay envelope; legacy saves default
+to Creative. Limits reject unsupported versions and oversized state before replacing
+the active session. Switching back from Creative preserves progress and never reissues
+the initial supply. Creative still allows unlimited world editing by design.
+
+Workshop display and activation share one preparation/assessment path. The native UI
+receives small presentation snapshots and price quotes; it does not calculate prices,
+award objectives or duplicate mechanical readiness rules.
+
 Construction transactions validate all removals/additions before committing, so a blueprint, undo, redo or parked assembly cannot be half applied. Save files carry explicit schema versions and reject malformed identities, bounds, colors, overlaps and camera settings before replacing the live session. Browser saves use IndexedDB transactions. Export/import uses the same validated JSON format.
 
 Session version 2 stores either a classic local world or sparse streamed state, plus the
@@ -167,8 +218,9 @@ Rust, while separate copies and reversible archiving operate on independent reco
 ## Current boundaries
 
 This release implements a creative construction sandbox with horizontally streamed worlds.
-Complete Minecraft gameplay parity—survival progression, hostile creatures, crafting
-recipes, redstone-like logic and networking—is not implemented. Vertical occupancy is
+Complete Minecraft gameplay parity—survival/hunger systems, hostile creatures, crafting
+recipes, redstone-like logic and networking—is not implemented. Expedition adds a
+construction economy and real-action progression. Vertical occupancy is
 72 plates (28.8 studs); mesh imports fit uniformly, while area imports expose explicit
 vertical fitting. There is no continuously streamed planet or photogrammetric tile service. Imported real areas are
 finite source datasets placed in the open procedural world; their footprint/height

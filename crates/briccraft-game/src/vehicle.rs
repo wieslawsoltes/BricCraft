@@ -1,8 +1,10 @@
 use crate::Session;
-use briccraft_mechanics::{assess_assembly, Vehicle, VehicleKind};
+use briccraft_mechanics::Vehicle;
+mod workshop;
 use briccraft_stream::{GlobalPlacement, PartKey};
 use briccraft_world::Instance;
 use std::rc::Rc;
+pub use workshop::WorkshopStatus;
 
 pub struct ActiveVehicle {
     pub instance_ids: Vec<u32>,
@@ -31,89 +33,21 @@ impl Session {
             self.status = error.to_string();
             return;
         }
-        let pointed = self
-            .hit
-            .as_ref()
-            .map(|h| self.world.connected_assembly(h.id, 256))
-            .unwrap_or_default();
-        let pointed_parts: Vec<_> = pointed
-            .iter()
-            .filter_map(|id| self.world.instance(*id).cloned())
-            .collect();
-        let pointed_ready = pointed.len() < 256 && assess_assembly(&pointed_parts).drive_ready;
-        let ids = if pointed_ready {
-            pointed
-        } else {
-            self.last_blueprint
-                .iter()
-                .copied()
-                .filter(|id| self.world.instance(*id).is_some())
-                .collect::<Vec<_>>()
-        };
-        if ids.is_empty() {
-            self.status =
-                "Insert a vehicle blueprint, or point at your connected vehicle construction."
-                    .into();
-            return;
-        }
-        let instances: Vec<_> = ids
-            .iter()
-            .filter_map(|id| self.world.instance(*id).cloned())
-            .collect();
-        let assessment = assess_assembly(&instances);
-        if !assessment.drive_ready {
-            self.status = format!(
-                "Construction needs attention: {}.",
-                assessment.reasons.join("; ")
-            );
-            return;
-        }
-        let mut min = [f32::MAX; 3];
-        let mut max = [f32::MIN; 3];
-        let mut wheels = 0;
-        let mut propellers = 0;
-        let mut wings = 0;
-        let mut hulls = 0;
-        for id in &ids {
-            if let Some(instance) = self.world.instance(*id) {
-                let p = briccraft_parts::part(instance.part_id).unwrap();
-                wheels += usize::from(p.shape == briccraft_parts::Shape::Wheel);
-                propellers += usize::from(p.shape == briccraft_parts::Shape::Propeller);
-                wings += usize::from(p.shape == briccraft_parts::Shape::Wing);
-                hulls += usize::from(p.name.to_ascii_lowercase().contains("hull"));
-                let pos = instance.world_position();
-                let size = instance.size();
-                for axis in 0..3 {
-                    min[axis] = min[axis].min(pos[axis]);
-                    max[axis] = max[axis]
-                        .max(pos[axis] + f32::from(size[axis]) * if axis == 1 { 0.4 } else { 1.0 });
-                }
+        let prepared = match self.prepare_vehicle(kind) {
+            Ok(prepared) => prepared,
+            Err(error) => {
+                self.status = error;
+                return;
             }
-        }
-        if ids.len() >= 256 || (max[0] - min[0]) > 32.0 || (max[2] - min[2]) > 32.0 {
-            self.status="This assembly is connected to the landscape. Build the vehicle as a separate construction or insert a vehicle blueprint.".into();
-            return;
-        }
-        let kind = match kind {
-            "car" => VehicleKind::Car,
-            "plane" => VehicleKind::Plane,
-            "train" => VehicleKind::Train,
-            "boat" => VehicleKind::Boat,
-            _ => assessment.suggested_vehicle,
         };
-        let ready = match kind {
-            VehicleKind::Car | VehicleKind::Train => wheels >= 2,
-            VehicleKind::Plane => wings >= 1 && propellers >= 1,
-            VehicleKind::Boat => hulls >= 1,
-        };
-        if self.is_streamed() && kind == VehicleKind::Train {
-            self.status = "Powered trains use the coastal railway in Sunlit Archipelago. This open world has no guided railway network yet; the locomotive remains editable here.".into();
-            return;
-        }
-        if !ready {
-            self.status="This construction is missing running gear. Cars and trains need wheels; planes need wings and a propeller; boats need a hull.".into();
-            return;
-        }
+        let workshop::PreparedVehicle {
+            ids,
+            instances,
+            assessment,
+            min,
+            max,
+            kind,
+        } = prepared;
         let pivot = [(min[0] + max[0]) * 0.5, min[1], (min[2] + max[2]) * 0.5];
         let base_yaw = assessment.forward_yaw;
         let mut vehicle = Vehicle::new(kind, pivot);
@@ -134,9 +68,9 @@ impl Session {
         });
         self.input.clear();
         self.preview = None;
-        self.status =
-            "Vehicle active · W / S throttle · A / D steer · E / Q lift · B brake · Escape parks."
-                .into();
+        let reward =
+            crate::gameplay::reward_text(self.gameplay.record(briccraft_play::Activity::Activated));
+        self.status = format!("Vehicle active · W / S throttle · A / D steer · E / Q lift · B brake · Escape parks.{reward}");
     }
     pub fn park_vehicle(&mut self) {
         let Some(active) = &self.active_vehicle else {

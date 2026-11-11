@@ -94,12 +94,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "briccraft-character"
+version = "0.1.0"
+dependencies = [
+ "glam",
+]
+
+[[package]]
 name = "briccraft-game"
 version = "0.1.0"
 dependencies = [
+ "briccraft-character",
  "briccraft-import",
  "briccraft-mechanics",
  "briccraft-parts",
+ "briccraft-play",
  "briccraft-stream",
  "briccraft-world",
  "glam",
@@ -151,6 +160,15 @@ name = "briccraft-parts"
 version = "0.1.0"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "briccraft-play"
+version = "0.1.0"
+dependencies = [
+ "briccraft-parts",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

@@ -4,6 +4,8 @@ mod catalog;
 mod controls;
 mod credits;
 mod dialogs;
+mod gameplay;
+mod gameplay_model;
 mod header;
 mod hotbar;
 mod hud;
@@ -13,12 +15,15 @@ mod import_progress;
 mod imports;
 mod layout;
 mod model;
+mod objectives;
 mod preview;
 mod theme;
 mod touch;
+mod workshop;
 mod worlds;
 
 use ferroui_view::prelude::*;
+pub use gameplay_model::{BlueprintQuote, GameplayView, ObjectiveCard, WorkshopView};
 pub use layout::UiLayout;
 pub use model::{
     ColorSwatch, Dispatch, PartCard, SourceCredit, UiAction, UiState, WorldSummary, HOTBAR_PARTS,
@@ -60,6 +65,7 @@ pub fn view(
                     worlds::panel(state, dispatch.clone()),
                     imports::panel(state, dispatch.clone()),
                     credits::panel(state, dispatch.clone()),
+                    gameplay::panel(state, dispatch.clone()),
                     import_progress::view(state, dispatch),
                 ])
                 .into(),
