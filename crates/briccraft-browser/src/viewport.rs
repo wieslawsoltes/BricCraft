@@ -91,6 +91,10 @@ pub fn view(runtime: Rc<Runtime>) -> Element {
         .node_ref(runtime.viewport)
         .effect(runtime.world_effect)
         .on_pointer_pressed(move |event| {
+            if pressed.state.import_busy.get_untracked() || pressed.state.world_busy.get_untracked()
+            {
+                return;
+            }
             let Some(view) = pressed.viewport.get_untracked() else {
                 return;
             };
@@ -130,6 +134,9 @@ pub fn view(runtime: Rc<Runtime>) -> Element {
             event.set_handled(true);
         })
         .on_pointer_moved(move |event| {
+            if moved.state.import_busy.get_untracked() || moved.state.world_busy.get_untracked() {
+                return;
+            }
             let Some(view) = moved.viewport.get_untracked() else {
                 return;
             };
@@ -218,6 +225,9 @@ pub fn view(runtime: Rc<Runtime>) -> Element {
             lost.pointer.borrow_mut().cancel(event.pointer().id())
         })
         .on_pointer_wheel_changed(move |event| {
+            if wheel.state.import_busy.get_untracked() || wheel.state.world_busy.get_untracked() {
+                return;
+            }
             let delta = event.delta();
             let mut game = wheel.session.borrow_mut();
             if event.key_modifiers().contains(KeyModifiers::SHIFT)

@@ -20,15 +20,20 @@ pub struct Runtime {
     last_frame: Cell<f64>,
     last_hud: Cell<f64>,
     fps: Cell<f64>,
+    scene_generation: Cell<u64>,
+    pub import_anchor: Cell<Option<briccraft_stream::GlobalPos>>,
+    pub import_world_id: RefCell<String>,
 }
 
 impl Runtime {
     pub fn new(owner: Owner) -> Self {
         let session = Session::new(42);
+        let state = UiState::new();
+        state.world_busy.set(true);
         Self {
             session: RefCell::new(session),
             renderer: RefCell::new(Renderer::new()),
-            state: UiState::new(),
+            state,
             viewport: NodeRef::new(),
             world_effect: signal(None),
             pointer: RefCell::new(Default::default()),
@@ -36,6 +41,9 @@ impl Runtime {
             last_frame: Cell::new(0.0),
             last_hud: Cell::new(0.0),
             fps: Cell::new(60.0),
+            scene_generation: Cell::new(0),
+            import_anchor: Cell::new(None),
+            import_world_id: RefCell::new(String::new()),
         }
     }
     pub fn view(self: &Rc<Self>) -> Element {
@@ -79,3 +87,4 @@ impl Runtime {
 mod actions;
 mod frame;
 mod hud;
+mod world_actions;

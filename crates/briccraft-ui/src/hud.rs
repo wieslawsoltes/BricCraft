@@ -7,6 +7,8 @@ pub fn header(state: UiState, dispatch: Dispatch) -> Element {
     let explore = dispatch.clone();
     let touch_explore = dispatch.clone();
     let touch_vehicle = dispatch.clone();
+    let worlds = dispatch.clone();
+    let touch_worlds = dispatch.clone();
     let save = dispatch;
     border()
         .name("Header")
@@ -70,6 +72,8 @@ pub fn header(state: UiState, dispatch: Dispatch) -> Element {
                                     .foreground("#AFE5BC")
                                     .font_weight(FontWeight::SemiBold),
                             ),
+                        button().class("quiet").content("Worlds").tool_tip_tip("Create, open and save worlds · G")
+                            .on_click(move |_| worlds(UiAction::ShowWorlds)),
                         button()
                             .class("quiet")
                             .content("Explore")
@@ -123,22 +127,24 @@ pub fn header(state: UiState, dispatch: Dispatch) -> Element {
             grid()
                 .name("CompactActions")
                 .grid_row(1)
-                .column_definitions("*,*,*")
+                .column_definitions("*,*,*,*")
                 .margin((0.0, 6.0, 0.0, 0.0))
                 .is_visible(state.compact)
                 .children((
-                    button().content("Explore").font_size(11.0).height(32.0).min_height(32.0)
+                    button().content("Worlds").font_size(11.0).height(32.0).min_height(32.0)
+                        .padding((6.0,5.0)).on_click(move |_| touch_worlds(UiAction::ShowWorlds)),
+                    button().grid_column(1).content("Explore").font_size(11.0).height(32.0).min_height(32.0)
                         .padding((6.0, 5.0)).margin((0.0, 0.0, 4.0, 0.0))
                         .tool_tip_tip("Switch builder, flight and walking modes")
                         .on_click(move |_| touch_explore(UiAction::ToggleExplore)),
-                    button().grid_column(1).content("Blueprints").font_size(11.0).height(32.0).min_height(32.0)
+                    button().grid_column(2).content("Blueprints").font_size(11.0).height(32.0).min_height(32.0)
                         .padding((6.0, 5.0)).margin((2.0, 0.0, 2.0, 0.0))
                         .on_click(move |_| {
                             let open = !state.blueprints_open.get_untracked();
                             state.close_panels();
                             state.blueprints_open.set(open);
                         }),
-                    button().grid_column(2).font_size(11.0).height(32.0).min_height(32.0)
+                    button().grid_column(3).font_size(11.0).height(32.0).min_height(32.0)
                         .padding((6.0, 5.0)).margin((4.0, 0.0, 0.0, 0.0))
                         .content(move || if state.mode.get() == "DRIVE" { "Exit vehicle" } else { "Drive" })
                         .on_click(move |_| touch_vehicle(if state.mode.get_untracked() == "DRIVE" {
@@ -179,6 +185,11 @@ pub fn world_card(state: UiState, dispatch: Dispatch) -> Element {
                 text_block()
                     .text(state.stats)
                     .font_size(11.0)
+                    .text_wrapping(ferroui_base::media::TextWrapping::Wrap)
+                    .foreground(theme::MUTED),
+                text_block()
+                    .text(state.coordinates)
+                    .font_size(10.0)
                     .foreground(theme::MUTED),
                 border()
                     .height(1.0)
@@ -228,12 +239,7 @@ pub fn crosshair(state: UiState) -> Element {
         .horizontal_alignment(H::Center)
         .vertical_alignment(V::Center)
         .is_hit_test_visible(false)
-        .is_visible(move || {
-            !state.catalog_open.get()
-                && !state.blueprints_open.get()
-                && !state.settings_open.get()
-                && !state.help_open.get()
-        })
+        .is_visible(move || !state.modal())
         .children((
             border()
                 .width(18.0)
@@ -252,6 +258,29 @@ pub fn crosshair(state: UiState) -> Element {
                 .horizontal_alignment(H::Center)
                 .vertical_alignment(V::Center),
         ))
+        .into()
+}
+
+/// Keep source credit on the actual map, including compact layouts.
+pub fn attribution(state: UiState, dispatch: Dispatch) -> Element {
+    button()
+        .name("WorldAttribution")
+        .class("quiet")
+        .horizontal_alignment(H::Right)
+        .vertical_alignment(V::Bottom)
+        .margin((16.0, 0.0, 16.0, 52.0))
+        .max_width(340.0)
+        .padding((8.0, 5.0))
+        .background("#DA101E26")
+        .is_visible(move || !state.attribution.get().is_empty())
+        .child(
+            text_block()
+                .text(state.attribution)
+                .font_size(10.0)
+                .foreground("#D7E3E7")
+                .text_wrapping(ferroui_base::media::TextWrapping::Wrap),
+        )
+        .on_click(move |_| dispatch(UiAction::OpenSource(state.attribution_url.get_untracked())))
         .into()
 }
 

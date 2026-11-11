@@ -138,13 +138,7 @@ pub fn touch_controls(state: UiState, dispatch: Dispatch) -> Element {
     let remove = dispatch.clone();
     grid()
         .name("TouchControls")
-        .is_visible(move || {
-            state.compact.get()
-                && !state.catalog_open.get()
-                && !state.blueprints_open.get()
-                && !state.help_open.get()
-                && !state.settings_open.get()
-        })
+        .is_visible(move || state.compact.get() && !state.modal())
         .horizontal_alignment(H::Left)
         .vertical_alignment(V::Bottom)
         .margin((16.0, 0.0, 16.0, 158.0))

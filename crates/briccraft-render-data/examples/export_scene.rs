@@ -1,7 +1,7 @@
 //! Exports the real generated scene to the native-Skia shader smoke renderer.
-//! `cargo run -p briccraft-render --example export_scene -- /tmp/briccraft-scene.json`
-use briccraft_parts::{part, PALETTE};
-use briccraft_world::{World, DEFAULT_SEED};
+//! `cargo run -p briccraft-render-data --example export_scene -- /tmp/briccraft-scene.json`
+use briccraft_parts::{PALETTE, part};
+use briccraft_world::{DEFAULT_SEED, World};
 use std::fmt::Write;
 
 fn main() -> std::io::Result<()> {

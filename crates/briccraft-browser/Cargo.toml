@@ -13,6 +13,8 @@ briccraft-world.workspace = true
 briccraft-mechanics.workspace = true
 briccraft-render.workspace = true
 briccraft-ui.workspace = true
+briccraft-stream = { path = "../briccraft-stream" }
+briccraft-import = { path = "../briccraft-import" }
 ferroui-base.workspace = true
 ferroui-controls.workspace = true
 ferroui-view.workspace = true
@@ -21,6 +23,7 @@ ferroui-fonts-inter.workspace = true
 ferroui-themes-simple.workspace = true
 wasm-bindgen.workspace = true
 serde_json.workspace = true
+serde = { workspace = true, features = ["derive"] }
 
 [[bin]]
 name = "briccraft-browser"

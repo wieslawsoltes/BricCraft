@@ -3,6 +3,17 @@ use ferroui_controls::{TextBox, TopLevel};
 
 impl Runtime {
     pub fn dispatch(&self, action: UiAction) {
+        if self.state.world_busy.get_untracked() {
+            return;
+        }
+        if self.state.import_busy.get_untracked()
+            && !matches!(&action, UiAction::CancelImport | UiAction::OpenSource(_))
+        {
+            return;
+        }
+        if self.dispatch_world(&action) {
+            return;
+        }
         let mut sound = None;
         let return_to_world = matches!(
             &action,
@@ -91,6 +102,7 @@ impl Runtime {
                     Err(e) => game.status = e.to_string(),
                 },
                 UiAction::Import => crate::bridge::import(),
+                _ => unreachable!("World service commands are handled before simulation actions"),
             }
             if !game.sound {
                 sound = None;

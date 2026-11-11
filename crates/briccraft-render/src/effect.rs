@@ -18,6 +18,8 @@ pub const WORLD_SKSL: &str = concat!(
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct BrickWorldEffect {
     pub world_dimensions: Rect,
+    pub scene_bounds_min: Rect,
+    pub scene_bounds_max: Rect,
     pub cell_texture_size: Size,
     pub part_texture_size: Size,
     pub camera_position: Rect,
@@ -49,7 +51,7 @@ impl CustomEffect for BrickWorldEffect {
 
     fn for_each_parameter(&self, f: &mut dyn FnMut(&'static str, EffectParameterValue)) {
         parameters!(self, f;
-            world_dimensions, cell_texture_size, part_texture_size,
+            world_dimensions, scene_bounds_min, scene_bounds_max, cell_texture_size, part_texture_size,
             camera_position, camera_forward, camera_right, camera_up, sun_direction,
             preview_origin, preview_size, selection, quality, construction_grid, vehicle_dimensions,
             vehicle_position, vehicle_axis_x, vehicle_axis_y, vehicle_axis_z, vehicle_motion, cells, parts
@@ -64,6 +66,8 @@ impl CustomEffect for BrickWorldEffect {
         }
         match name {
             "world_dimensions" => rect!(world_dimensions),
+            "scene_bounds_min" => rect!(scene_bounds_min),
+            "scene_bounds_max" => rect!(scene_bounds_max),
             "cell_texture_size" => value
                 .as_size()
                 .map(|v| self.cell_texture_size = v)

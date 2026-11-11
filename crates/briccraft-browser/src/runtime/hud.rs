@@ -20,11 +20,40 @@ impl Runtime {
         });
         let status = game.status.clone();
         let mode = game.mode_name().to_string();
-        let stats = format!(
-            "{} parts · {} pieces to discover",
-            game.world.len(),
-            briccraft_parts::CATALOG.len()
-        );
+        let stats = if let Some(stream) = game.stream_stats() {
+            format!(
+                "{} nearby bricks · {} regions resident",
+                game.world.len(),
+                stream.cached_chunks
+            )
+        } else {
+            format!(
+                "{} parts · {} pieces to discover",
+                game.world.len(),
+                briccraft_parts::CATALOG.len()
+            )
+        };
+        let world_name = game.world_info.name.clone();
+        let world_id = game.world_info.id.clone();
+        let streamed = game.is_streamed();
+        let p = game.global_camera_position();
+        let coordinates = if game.is_streamed() {
+            format!("X {:.0} · Y {:.1} · Z {:.0}", p[0], p[1], p[2])
+        } else {
+            String::new()
+        };
+        let attribution = game
+            .world_info
+            .attributions
+            .iter()
+            .map(|a| a.label.as_str())
+            .collect::<Vec<_>>()
+            .join(" · ");
+        let attribution_url = game
+            .world_info
+            .attributions
+            .first()
+            .map_or_else(String::new, |a| a.url.clone());
         let seed = game.seed;
         let quality = game.quality;
         let sound = game.sound;
@@ -52,6 +81,12 @@ impl Runtime {
             state.status.set_if_changed(status);
             state.mode.set_if_changed(mode);
             state.stats.set_if_changed(stats);
+            state.world_name.set_if_changed(world_name);
+            state.world_id.set_if_changed(world_id);
+            state.streamed.set_if_changed(streamed);
+            state.coordinates.set_if_changed(coordinates);
+            state.attribution.set_if_changed(attribution);
+            state.attribution_url.set_if_changed(attribution_url);
             state.fps.set_if_changed(self.fps.get());
             state.seed.set_if_changed(seed);
             state.quality.set_if_changed(quality);

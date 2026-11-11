@@ -1,0 +1,19 @@
+[package]
+name = "briccraft-import"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Bounded OpenStreetMap and static mesh conversion into reusable global brick placements"
+
+[dependencies]
+briccraft-parts.workspace = true
+briccraft-world.workspace = true
+glam.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+base64 = "0.22"
+png.workspace = true
+jpeg-decoder = { version = "0.3.2", default-features = false }
+
+[dev-dependencies]
+jpeg-encoder.workspace = true

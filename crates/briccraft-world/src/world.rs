@@ -1,5 +1,5 @@
 use crate::{BuildError, BuildOp, Instance, Placement, WORLD_SIZE};
-use briccraft_parts::{part, Shape, PALETTE};
+use briccraft_parts::{PALETTE, Shape, part};
 use std::collections::{HashSet, VecDeque};
 
 #[derive(Debug, Clone)]

@@ -1,4 +1,4 @@
-use crate::{BuildError, Instance, World, SAVE_VERSION, WORLD_SIZE};
+use crate::{BuildError, Instance, SAVE_VERSION, WORLD_SIZE, World};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]

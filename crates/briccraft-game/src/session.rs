@@ -1,11 +1,15 @@
 //! Application state, with a fixed-step simulation independent of display refresh.
 use crate::vehicle::ActiveVehicle;
-use crate::{CameraMode, CameraRig, Input};
+use crate::{CameraMode, CameraRig, Input, StreamSession, WorldInfo};
 use briccraft_world::{History, Placement, RayHit, World};
 
 pub struct Session {
     pub world: World,
     pub history: History,
+    pub streaming: Option<StreamSession>,
+    pub world_info: WorldInfo,
+    /// Changes whenever a complete World is replaced, even if its local revision number repeats.
+    pub scene_generation: u64,
     pub camera: CameraRig,
     pub input: Input,
     pub selected_part: u16,
@@ -25,14 +29,21 @@ pub struct Session {
     pub status: String,
     pub cursor: [f32; 2],
     pub aspect: f32,
-    accumulator: f32,
+    pub(crate) accumulator: f32,
 }
 
 impl Session {
     pub fn new(seed: u64) -> Self {
+        Self::with_world(World::generate(seed))
+    }
+    pub(crate) fn with_world(world: World) -> Self {
+        let seed = world.seed;
         Self {
-            world: World::generate(seed),
+            world,
             history: History::default(),
+            streaming: None,
+            world_info: WorldInfo::classic(seed),
+            scene_generation: 0,
             camera: CameraRig::default(),
             input: Input::default(),
             selected_part: 3,
@@ -58,6 +69,7 @@ impl Session {
         }
     }
     pub fn tick(&mut self, elapsed: f32) {
+        self.advance_streaming();
         if self.paused {
             self.input.clear();
             return;
@@ -81,7 +93,7 @@ impl Session {
                 active.vehicle.step(STEP, controls, |x, z| {
                     world.surface_height_excluding(x, z, ids)
                 });
-                // Keep the complete construction inside the finite editable world, including turns.
+                // Classic islands retain their finite-world guard. Streamed vehicles cross windows.
                 // Flight height remains unrestricted; parking validates the destination's Y cells.
                 let (sin, cos) = active.render_yaw().sin_cos();
                 let [half_x, half_z] = active.half_extents_xz;
@@ -91,11 +103,13 @@ impl Session {
                 ];
                 let dimensions = world.dimensions();
                 let mut at_edge = false;
-                for (index, axis) in [0, 2].into_iter().enumerate() {
-                    let original = active.vehicle.position[axis];
-                    active.vehicle.position[axis] =
-                        original.clamp(half[index], dimensions[axis] as f32 - half[index]);
-                    at_edge |= (original - active.vehicle.position[axis]).abs() > 0.00001;
+                if self.streaming.is_none() {
+                    for (index, axis) in [0, 2].into_iter().enumerate() {
+                        let original = active.vehicle.position[axis];
+                        active.vehicle.position[axis] =
+                            original.clamp(half[index], dimensions[axis] as f32 - half[index]);
+                        at_edge |= (original - active.vehicle.position[axis]).abs() > 0.00001;
+                    }
                 }
                 if at_edge {
                     active.vehicle.speed = 0.0;
@@ -161,6 +175,10 @@ impl Session {
             self.status = "Park your vehicle before changing construction history.".into();
             return;
         }
+        if self.streaming.is_some() {
+            self.change_streamed_history(false);
+            return;
+        }
         self.status = match self.history.undo(&mut self.world) {
             Ok(true) => "Construction undone.".into(),
             Ok(false) => "No earlier construction to undo.".into(),
@@ -171,6 +189,10 @@ impl Session {
     pub fn redo(&mut self) {
         if self.active_vehicle.is_some() {
             self.status = "Park your vehicle before changing construction history.".into();
+            return;
+        }
+        if self.streaming.is_some() {
+            self.change_streamed_history(true);
             return;
         }
         self.status = match self.history.redo(&mut self.world) {

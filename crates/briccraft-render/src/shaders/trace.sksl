@@ -1,8 +1,14 @@
 Hit traceVolume(float3 ro,float3 rd,float3 dimensions,float offset,float maxDistance) {
     Hit best=miss();
     if(dimensions.x<1.0 || dimensions.y<1.0 || dimensions.z<1.0) return best;
+    float3 lower=float3(0.0);
     float3 upper=dimensions*float3(1.0,PLATE,1.0)+float3(0.0,STUD_HEIGHT,0.0);
-    float2 range=boxInterval(ro,rd,float3(0.0),upper);
+    if(offset<0.5) {
+        if(scene_bounds_max.w<0.5) return best;
+        lower=scene_bounds_min.xyz;
+        upper=scene_bounds_max.xyz;
+    }
+    float2 range=boxInterval(ro,rd,lower,upper);
     if(range.x>range.y || range.y<0.0 || range.x>maxDistance) return best;
     float t=max(range.x,0.0)+0.0002;
     float end=min(range.y,maxDistance);
@@ -38,11 +44,10 @@ Hit traceVolume(float3 ro,float3 rd,float3 dimensions,float offset,float maxDist
         // placement cell: another brick's underside interlocks with them.
         float below=cellId(cell-float3(0.0,1.0,0.0),dimensions,offset);
         if(below>0.0 && below!=id) {
-            PartData p=readPart(below);
-            if(abs(p.origin.y+p.size.y-cell.y*PLATE)<0.02) {
-                Hit stud=intersectPart(ro,rd,below,cell,t,exit);
-                if(stud.t<best.t) best=stud;
-            }
+            // This branch can only hit the protruding stud. Avoid duplicating
+            // every complex shape's SDF and re-reading its descriptor here.
+            Hit stud=intersectStud(ro,rd,below,cell,t,exit);
+            if(stud.t<best.t) best=stud;
         }
         if(best.t<FAR) return best;
         if(exit>end) break;

@@ -9,6 +9,10 @@ license.workspace = true
 briccraft-parts.workspace = true
 briccraft-world.workspace = true
 briccraft-mechanics.workspace = true
+briccraft-stream = { path = "../briccraft-stream" }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 glam.workspace = true
+
+[dev-dependencies]
+briccraft-import = { path = "../briccraft-import" }

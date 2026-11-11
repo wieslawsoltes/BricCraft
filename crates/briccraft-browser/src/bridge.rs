@@ -98,10 +98,7 @@ pub fn key(code: &str, down: bool, command: bool, repeat: bool) -> bool {
             return;
         }
         let state = runtime.state;
-        let modal = state.catalog_open.get_untracked()
-            || state.blueprints_open.get_untracked()
-            || state.help_open.get_untracked()
-            || state.settings_open.get_untracked();
+        let modal = state.modal_untracked();
         let focused = runtime
             .viewport
             .get_untracked()
@@ -171,6 +168,7 @@ pub fn key(code: &str, down: bool, command: bool, repeat: bool) -> bool {
                 handled = true;
                 None
             }
+            ("KeyG", false) => Some(UiAction::ShowWorlds),
             ("KeyH", false) => {
                 let open = !state.help_open.get_untracked();
                 state.close_panels();
@@ -249,6 +247,7 @@ pub fn import_world(source: &str) -> bool {
         match result {
             Ok(()) => {
                 runtime.renderer.borrow_mut().invalidate();
+                runtime.state.close_panels();
                 success = true;
             }
             Err(e) => runtime.session.borrow_mut().status = e.to_string(),
@@ -292,6 +291,18 @@ pub fn command(name: &str, value: &str) {
                 None
             }
             "new" => value.parse().ok().map(UiAction::NewWorld),
+            "worlds" => Some(UiAction::ShowWorlds),
+            "landmark" => Some(UiAction::ImportLandmark),
+            "cancel-import" => Some(UiAction::CancelImport),
+            "sample-model" => Some(UiAction::ImportModel {
+                size: 48.0,
+                sample: true,
+            }),
+            "create-world" => Some(UiAction::CreateWorld {
+                preset: value.into(),
+                name: format!("{value} world"),
+                seed: 42,
+            }),
             _ => None,
         };
         if let Some(action) = action {
@@ -305,10 +316,20 @@ pub fn state() -> String {
     let mut result = "{}".to_string();
     with_runtime(|r| {
         let game = r.session.borrow();
-        result=serde_json::json!({"parts":game.world.len(),"revision":game.world.revision(),"catalog":briccraft_parts::CATALOG.len(),
-            "selectedPart":game.selected_part,"color":game.color,"mode":game.mode_name(),"status":game.status,"seed":game.seed,
-            "camera":game.camera.position.to_array(),"vehicle":game.active_vehicle.as_ref().map(|v|v.vehicle.position),
-            "ready":r.world_effect.get_untracked().is_some(),"fps":r.state.fps.get_untracked()}).to_string();
+        let render = r.renderer.borrow().stats();
+        result = serde_json::json!({
+            "parts":game.world.len(),"revision":game.world.revision(),"catalog":briccraft_parts::CATALOG.len(),
+            "selectedPart":game.selected_part,"color":game.color,"mode":game.mode_name(),"status":game.status,"seed":game.seed.to_string(),
+            "camera":game.camera.position.to_array(),"globalCamera":game.global_camera_position(),
+            "vehicle":game.active_vehicle.as_ref().map(|v|v.vehicle.position),
+            "worldId":game.world_info.id,"worldName":game.world_info.name,"preset":game.world_info.preset,
+            "streamed":game.is_streamed(),"origin":{"x":game.world_origin().x.to_string(),"z":game.world_origin().z.to_string()},
+            "cachedChunks":game.stream_stats().map(|s|s.cached_chunks),"sceneGeneration":game.scene_generation,
+            "attributions":game.world_info.attributions,"importBusy":r.state.import_busy.get_untracked(),
+            "worldBusy":r.state.world_busy.get_untracked(),"worldsOpen":r.state.worlds_open.get_untracked(),"worldCount":r.state.worlds.get_untracked().len(),
+            "renderer":{"uploads":render.uploads,"bytes":render.texture_bytes,"uniformFrames":render.uniform_only_frames,"activeCells":render.active_cells},
+            "ready":r.world_effect.get_untracked().is_some(),"fps":r.state.fps.get_untracked()
+        }).to_string();
     });
     result
 }

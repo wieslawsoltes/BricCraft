@@ -1,6 +1,8 @@
 uniform float2 layer_size;
 uniform float layer_scale;
 uniform float4 world_dimensions;
+uniform float4 scene_bounds_min;
+uniform float4 scene_bounds_max;
 uniform float2 cell_texture_size;
 uniform float2 part_texture_size;
 uniform float4 camera_position;
@@ -30,7 +32,6 @@ const float PI = 3.141592653589793;
 struct PartData {
     float3 origin;
     float3 size;
-    float3 albedo;
     float shape;
     float rotation;
     float moving;
@@ -61,7 +62,6 @@ PartData readPart(float id) {
     PartData p;
     p.origin = record(id, 0.0) * float3(1.0, PLATE, 1.0);
     p.size = record(id, 1.0) * float3(1.0, PLATE, 1.0);
-    p.albedo = record(id, 2.0) / 255.0;
     float3 flags = record(id, 3.0);
     p.shape = flags.x;
     p.rotation = flags.y;

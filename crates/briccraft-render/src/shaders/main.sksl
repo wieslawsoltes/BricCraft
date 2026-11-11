@@ -3,20 +3,28 @@ half4 main(float2 coord) {
     float aspect=layer_size.x/max(layer_size.y,1.0);
     float3 ray=normalize(camera_forward.xyz+camera_right.xyz*uv.x*aspect*camera_forward.w-camera_up.xyz*uv.y*camera_forward.w);
     float3 origin=camera_position.xyz;
-    Hit hit=traceScene(origin,ray,360.0);
     float waterT=FAR;
     if(abs(ray.y)>0.000001) {
         float candidate=(sun_direction.w-origin.y)/ray.y;
         if(candidate>0.0) waterT=candidate;
     }
+    // Water only transmits the first eight world units. Do not trace geometry
+    // beyond a surface that the material will make fully opaque.
+    Hit hit=traceScene(origin,ray,min(360.0,waterT+8.0));
+    bool solid=hit.t<waterT && hit.t<FAR;
+    bool submerged=waterT<FAR && hit.t<FAR && hit.t-waterT<8.0;
+    float3 brickColor=float3(0.0);
+    // One call site keeps the shadow/DDA path from being duplicated when a
+    // driver inlines the shader's functions. Mutually exclusive surfaces share it.
+    if(solid || submerged) brickColor=shadeBrick(hit,origin+ray*hit.t,ray);
     float3 color;
     float surfaceT=min(hit.t,waterT);
-    if(hit.t<waterT && hit.t<FAR) color=shadeBrick(hit,origin+ray*hit.t,ray);
+    if(solid) color=brickColor;
     else if(waterT<FAR) {
         color=waterColor(origin+ray*waterT,ray,waterT);
-        if(hit.t<FAR && hit.t-waterT<8.0) {
+        if(submerged) {
             float transmission=exp(-(hit.t-waterT)*0.65)*0.38;
-            color=mix(color,shadeBrick(hit,origin+ray*hit.t,ray)*float3(0.72,0.91,0.96),transmission);
+            color=mix(color,brickColor*float3(0.72,0.91,0.96),transmission);
         }
     }
     else color=skyColor(ray);
@@ -32,7 +40,7 @@ half4 main(float2 coord) {
     if(preview_origin.w>0.5) {
         float3 normal;
         float ghost=boxHit(origin,ray,preview_origin.xyz+float3(0.012),preview_origin.xyz+preview_size.xyz-float3(0.012),normal);
-        if(ghost<surfaceT+0.08) {
+        if(ghost<FAR && ghost<surfaceT+0.08) {
             float3 p=origin+ray*ghost-preview_origin.xyz;
             float3 edge=min(p,preview_size.xyz-p);
             float width=max(0.04,ghost*0.0008)*max(1.0,layer_scale*0.6);

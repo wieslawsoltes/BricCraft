@@ -14,14 +14,16 @@ impl Runtime {
         self.state.compact.set_if_changed(width < 850.0);
         let mut game = self.session.borrow_mut();
         game.aspect = (width / height.max(1.0)) as f32;
-        let modal = self.state.catalog_open.get_untracked()
-            || self.state.blueprints_open.get_untracked()
-            || self.state.help_open.get_untracked()
-            || self.state.settings_open.get_untracked();
+        let modal = self.state.modal_untracked();
         if modal {
             game.input.clear();
         }
         game.tick(elapsed as f32);
+        let import_progress = game.import_progress();
+        let import_result = game.take_import_result();
+        if self.scene_generation.replace(game.scene_generation) != game.scene_generation {
+            self.renderer.borrow_mut().invalidate();
+        }
         let preview = if modal || game.active_vehicle.is_some() {
             None
         } else {
@@ -46,6 +48,7 @@ impl Runtime {
             preview,
             quality: game.quality,
             grid: game.grid,
+            window_fade: if game.is_streamed() { 16.0 } else { 0.0 },
             vehicle: game.active_vehicle.as_ref().map(|a| VehicleRender {
                 instance_ids: a.instance_ids.clone(),
                 pivot: a.pivot,
@@ -55,6 +58,7 @@ impl Runtime {
                 roll: a.vehicle.roll,
                 wheel_angle: a.vehicle.wheel_angle,
                 engine_rpm: a.vehicle.engine_rpm,
+                parts: Some(a.parts.clone()),
             }),
         };
         match self.renderer.borrow_mut().effect(&game.world, &frame) {
@@ -62,6 +66,24 @@ impl Runtime {
             Err(error) => game.status = format!("Rendering error: {error}"),
         }
         drop(game);
+        if let Some(progress) = import_progress {
+            self.state.import_busy.set_if_changed(true);
+            self.state.import_progress.set_if_changed(
+                0.82 + 0.17 * progress.validated_chunks as f64
+                    / progress.total_chunks.max(1) as f64,
+            );
+            self.state.import_status.set_if_changed(format!(
+                "Placing {} bricks · {} / {} regions checked",
+                progress.total_parts, progress.validated_chunks, progress.total_chunks
+            ));
+        }
+        if let Some(result) = import_result {
+            let success = result.is_ok();
+            let summary = result.unwrap_or_else(|error| error);
+            self.state.import_busy.set(false);
+            self.state.import_status.set(summary.clone());
+            crate::world_host::finished(success, &summary);
+        }
         if elapsed > 0.0 {
             self.fps.set(self.fps.get() * 0.94 + (1.0 / elapsed) * 0.06);
         }

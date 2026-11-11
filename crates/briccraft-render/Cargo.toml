@@ -7,4 +7,5 @@ license.workspace = true
 [dependencies]
 briccraft-parts.workspace = true
 briccraft-world.workspace = true
+briccraft-render-data = { path = "../briccraft-render-data" }
 ferroui-base.workspace = true

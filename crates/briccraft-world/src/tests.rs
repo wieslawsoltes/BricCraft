@@ -5,12 +5,14 @@ fn failed_transaction_is_atomic() {
     let mut world = World::empty(1);
     let placed = world.place(Placement::new(3, 0, [10, 10, 10], 0)).unwrap();
     let revision = world.revision();
-    assert!(world
-        .apply(&[
-            BuildOp::Remove(placed),
-            BuildOp::Place(Placement::new(2, 1, [95, 0, 0], 0))
-        ])
-        .is_err());
+    assert!(
+        world
+            .apply(&[
+                BuildOp::Remove(placed),
+                BuildOp::Place(Placement::new(2, 1, [95, 0, 0], 0))
+            ])
+            .is_err()
+    );
     assert!(world.instance(placed).is_some());
     assert_eq!(world.revision(), revision);
 }
@@ -65,9 +67,11 @@ fn raycast_accounts_for_plate_height_and_external_entry() {
             .normal,
         [0, 0, -1]
     );
-    assert!(world
-        .raycast([f32::NAN, 0.0, 0.0], [0.0, 1.0, 0.0], 50.0)
-        .is_none());
+    assert!(
+        world
+            .raycast([f32::NAN, 0.0, 0.0], [0.0, 1.0, 0.0], 50.0)
+            .is_none()
+    );
 }
 
 #[test]

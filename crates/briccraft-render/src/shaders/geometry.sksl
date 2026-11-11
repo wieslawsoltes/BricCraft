@@ -180,6 +180,39 @@ float complexHit(float3 ro,float3 rd,PartData part,float minT,float maxT,out flo
     return FAR;
 }
 
+bool hasStuds(float shape) {
+    return shape<1.5 || abs(shape-4.0)<0.1 || abs(shape-9.0)<0.1
+        || abs(shape-10.0)<0.1 || abs(shape-14.0)<0.1;
+}
+
+float studHit(float3 ro,float3 rd,PartData part,float3 cell,out float3 normal) {
+    normal=float3(0.0,1.0,0.0);
+    if(!hasStuds(part.shape)) return FAR;
+    float2 center=floor(cell.xz-part.origin.xz)+part.origin.xz+float2(0.5);
+    if(any(lessThanEqual(center,part.origin.xz)) || any(greaterThanEqual(center,part.origin.xz+part.size.xz))) return FAR;
+    return cylinderHit(ro,rd,center,part.origin.y+part.size.y-0.025,
+        part.origin.y+part.size.y+STUD_HEIGHT,0.30,normal);
+}
+
+Hit partSurface(float3 ro,float3 rd,float id,PartData part,float t,float3 normal) {
+    Hit hit=miss();
+    hit.t=t;hit.normal=normal;hit.id=id;hit.shape=part.shape;
+    // Descriptor colors are needed only for an accepted hit, never while
+    // searching empty portions of a shaped part or a stud's bounding cell.
+    hit.albedo=record(id,2.0)/255.0;
+    hit.local=ro+rd*t-part.origin;hit.size=part.size;
+    return hit;
+}
+
+Hit intersectStud(float3 ro,float3 rd,float id,float3 cell,float entry,float exit) {
+    PartData part=readPart(id);
+    if(abs(part.origin.y+part.size.y-cell.y*PLATE)>0.02) return miss();
+    float3 normal;
+    float t=studHit(ro,rd,part,cell,normal);
+    if(t>=entry-0.004 && t<=exit+0.005) return partSurface(ro,rd,id,part,t,normal);
+    return miss();
+}
+
 Hit intersectPart(float3 ro,float3 rd,float id,float3 cell,float entry,float exit) {
     Hit h=miss();
     PartData p=readPart(id);
@@ -196,18 +229,9 @@ Hit intersectPart(float3 ro,float3 rd,float id,float3 cell,float entry,float exi
         if(range.x<=range.y && range.y>=entry) t=complexHit(ro,rd,p,max(range.x,entry),min(range.y,exit),normal);
     }
     // A stud is a real cylinder, with its own silhouette and cast shadow.
-    bool studded=p.shape<1.5 || abs(p.shape-4.0)<0.1 || abs(p.shape-9.0)<0.1 || abs(p.shape-10.0)<0.1 || abs(p.shape-14.0)<0.1;
-    if(studded) {
-        float2 center=floor(cell.xz-p.origin.xz)+p.origin.xz+float2(0.5);
-        if(all(greaterThan(center,p.origin.xz)) && all(lessThan(center,p.origin.xz+p.size.xz))) {
-            float3 sn;
-            float st=cylinderHit(ro,rd,center,p.origin.y+p.size.y-0.025,p.origin.y+p.size.y+STUD_HEIGHT,0.30,sn);
-            if(st<t) { t=st;normal=sn; }
-        }
-    }
-    if(t>=entry-0.004 && t<=exit+0.005) {
-        h.t=t;h.normal=normal;h.albedo=p.albedo;h.id=id;h.shape=p.shape;
-        h.local=ro+rd*t-p.origin;h.size=p.size;
-    }
+    float3 sn;
+    float st=studHit(ro,rd,p,cell,sn);
+    if(st<t) { t=st;normal=sn; }
+    if(t>=entry-0.004 && t<=exit+0.005) return partSurface(ro,rd,id,p,t,normal);
     return h;
 }

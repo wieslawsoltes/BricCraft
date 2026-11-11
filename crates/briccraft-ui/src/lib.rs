@@ -5,12 +5,14 @@ mod controls;
 mod dialogs;
 mod hotbar;
 mod hud;
+mod imports;
 mod model;
 mod preview;
 mod theme;
+mod worlds;
 
 use ferroui_view::prelude::*;
-pub use model::{ColorSwatch, Dispatch, PartCard, UiAction, UiState, HOTBAR_PARTS};
+pub use model::{ColorSwatch, Dispatch, PartCard, UiAction, UiState, WorldSummary, HOTBAR_PARTS};
 use std::rc::Rc;
 
 /// Compose the world visual with reactive native UI. The world is mounted once;
@@ -25,18 +27,22 @@ pub fn view(
     grid()
         .name("BricCraftRoot")
         .styles(theme::styles())
-        .children((
+        .children(vec![
             world,
             hud::header(state, dispatch.clone()),
             hud::world_card(state, dispatch.clone()),
             hud::crosshair(state),
             hotbar::hotbar(parts.clone(), colors.clone(), state, dispatch.clone()),
             hud::footer(state, dispatch.clone()),
+            hud::attribution(state, dispatch.clone()),
             catalog::catalog(parts, colors, state, dispatch.clone()),
             dialogs::blueprints(state, dispatch.clone()),
             dialogs::settings(state, dispatch.clone()),
             dialogs::help(state),
+            worlds::panel(state, dispatch.clone()),
+            imports::panel(state, dispatch.clone()),
+            imports::progress(state, dispatch.clone()),
             controls::touch_controls(state, dispatch),
-        ))
+        ])
         .into()
 }

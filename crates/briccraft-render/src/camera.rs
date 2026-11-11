@@ -96,3 +96,39 @@ mod tests {
         assert!(c.ray([0.5, 0.0], 1.0)[1] > c.forward()[1]);
     }
 }
+
+pub(crate) fn rotation_axes(yaw: f32, pitch: f32, roll: f32) -> [[f32; 3]; 3] {
+    let (sy, cy) = yaw.sin_cos();
+    let (sp, cp) = (-pitch).sin_cos();
+    let (sr, cr) = roll.sin_cos();
+    [
+        [cy * cr + sy * sp * sr, cp * sr, -sy * cr + cy * sp * sr],
+        [-cy * sr + sy * sp * cr, cp * cr, sy * sr + cy * sp * cr],
+        [sy * cp, -sp, cy * cp],
+    ]
+}
+
+#[cfg(test)]
+mod vehicle_tests {
+    use super::*;
+
+    #[test]
+    fn positive_pitch_raises_the_nose_and_rotation_preserves_lengths() {
+        let axes = rotation_axes(0.7, 0.35, -0.2);
+        assert!(axes[2][1] > 0.0);
+        for axis in axes {
+            assert!((axis.iter().map(|v| v * v).sum::<f32>() - 1.0).abs() < 1e-6);
+        }
+        for (a, b) in [(0, 1), (0, 2), (1, 2)] {
+            assert!(
+                axes[a]
+                    .iter()
+                    .zip(axes[b])
+                    .map(|(x, y)| x * y)
+                    .sum::<f32>()
+                    .abs()
+                    < 1e-6
+            );
+        }
+    }
+}

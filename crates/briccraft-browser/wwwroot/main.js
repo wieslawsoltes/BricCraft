@@ -2,6 +2,7 @@ import { FerroExports } from './ferroui.js';
 import { loadModule } from './ferroui-loader.js';
 import { installStorage } from './storage-host.js';
 import { installInput } from './input-host.js';
+import { installImports } from './import-host.js';
 import { installAudio } from './audio-host.js';
 
 const mount = document.getElementById('out');
@@ -13,11 +14,13 @@ try {
         const runtime = await loaded.createRuntime();
         FerroExports.attach(runtime);
         globalThis.briccraft = runtime;
-        installStorage(runtime);
+        const storage = installStorage(runtime);
+        installImports(runtime,storage);
         installAudio();
         installInput(runtime, mount);
         message.textContent = 'Snapping the last pieces into place…';
         runtime.runMain(location.search);
+        storage.ready().finally(() => runtime.briccraftWorldReady());
         let frames = 0;
         const frame = time => {
             try {

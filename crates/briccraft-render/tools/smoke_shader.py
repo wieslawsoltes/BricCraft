@@ -6,9 +6,11 @@ Run: python crates/briccraft-render/tools/smoke_shader.py /tmp/briccraft-shader.
 Optional second argument: a scene JSON written by the export_atlas example.
 """
 from pathlib import Path
+import argparse
 import json
 import math
-import sys
+import statistics
+import time
 import skia
 import numpy as np
 
@@ -50,7 +52,7 @@ def fixture():
     return pieces
 
 
-def images(pieces, dimensions):
+def images(pieces, dimensions, moving=()):
     nx, ny, nz = dimensions
     occupancy = np.zeros((ny, nz, nx), dtype=np.uint32)
     for i, (origin, size, *_rest) in enumerate(pieces, 1):
@@ -58,85 +60,164 @@ def images(pieces, dimensions):
         sx, sy, sz = size
         occupancy[y:y+sy, z:z+sz, x:x+sx] = i
     coarse_size = [math.ceil(nx/4), math.ceil((ny+1)/6), math.ceil(nz/4)]
-    coarse = np.zeros((coarse_size[1],coarse_size[2],coarse_size[0]),dtype=np.uint32)
-    ys,zs,xs = np.where(occupancy>0)
-    coarse[ys//6,zs//4,xs//4] = 1
-    coarse[(ys+1)//6,zs//4,xs//4] = 1
-    ids = np.concatenate((occupancy.ravel(),coarse.ravel()))
-    pixels = np.zeros((math.ceil(len(ids) / 1024), 1024, 4), dtype=np.uint8)
+    coarse = np.zeros((coarse_size[1], coarse_size[2], coarse_size[0]), dtype=np.uint32)
+    ys, zs, xs = np.where(occupancy > 0)
+    coarse[ys//6, zs//4, xs//4] = 1
+    coarse[(ys+1)//6, zs//4, xs//4] = 1
+    vehicle_min, vehicle_size = np.zeros(3, dtype=int), np.zeros(3, dtype=int)
+    local = np.zeros(0, dtype=np.uint32)
+    if moving:
+        origins = np.array([piece[0] for piece in moving], dtype=int)
+        sizes = np.array([piece[1] for piece in moving], dtype=int)
+        vehicle_min = origins.min(axis=0)
+        vehicle_size = (origins+sizes).max(axis=0)-vehicle_min
+        vx, vy, vz = vehicle_size
+        local = np.zeros((vy, vz, vx), dtype=np.uint32)
+        for i, (origin, size, *_rest) in enumerate(moving, len(pieces)+1):
+            x, y, z = np.array(origin)-vehicle_min
+            sx, sy, sz = size
+            local[y:y+sy, z:z+sz, x:x+sx] = i
+    coarse_offset = occupancy.size+local.size
+    ids = np.concatenate((occupancy.ravel(), local.ravel(), coarse.ravel()))
+    pixels = np.zeros((math.ceil(len(ids)/1024), 1024, 4), dtype=np.uint8)
     pixels[..., 3] = 255
     flat = pixels.reshape(-1, 4)
     flat[:len(ids), 0] = ids & 255
     flat[:len(ids), 1] = (ids >> 8) & 255
     flat[:len(ids), 2] = (ids >> 16) & 255
-    records = np.zeros((math.ceil((len(pieces) + 1) * 4 / 1024), 1024, 4), dtype=np.uint8)
+    all_parts = list(pieces)+list(moving)
+    records = np.zeros((math.ceil((len(all_parts)+1)*4/1024), 1024, 4), dtype=np.uint8)
     records[..., 3] = 255
     data = records.reshape(-1, 4)
-    for i, (origin, size, color, shape, rotation) in enumerate(pieces, 1):
-        data[i*4, :3] = origin
+    for i, (origin, size, color, shape, rotation) in enumerate(all_parts, 1):
+        is_moving = i > len(pieces)
+        data[i*4, :3] = np.array(origin)-vehicle_min if is_moving else origin
         data[i*4+1, :3] = size
         data[i*4+2, :3] = color
-        data[i*4+3, :3] = [shape, rotation, 0]
-    return pixels, records
+        data[i*4+3, :3] = [shape, rotation, int(is_moving)]
+    return (pixels, records), {
+        'vehicle_min': vehicle_min, 'vehicle_size': vehicle_size,
+        'coarse_offset': coarse_offset, 'vehicle_offset': occupancy.size,
+    }
 
 
-def render(output, scene=None):
-    width, height = 800, 500
+def render(output, scene=None, *, quality=1, width=800, height=500, frames=1, source=SOURCE):
     dimensions = [96, 72, 96]
     pieces = fixture()
     position = np.array([75.0, 30.0, 87.0])
     target = np.array([46.0, 5.0, 45.0])
+    content = {}
     if scene is not None:
         content = json.loads(Path(scene).read_text())
         dimensions = content['dimensions']
         pieces = content['pieces']
-        if 'position' in content:
-            position = np.array(content['position'], dtype=float)
-            target = np.array(content['target'], dtype=float)
-    pixel_images = images(pieces, dimensions)
-    effect = skia.RuntimeEffect.MakeForShader(SOURCE)
-    assert effect, "Production SkSL failed to compile"
+        position = np.array(content.get('position', position), dtype=float)
+        target = np.array(content.get('target', target), dtype=float)
+    vehicle = content.get('vehicle', {})
+    moving = vehicle.get('pieces', [])
+    pixel_images, atlas = images(pieces, dimensions, moving)
+    started = time.perf_counter()
+    effect = skia.RuntimeEffect.MakeForShader(source)
+    assert effect, 'Production SkSL failed to compile'
+    compile_ms = (time.perf_counter()-started)*1000
     builder = skia.RuntimeShaderBuilder(effect)
-    forward = target - position
+    forward = target-position
     forward /= np.linalg.norm(forward)
     right = np.array([forward[2], 0.0, -forward[0]])
     right /= np.linalg.norm(right)
     up = np.cross(forward, right)
     sun = np.array([-0.45, 0.83, -0.32])
     sun /= np.linalg.norm(sun)
+    lower, upper = np.zeros(3), np.zeros(3)
+    if pieces:
+        origins = np.array([piece[0] for piece in pieces])
+        sizes = np.array([piece[1] for piece in pieces])
+        lower = origins.min(axis=0)*[1.0, 0.4, 1.0]
+        upper = (origins+sizes).max(axis=0)*[1.0, 0.4, 1.0]+[0.0, 0.18, 0.0]
     values = {
         'layer_size': [width, height], 'layer_scale': 1.0,
-        'world_dimensions': dimensions + [float(math.prod(dimensions))],
+        'world_dimensions': dimensions+[float(atlas['coarse_offset'])],
+        'scene_bounds_min': list(lower)+[0.0], 'scene_bounds_max': list(upper)+[float(bool(pieces))],
         'cell_texture_size': [pixel_images[0].shape[1], pixel_images[0].shape[0]],
         'part_texture_size': [pixel_images[1].shape[1], pixel_images[1].shape[0]],
-        'camera_position': list(position) + [4.0],
-        'camera_forward': list(forward) + [math.tan(math.radians(26.0))],
-        'camera_right': list(right) + [0.0], 'camera_up': list(up) + [1.0],
-        'sun_direction': list(sun) + [1.2], 'preview_origin': [0.0]*4,
-        'preview_size': [0.0]*4, 'selection': 0, 'quality': 1, 'construction_grid': 0,
+        'camera_position': list(position)+[4.0],
+        'camera_forward': list(forward)+[math.tan(math.radians(26.0))],
+        'camera_right': list(right)+[content.get('window_fade', 0.0)], 'camera_up': list(up)+[1.0],
+        'sun_direction': list(sun)+[2.4 if scene else 1.2], 'preview_origin': [0.0]*4,
+        'preview_size': [0.0]*4, 'selection': 0, 'quality': quality, 'construction_grid': 0,
         'vehicle_dimensions': [0.0]*4, 'vehicle_position': [0.0]*4,
         'vehicle_axis_x': [0.0]*4, 'vehicle_axis_y': [0.0]*4, 'vehicle_axis_z': [0.0]*4,
         'vehicle_motion': [0.0]*2,
     }
-    if scene is not None:
-        values['sun_direction'][3] = 2.4
-    for name, value in values.items():
-        builder.setUniform(name, value)
+    if moving:
+        pivot = np.array(vehicle.get('pivot', atlas['vehicle_min']*[1.0, 0.4, 1.0]), dtype=float)
+        local_pivot = pivot-atlas['vehicle_min']*[1.0, 0.4, 1.0]
+        yaw, pitch, roll = vehicle.get('yaw', 0.0), -vehicle.get('pitch', 0.0), vehicle.get('roll', 0.0)
+        sy, cy, sp, cp, sr, cr = math.sin(yaw), math.cos(yaw), math.sin(pitch), math.cos(pitch), math.sin(roll), math.cos(roll)
+        values.update({
+            'vehicle_dimensions': [float(v) for v in atlas['vehicle_size']]+[float(atlas['vehicle_offset'])],
+            'vehicle_position': list(vehicle.get('position', pivot))+[1.0],
+            'vehicle_axis_x': [cy*cr+sy*sp*sr, cp*sr, -sy*cr+cy*sp*sr, local_pivot[0]],
+            'vehicle_axis_y': [-cy*sr+sy*sp*cr, cp*cr, sy*sr+cy*sp*cr, local_pivot[1]],
+            'vehicle_axis_z': [sy*cp, -sp, cy*cp, local_pivot[2]],
+            'vehicle_motion': [vehicle.get('wheel_angle', 0.0), vehicle.get('rotor_angle', 0.0)],
+        })
+    uniforms = {uniform.name for uniform in effect.uniforms()}
+    assert uniforms <= values.keys(), f'Unset shader uniforms: {uniforms-values.keys()}'
+    for name in uniforms:
+        builder.setUniform(name, values[name])
     for name, pixels in zip(('cells', 'parts'), pixel_images):
         image = skia.Image.fromarray(pixels, skia.ColorType.kRGBA_8888_ColorType, skia.AlphaType.kOpaque_AlphaType)
-        matrix = skia.Matrix.Scale(width / pixels.shape[1], height / pixels.shape[0])
+        matrix = skia.Matrix.Scale(width/pixels.shape[1], height/pixels.shape[0])
         builder.setChild(name, image.makeShader(skia.TileMode.kDecal, skia.TileMode.kDecal,
             skia.SamplingOptions(skia.FilterMode.kNearest), matrix))
+    # A raster surface deliberately measures native CPU Skia, not browser GPU FPS.
     surface = skia.Surface(width, height)
-    surface.getCanvas().drawRect(skia.Rect.MakeWH(width, height), skia.Paint(Shader=builder.makeShader()))
+    paint = skia.Paint(Shader=builder.makeShader())
+    draw_ms = []
+    draw_cpu_ms = []
+    for _ in range(frames):
+        started = time.perf_counter()
+        cpu_started = time.process_time()
+        surface.getCanvas().drawRect(skia.Rect.MakeWH(width, height), paint)
+        draw_cpu_ms.append((time.process_time()-cpu_started)*1000)
+        draw_ms.append((time.perf_counter()-started)*1000)
     snapshot = surface.makeImageSnapshot()
     Path(output).write_bytes(bytes(snapshot.encodeToData()))
     rgb = snapshot.toarray()[..., :3]
     assert rgb.std() > 22, 'Rendered fixture is unexpectedly flat or blank'
-    print(json.dumps({'shader': 'compiled', 'parts': len(pieces), 'output': str(output),
-                      'channel_std': float(rgb.std()), 'size': [width, height]}))
+    result = {
+        'shader': 'compiled', 'backend': 'native Skia CPU raster', 'parts': len(pieces)+len(moving),
+        'output': str(output), 'channel_std': float(rgb.std()), 'size': [width, height],
+        'quality': quality, 'compile_ms': compile_ms, 'draw_ms': draw_ms,
+        'draw_cpu_ms': draw_cpu_ms,
+        'steady_draw_ms_median': statistics.median(draw_ms[1:]) if frames > 1 else None,
+        'steady_draw_cpu_ms_median': statistics.median(draw_cpu_ms[1:]) if frames > 1 else None,
+        'texture_bytes': sum(pixels.nbytes for pixels in pixel_images),
+    }
+    return result, rgb
 
 
 if __name__ == '__main__':
-    render(sys.argv[1] if len(sys.argv) > 1 else '/tmp/briccraft-shader.png',
-           sys.argv[2] if len(sys.argv) > 2 else None)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('output', nargs='?', default='/tmp/briccraft-shader.png')
+    parser.add_argument('scene', nargs='?')
+    parser.add_argument('--width', type=int, default=800)
+    parser.add_argument('--height', type=int, default=500)
+    parser.add_argument('--quality', type=int, choices=(0, 1, 2), default=1)
+    parser.add_argument('--frames', type=int, default=1)
+    parser.add_argument('--source', type=Path, help='Alternate concatenated SkSL, for a baseline benchmark')
+    parser.add_argument('--compare-source', type=Path, help='Also render a baseline and report pixel differences')
+    args = parser.parse_args()
+    if min(args.width, args.height, args.frames) < 1:
+        parser.error('width, height, and frames must be positive')
+    settings = dict(quality=args.quality, width=args.width, height=args.height, frames=args.frames)
+    result, rgb = render(args.output, args.scene, source=args.source.read_text() if args.source else SOURCE, **settings)
+    if args.compare_source:
+        baseline, original = render(str(Path(args.output).with_suffix('.baseline.png')), args.scene,
+                                    source=args.compare_source.read_text(), **settings)
+        delta = np.abs(rgb.astype(np.int16)-original.astype(np.int16))
+        result['baseline'] = baseline
+        result['difference'] = {'mean_absolute_channel': float(delta.mean()), 'maximum_channel': int(delta.max()),
+                                'fraction_pixels_over_8': float((delta.max(axis=2) > 8).mean())}
+    print(json.dumps(result))

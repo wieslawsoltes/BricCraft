@@ -180,16 +180,16 @@ pub fn settings(state: UiState, dispatch: Dispatch) -> Element {
                 .on_click(move |_| pause(UiAction::SetPaused(!state.paused.get_untracked()))),
             )),
             stack_panel().spacing(12.0).children((
-            separator(), controls::label("GENERATE AN ISLAND"),
+            separator(), controls::label("CREATE A CLASSIC ISLAND"),
             text_box().name("WorldSeed").text(seed_text.two_way()).placeholder_text("World seed"),
-            button().content("Generate world").tool_tip_tip("Create a new deterministic island from this seed; export your current world first")
+            button().content("Generate world").tool_tip_tip("Create a classic island and save your current world")
                 .on_click(move |_| {
                     match seed_text.get_untracked().parse::<u64>() {
                         Ok(seed) => regenerate(UiAction::NewWorld(seed)),
                         Err(_) => state.status.set("Enter a whole number for the world seed.".into()),
                     }
                 }),
-            controls::caption("A seed always creates the same landscape. Save or export your current construction before generating another world."),
+            controls::caption("A seed always creates the same landscape. Use Worlds for open terrain and your saved collection."),
             )),
         ))).into();
     border()

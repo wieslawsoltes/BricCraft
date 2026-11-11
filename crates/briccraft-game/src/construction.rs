@@ -4,6 +4,11 @@ use briccraft_world::{BuildOp, Placement};
 
 impl Session {
     pub fn update_pick(&mut self) {
+        if self.active_vehicle.is_some() {
+            self.hit = None;
+            self.preview = None;
+            return;
+        }
         let cursor = if self.camera.mode == crate::CameraMode::Orbit {
             self.cursor
         } else {
@@ -49,10 +54,13 @@ impl Session {
             .history
             .execute(&mut self.world, &[BuildOp::Place(placement)])
         {
-            Ok(_) => format!(
-                "Placed {} · R rotates · Ctrl Z undoes.",
-                part(self.selected_part).map_or("brick", |p| p.name)
-            ),
+            Ok(_) => match self.capture_streamed_edits() {
+                Ok(_) => format!(
+                    "Placed {} · R rotates · Ctrl Z undoes.",
+                    part(self.selected_part).map_or("brick", |p| p.name)
+                ),
+                Err(error) => format!("Placement was not saved: {error}"),
+            },
             Err(e) => e.to_string(),
         };
         self.update_pick();
@@ -70,7 +78,10 @@ impl Session {
             .history
             .execute(&mut self.world, &[BuildOp::Remove(hit.id)])
         {
-            Ok(_) => "Part removed. Ctrl Z restores it.".into(),
+            Ok(_) => match self.capture_streamed_edits() {
+                Ok(_) => "Part removed. Ctrl Z restores it.".into(),
+                Err(error) => format!("Removal was not saved: {error}"),
+            },
             Err(e) => e.to_string(),
         };
         self.update_pick();

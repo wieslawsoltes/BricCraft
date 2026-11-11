@@ -1,0 +1,10 @@
+[package]
+name = "briccraft-render-data"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Bounded brick-world GPU atlases, streaming vehicle namespaces, and packing metrics"
+
+[dependencies]
+briccraft-parts = { path = "../briccraft-parts" }
+briccraft-world = { path = "../briccraft-world" }

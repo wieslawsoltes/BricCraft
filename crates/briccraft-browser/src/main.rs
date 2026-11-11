@@ -4,6 +4,8 @@ mod application;
 mod bridge;
 mod runtime;
 mod viewport;
+mod world_bridge;
+mod world_host;
 
 #[cfg(not(target_os = "emscripten"))]
 fn main() {

@@ -19,6 +19,15 @@ pub struct ColorSwatch {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct WorldSummary {
+    pub id: String,
+    pub name: String,
+    pub detail: String,
+    pub updated: String,
+    pub archived: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum UiAction {
     SelectPart(u16),
     SelectColor(u8),
@@ -31,6 +40,38 @@ pub enum UiAction {
     ActivateVehicle(String),
     ExitVehicle,
     NewWorld(u64),
+    ShowWorlds,
+    CreateWorld {
+        preset: String,
+        name: String,
+        seed: u64,
+    },
+    OpenWorld(String),
+    SaveWorldAs(String),
+    ArchiveWorld {
+        id: String,
+        archived: bool,
+    },
+    ImportMap {
+        latitude: f64,
+        longitude: f64,
+        radius: f64,
+        meters_per_stud: f64,
+        endpoint: String,
+        local: bool,
+    },
+    ImportModel {
+        size: f64,
+        sample: bool,
+    },
+    AppendModel {
+        size: f64,
+        map_scale: bool,
+    },
+    ImportLandmark,
+    CancelImport,
+    ExportReport,
+    OpenSource(String),
     Save,
     Load,
     Export,
@@ -73,11 +114,23 @@ pub struct UiState {
     pub status: Signal<String>,
     pub stats: Signal<String>,
     pub world_name: Signal<String>,
+    pub world_id: Signal<String>,
+    pub streamed: Signal<bool>,
+    pub worlds: Signal<Vec<WorldSummary>>,
+    pub coordinates: Signal<String>,
+    pub attribution: Signal<String>,
+    pub attribution_url: Signal<String>,
+    pub import_status: Signal<String>,
+    pub import_busy: Signal<bool>,
+    pub world_busy: Signal<bool>,
+    pub import_progress: Signal<f64>,
     pub mechanics: Signal<String>,
     pub catalog_open: Signal<bool>,
     pub blueprints_open: Signal<bool>,
     pub help_open: Signal<bool>,
     pub settings_open: Signal<bool>,
+    pub worlds_open: Signal<bool>,
+    pub imports_open: Signal<bool>,
     pub sound: Signal<bool>,
     pub grid: Signal<bool>,
     pub compact: Signal<bool>,
@@ -101,6 +154,16 @@ impl UiState {
             status: signal("Choose a brick. Make something extraordinary.".into()),
             stats: signal(String::new()),
             world_name: signal("Sunlit archipelago".into()),
+            world_id: signal(String::new()),
+            streamed: signal(false),
+            worlds: signal(Vec::new()),
+            coordinates: signal(String::new()),
+            attribution: signal(String::new()),
+            attribution_url: signal(String::new()),
+            import_status: signal(String::new()),
+            import_busy: signal(false),
+            world_busy: signal(false),
+            import_progress: signal(0.0),
             mechanics: signal(
                 "Connect a chassis, motor, axles and wheels to bring your build to life.".into(),
             ),
@@ -108,6 +171,8 @@ impl UiState {
             blueprints_open: signal(false),
             help_open: signal(false),
             settings_open: signal(false),
+            worlds_open: signal(false),
+            imports_open: signal(false),
             sound: signal(true),
             grid: signal(false),
             compact: signal(false),
@@ -125,7 +190,31 @@ impl UiState {
             self.blueprints_open.set(false);
             self.help_open.set(false);
             self.settings_open.set(false);
+            self.worlds_open.set(false);
+            self.imports_open.set(false);
         });
+    }
+
+    pub fn modal(self) -> bool {
+        self.catalog_open.get()
+            || self.blueprints_open.get()
+            || self.help_open.get()
+            || self.settings_open.get()
+            || self.worlds_open.get()
+            || self.imports_open.get()
+            || self.import_busy.get()
+            || self.world_busy.get()
+    }
+
+    pub fn modal_untracked(self) -> bool {
+        self.catalog_open.get_untracked()
+            || self.blueprints_open.get_untracked()
+            || self.help_open.get_untracked()
+            || self.settings_open.get_untracked()
+            || self.worlds_open.get_untracked()
+            || self.imports_open.get_untracked()
+            || self.import_busy.get_untracked()
+            || self.world_busy.get_untracked()
     }
 }
 

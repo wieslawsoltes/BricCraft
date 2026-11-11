@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 
 mod blueprint;
+mod construct;
 mod generation;
 mod history;
 mod picking;
@@ -15,8 +16,8 @@ pub use blueprint::Blueprint;
 pub use history::History;
 pub use picking::RayHit;
 pub use railway::{
-    coastal_rail_closest_distance, coastal_rail_sample, CoastalRailSample, COASTAL_RAIL_GAUGE,
-    COASTAL_RAIL_HEIGHT, COASTAL_RAIL_LENGTH, COASTAL_RAIL_RADIUS,
+    COASTAL_RAIL_GAUGE, COASTAL_RAIL_HEIGHT, COASTAL_RAIL_LENGTH, COASTAL_RAIL_RADIUS,
+    CoastalRailSample, coastal_rail_closest_distance, coastal_rail_sample,
 };
 pub use types::{BuildError, BuildOp, ChangeSet, Instance, Placement};
 pub use world::World;

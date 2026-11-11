@@ -1,0 +1,198 @@
+{
+  "date": "2026-11-11",
+  "baseline_ref": "2c14d12",
+  "environment": {
+    "rust": "1.99.0",
+    "skia_python": "144.1",
+    "platform": "shared Linux x86_64 runner"
+  },
+  "atlas": {
+    "baseline_ref": "2c14d12",
+    "current": [
+      {
+        "benchmark": "generated_island",
+        "backend": "CPU atlas packing",
+        "samples": 20,
+        "median_ms": 0.541468,
+        "median_cpu_ms": 0.540299,
+        "minimum_ms": 0.49736,
+        "p95_ms": 0.648918,
+        "parts": 7444,
+        "occupied_cells": 66462,
+        "active_cells": 663552,
+        "atlas_bytes": 2809856
+      },
+      {
+        "benchmark": "dense_100k",
+        "backend": "CPU atlas packing",
+        "samples": 20,
+        "median_ms": 4.843723,
+        "median_cpu_ms": 4.842002,
+        "minimum_ms": 4.200884,
+        "p95_ms": 6.661901,
+        "parts": 100000,
+        "occupied_cells": 100000,
+        "active_cells": 663552,
+        "atlas_bytes": 4288512
+      }
+    ],
+    "baseline": [
+      {
+        "benchmark": "generated_island",
+        "backend": "CPU atlas packing",
+        "samples": 20,
+        "median_ms": 2.086454,
+        "median_cpu_ms": 2.085173,
+        "minimum_ms": 1.870908,
+        "p95_ms": 2.685686,
+        "parts": 7444,
+        "occupied_cells": 66462,
+        "active_cells": 663552,
+        "atlas_bytes": 2809856
+      },
+      {
+        "benchmark": "dense_100k",
+        "backend": "CPU atlas packing",
+        "samples": 20,
+        "median_ms": 7.973303,
+        "median_cpu_ms": 7.97157,
+        "minimum_ms": 6.765533,
+        "p95_ms": 9.810293,
+        "parts": 100000,
+        "occupied_cells": 100000,
+        "active_cells": 663552,
+        "atlas_bytes": 4288512
+      }
+    ],
+    "comparison": [
+      {
+        "benchmark": "generated_island",
+        "median_time_reduction_percent": 74.0484094065817,
+        "median_cpu_work_reduction_percent": 74.08852886547064
+      },
+      {
+        "benchmark": "dense_100k",
+        "median_time_reduction_percent": 39.25073460772781,
+        "median_cpu_work_reduction_percent": 39.25911708734917
+      }
+    ]
+  },
+  "shader_generated_world": {
+    "shader": "compiled",
+    "backend": "native Skia CPU raster",
+    "parts": 7444,
+    "channel_std": 60.8898461409253,
+    "size": [
+      400,
+      250
+    ],
+    "quality": 1,
+    "compile_ms": 5.3622700002051715,
+    "draw_ms": [
+      1163.1997229997069,
+      1066.7874749997281,
+      1085.0993230001222
+    ],
+    "draw_cpu_ms": [
+      1157.59602,
+      1066.6040799999998,
+      1080.5760289999998
+    ],
+    "steady_draw_ms_median": 1075.9433989999252,
+    "steady_draw_cpu_ms_median": 1073.5900545,
+    "texture_bytes": 2809856,
+    "baseline": {
+      "shader": "compiled",
+      "backend": "native Skia CPU raster",
+      "parts": 7444,
+      "channel_std": 60.8898461409253,
+      "size": [
+        400,
+        250
+      ],
+      "quality": 1,
+      "compile_ms": 2.775912999823049,
+      "draw_ms": [
+        1077.5675589998173,
+        1045.6499960000656,
+        1016.5615289997731
+      ],
+      "draw_cpu_ms": [
+        1077.3354579999993,
+        1039.1438219999998,
+        1016.5036390000006
+      ],
+      "steady_draw_ms_median": 1031.1057624999194,
+      "steady_draw_cpu_ms_median": 1027.8237305000002,
+      "texture_bytes": 2809856
+    },
+    "difference": {
+      "mean_absolute_channel": 0.0,
+      "maximum_channel": 0,
+      "fraction_pixels_over_8": 0.0
+    }
+  },
+  "shader_mixed_parts": {
+    "shader": "compiled",
+    "backend": "native Skia CPU raster",
+    "parts": 250,
+    "channel_std": 48.99708312841853,
+    "size": [
+      400,
+      250
+    ],
+    "quality": 1,
+    "compile_ms": 3.97174800036737,
+    "draw_ms": [
+      475.8833739997499,
+      474.2179509999005,
+      475.17329999982394
+    ],
+    "draw_cpu_ms": [
+      475.87176900000003,
+      474.07008700000006,
+      474.7000039999998
+    ],
+    "steady_draw_ms_median": 474.6956254998622,
+    "steady_draw_cpu_ms_median": 474.38504549999993,
+    "texture_bytes": 2691072,
+    "baseline": {
+      "shader": "compiled",
+      "backend": "native Skia CPU raster",
+      "parts": 250,
+      "channel_std": 48.99708312841853,
+      "size": [
+        400,
+        250
+      ],
+      "quality": 1,
+      "compile_ms": 2.652962999945885,
+      "draw_ms": [
+        777.4878259997422,
+        747.3118430002614,
+        745.0574929998766
+      ],
+      "draw_cpu_ms": [
+        773.1205289999998,
+        745.7355139999997,
+        739.9439179999998
+      ],
+      "steady_draw_ms_median": 746.184668000069,
+      "steady_draw_cpu_ms_median": 742.8397159999997,
+      "texture_bytes": 2691072
+    },
+    "difference": {
+      "mean_absolute_channel": 0.0,
+      "maximum_channel": 0,
+      "fraction_pixels_over_8": 0.0
+    }
+  },
+  "detached_vehicle": {
+    "visible_changed_pixels": 446,
+    "window_fade_changed_pixels": 0,
+    "size": [
+      200,
+      125
+    ]
+  }
+}

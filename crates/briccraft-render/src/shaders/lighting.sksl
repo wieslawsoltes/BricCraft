@@ -100,8 +100,12 @@ float3 shadeBrick(Hit hit,float3 position,float3 ray) {
         float outline=edgeCount>1.5?0.90:0.13;
         color=mix(color,float3(1.0,0.79,0.32),outline);
     }
-    float fog=1.0-exp(-hit.t*hit.t*0.000026);
-    return mix(color,skyColor(ray),fog*0.75);
+    float fog=(1.0-exp(-hit.t*hit.t*0.000026))*0.75;
+    if(hit.moving<0.5 && camera_right.w>0.0) {
+        float2 edge=min(position.xz,world_dimensions.xz-position.xz);
+        fog=max(fog,1.0-smoothstep(0.0,camera_right.w,min(edge.x,edge.y)));
+    }
+    return mix(color,skyColor(ray),fog);
 }
 
 float3 waterColor(float3 position,float3 ray,float distance) {

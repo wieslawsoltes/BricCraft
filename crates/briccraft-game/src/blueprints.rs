@@ -45,14 +45,14 @@ impl Session {
                     candidates.push(([x, 5, z], self.rotation));
                 }
             }
-        } else if blueprint == Blueprint::Locomotive {
+        } else if blueprint == Blueprint::Locomotive && !self.is_streamed() {
             // East straight: +Z travel, track centre x74, rail top y8 world units.
             let size = blueprint.size(0);
             for z in [44, 32, 56] {
                 candidates.push(([74 - size[0] / 2, 20, z - size[2] / 2], 0));
             }
         } else {
-            if blueprint == Blueprint::Airplane {
+            if blueprint == Blueprint::Airplane && !self.is_streamed() {
                 candidates.push(([27, 19, 40], 0));
             }
             let size = blueprint.size(self.rotation);
@@ -104,6 +104,12 @@ impl Session {
         if let Some((ids, origin, size)) = result {
             let count = ids.len();
             self.last_blueprint = ids;
+            if let Err(error) = self.capture_streamed_edits() {
+                self.last_blueprint.clear();
+                self.status = format!("Construction was not saved: {error}");
+                self.update_pick();
+                return;
+            }
             self.camera.focus(
                 [
                     origin[0] as f32 + size[0] as f32 * 0.5,
