@@ -1,0 +1,27 @@
+[package]
+name = "briccraft-browser"
+description = "FerroUI and Skia browser host for BricCraft"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+briccraft-game.workspace = true
+briccraft-parts.workspace = true
+briccraft-world.workspace = true
+briccraft-mechanics.workspace = true
+briccraft-render.workspace = true
+briccraft-ui.workspace = true
+ferroui-base.workspace = true
+ferroui-controls.workspace = true
+ferroui-view.workspace = true
+ferroui-browser.workspace = true
+ferroui-fonts-inter.workspace = true
+ferroui-themes-simple.workspace = true
+wasm-bindgen.workspace = true
+serde_json.workspace = true
+
+[[bin]]
+name = "briccraft-browser"
+path = "src/main.rs"

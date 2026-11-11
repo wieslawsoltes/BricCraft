@@ -1,0 +1,80 @@
+use super::*;
+
+impl Runtime {
+    pub fn dispatch(&self, action: UiAction) {
+        let mut sound = None;
+        {
+            let mut game = self.session.borrow_mut();
+            match action {
+                UiAction::SelectPart(id) => game.select_part(id),
+                UiAction::SelectColor(id) => game.select_color(id),
+                UiAction::Rotate => game.rotate(),
+                UiAction::Place => {
+                    game.place();
+                    sound = Some("place");
+                }
+                UiAction::Remove => {
+                    game.remove();
+                    sound = Some("remove");
+                }
+                UiAction::ToggleExplore => game.toggle_explore(),
+                UiAction::ResetCamera => game.camera = Default::default(),
+                UiAction::SpawnBlueprint(name) => {
+                    game.spawn_blueprint(&name);
+                    sound = Some("build");
+                }
+                UiAction::ActivateVehicle(kind) => game.activate_vehicle(&kind),
+                UiAction::ExitVehicle => game.park_vehicle(),
+                UiAction::NewWorld(seed) => {
+                    *game = Session::new(seed);
+                    self.renderer.borrow_mut().invalidate();
+                }
+                UiAction::Undo => game.undo(),
+                UiAction::Redo => game.redo(),
+                UiAction::SetDaylight(value) => game.daylight = value.clamp(0.0, 1.0) as f32,
+                UiAction::SetQuality(value) => game.quality = value.min(2),
+                UiAction::SetSound(value) => game.sound = value,
+                UiAction::SetGrid(value) => game.grid = value,
+                UiAction::SetPaused(value) => {
+                    game.paused = value;
+                    game.input.clear();
+                }
+                UiAction::Move {
+                    forward,
+                    strafe,
+                    up,
+                } => {
+                    let offset = game.camera.forward() * forward as f32
+                        + game.camera.right() * strafe as f32;
+                    game.camera.position += offset;
+                    game.camera.target += offset;
+                    game.camera.position.y += up as f32;
+                    game.camera.target.y += up as f32;
+                }
+                UiAction::Save => match game.to_json() {
+                    Ok(json) => {
+                        game.status = "Saving your world…".into();
+                        crate::bridge::save(&json);
+                    }
+                    Err(e) => game.status = e.to_string(),
+                },
+                UiAction::Load => {
+                    game.status = "Opening your saved world…".into();
+                    crate::bridge::load();
+                }
+                UiAction::Export => match game.to_json() {
+                    Ok(json) => crate::bridge::export(&json),
+                    Err(e) => game.status = e.to_string(),
+                },
+                UiAction::Import => crate::bridge::import(),
+            }
+            if !game.sound {
+                sound = None;
+            }
+        }
+        if let Some(kind) = sound {
+            crate::bridge::play(kind);
+        }
+        self.sync_hud();
+    }
+}

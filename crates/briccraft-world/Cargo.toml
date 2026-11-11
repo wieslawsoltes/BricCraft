@@ -1,0 +1,11 @@
+[package]
+name = "briccraft-world"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Deterministic brick worlds, reversible construction, picking, and blueprints"
+
+[dependencies]
+briccraft-parts = { path = "../briccraft-parts" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

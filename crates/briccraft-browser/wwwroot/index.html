@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#111c27">
+  <meta name="description" content="Build a little world. Bring it to life. A playful brick-building sandbox with working vehicles, a rich parts library, and a whole island to explore.">
+  <title>BricCraft — a world of possibility</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./app.css">
+</head>
+<body>
+  <div id="out" aria-label="BricCraft construction sandbox"></div>
+  <div id="loading" role="status" aria-live="polite">
+    <div class="loading-card">
+      <div class="brick-mark"><i></i><i></i><i></i><i></i></div>
+      <div class="eyebrow">SMALL BRICKS. ENDLESS POSSIBILITIES.</div>
+      <h1>Bric<span>Craft</span></h1>
+      <p id="load-message">Preparing your little world…</p>
+      <div class="load-track"><span></span></div>
+      <small>Rust · FerroUI · Skia</small>
+    </div>
+  </div>
+  <input id="world-file" type="file" accept=".briccraft,.json,application/json" hidden>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+[package]
+name = "briccraft-parts"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Reusable dimensional brick catalog, materials, and connector definitions"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }

@@ -1,0 +1,209 @@
+float2 boxInterval(float3 ro, float3 rd, float3 lower, float3 upper) {
+    float3 inv = safeInverse(rd);
+    float3 a = (lower-ro)*inv;
+    float3 b = (upper-ro)*inv;
+    float3 near = min(a,b);
+    float3 far = max(a,b);
+    return float2(max(max(near.x,near.y),near.z), min(min(far.x,far.y),far.z));
+}
+
+float boxHit(float3 ro, float3 rd, float3 lower, float3 upper, out float3 normal) {
+    float2 interval = boxInterval(ro,rd,lower,upper);
+    normal = float3(0.0,1.0,0.0);
+    if (interval.x > interval.y || interval.y < 0.0) return FAR;
+    float t = interval.x > 0.0001 ? interval.x : interval.y;
+    float3 p = ro+rd*t;
+    float3 q = (p-(lower+upper)*0.5) / max((upper-lower)*0.5, float3(0.001));
+    float3 aq = abs(q);
+    if (aq.x > aq.y && aq.x > aq.z) normal = float3(sign(q.x),0.0,0.0);
+    else if (aq.y > aq.z) normal = float3(0.0,sign(q.y),0.0);
+    else normal = float3(0.0,0.0,sign(q.z));
+    return t;
+}
+
+float cylinderHit(float3 ro, float3 rd, float2 center, float bottom, float top,
+    float radius, out float3 normal) {
+    float2 q = ro.xz-center;
+    float a = dot(rd.xz,rd.xz);
+    float b = dot(q,rd.xz);
+    float c = dot(q,q)-radius*radius;
+    float discriminant = b*b-a*c;
+    float result = FAR;
+    normal = float3(0.0,1.0,0.0);
+    if (a > 0.000001 && discriminant >= 0.0) {
+        float root = sqrt(discriminant);
+        float t = (-b-root)/a;
+        if (t < 0.0001) t = (-b+root)/a;
+        float y = ro.y+rd.y*t;
+        if (t > 0.0001 && y >= bottom && y <= top) {
+            result = t;
+            normal = normalize(float3(ro.x+rd.x*t-center.x,0.0,ro.z+rd.z*t-center.y));
+        }
+    }
+    if (abs(rd.y) > 0.000001) {
+        float y = rd.y < 0.0 ? top : bottom;
+        float t = (y-ro.y)/rd.y;
+        float2 p = ro.xz+rd.xz*t-center;
+        if (t > 0.0001 && t < result && dot(p,p) <= radius*radius) {
+            result=t; normal=float3(0.0,rd.y<0.0?1.0:-1.0,0.0);
+        }
+    }
+    return result;
+}
+
+float roundedBox(float3 p, float3 halfSize, float radius) {
+    float3 d=abs(p)-max(halfSize-float3(radius),float3(0.001));
+    return length(max(d,float3(0.0)))+min(max(d.x,max(d.y,d.z)),0.0)-radius;
+}
+
+float cappedCylinder(float2 radial, float axis, float radius, float halfHeight) {
+    float2 d=float2(length(radial)-radius,abs(axis)-halfHeight);
+    return min(max(d.x,d.y),0.0)+length(max(d,float2(0.0)));
+}
+
+float3 unrotate(float3 p, float rotation) {
+    if (rotation < 0.5) return p;
+    if (rotation < 1.5) return float3(-p.z,p.y,p.x);
+    if (rotation < 2.5) return float3(-p.x,p.y,-p.z);
+    return float3(p.z,p.y,-p.x);
+}
+
+float2 spin(float2 p,float angle) {
+    float s=sin(angle);float c=cos(angle);
+    return float2(p.x*c-p.y*s,p.x*s+p.y*c);
+}
+
+float partDistance(float3 local, PartData part) {
+    float3 q=unrotate(local-part.size*0.5,part.rotation);
+    float3 size=part.size;
+    if (mod(part.rotation,2.0)>0.5) size=size.zyx;
+    if(part.moving>0.5) {
+        if(part.shape>4.5 && part.shape<7.5) {
+            if(part.shape<6.5 || size.x>=size.z) q.yz=spin(q.yz,vehicle_motion.x);
+            else q.xy=spin(q.xy,vehicle_motion.x);
+        }
+        if(part.shape>14.5) q.xz=spin(q.xz,vehicle_motion.y);
+    }
+    float3 halfSize=max(size*0.5-float3(0.018),float3(0.01));
+    float outer=roundedBox(q,halfSize,0.035);
+    float kind=part.shape;
+    if (kind<2.5) return outer;
+    if (kind<3.5) {
+        // The clipped upper plane forms a proper sloped roof brick.
+        float gradient=size.y/max(size.z,0.1);
+        return max(outer,(q.y+q.z*gradient)/sqrt(1.0+gradient*gradient));
+    }
+    if (kind<4.5) return cappedCylinder(q.xz,q.y,min(halfSize.x,halfSize.z),halfSize.y);
+    if (kind<5.5) {
+        float radius=min(halfSize.y,halfSize.z);
+        float cylinder=cappedCylinder(q.yz,q.x,radius,halfSize.x);
+        float bore=length(q.yz)-radius*0.20;
+        return max(cylinder,-bore);
+    }
+    if (kind<6.5) {
+        float angle=atan(q.z,q.y);
+        float radius=min(halfSize.y,halfSize.z);
+        float tooth=step(0.0,sin(angle*16.0))*radius*0.10;
+        return max(cappedCylinder(q.yz,q.x,radius-tooth,halfSize.x),0.13-length(q.yz));
+    }
+    if (kind<7.5) {
+        // Cross axles preserve the characteristic keyed cross section.
+        float3 longHalf=halfSize;
+        if (size.x>=size.z) {
+            float a=roundedBox(q,float3(longHalf.x,0.10,0.21),0.018);
+            float b=roundedBox(q,float3(longHalf.x,0.21,0.10),0.018);
+            return min(a,b);
+        }
+        return min(roundedBox(q,float3(0.10,0.21,longHalf.z),0.018),roundedBox(q,float3(0.21,0.10,longHalf.z),0.018));
+    }
+    if (kind<8.5) {
+        float index=floor(q.x+size.x*0.5)+0.5-size.x*0.5;
+        float hole=length(float2(q.x-index,q.y))-0.22;
+        return max(outer,-hole);
+    }
+    if (kind<9.5) {
+        float3 holeHalf=max(halfSize-float3(0.19,0.21,-0.1),float3(0.04));
+        float opening=roundedBox(q,holeHalf,0.035);
+        float crossbar=min(abs(q.x)-0.065,abs(q.y)-0.055);
+        return min(max(outer,-opening),max(outer,crossbar));
+    }
+    if (kind<10.5) {
+        float glass=roundedBox(q-float3(0.0,size.y*0.17,0.0),float3(halfSize.x*0.64,halfSize.y*0.48,halfSize.z+0.1),0.055);
+        return max(outer,-glass);
+    }
+    if (kind<11.5) {
+        float rail=min(roundedBox(q-float3(size.x*0.29,0.0,0.0),float3(0.10,halfSize.y,halfSize.z),0.03),
+            roundedBox(q+float3(size.x*0.29,0.0,0.0),float3(0.10,halfSize.y,halfSize.z),0.03));
+        float tie=roundedBox(float3(q.x,q.y+halfSize.y*0.48,mod(q.z+0.5,1.0)-0.5),float3(halfSize.x,halfSize.y*0.5,0.12),0.02);
+        return max(outer,min(rail,tie));
+    }
+    if (kind<12.5) {
+        float tapered=abs(q.x)-halfSize.x*(0.72-0.25*q.z/max(halfSize.z,0.1));
+        return max(outer,tapered);
+    }
+    if (kind<13.5) {
+        float radius=min(halfSize.x,halfSize.z);
+        float cone=length(q.xz)-radius*(0.5-q.y/size.y);
+        return max(cone*0.7,abs(q.y)-halfSize.y);
+    }
+    if (kind<14.5) {
+        float2 arch=float2(q.x,q.y+size.y*0.23);
+        float opening=max(length(float2(arch.x,max(arch.y,0.0)))-halfSize.x*0.70,abs(q.z)-halfSize.z-0.1);
+        return max(outer,-opening);
+    }
+    float bladeA=roundedBox(q,float3(halfSize.x,halfSize.y,0.20),0.08);
+    float bladeB=roundedBox(q,float3(0.20,halfSize.y,halfSize.z),0.08);
+    return min(bladeA,bladeB);
+}
+
+float complexHit(float3 ro,float3 rd,PartData part,float minT,float maxT,out float3 normal) {
+    float t=max(minT,0.0001);
+    normal=float3(0.0,1.0,0.0);
+    for(int i=0;i<28;++i) {
+        float3 local=ro+rd*t-part.origin;
+        float d=partDistance(local,part);
+        if(d<0.005) {
+            float e=0.009;
+            normal=normalize(float3(
+                partDistance(local+float3(e,0.0,0.0),part)-partDistance(local-float3(e,0.0,0.0),part),
+                partDistance(local+float3(0.0,e,0.0),part)-partDistance(local-float3(0.0,e,0.0),part),
+                partDistance(local+float3(0.0,0.0,e),part)-partDistance(local-float3(0.0,0.0,e),part)));
+            return t;
+        }
+        t+=max(d*0.75,0.005);
+        if(t>maxT) break;
+    }
+    return FAR;
+}
+
+Hit intersectPart(float3 ro,float3 rd,float id,float3 cell,float entry,float exit) {
+    Hit h=miss();
+    PartData p=readPart(id);
+    // Tolerances separate neighboring molded walls. Stacked bricks meet at
+    // their lower face; shrinking both vertical faces would open sky-lit gaps
+    // through a solid wall instead of a fine manufacturing seam.
+    float3 lower=p.origin+float3(0.012,0.0,0.012);
+    float3 upper=p.origin+p.size-float3(0.012,0.004,0.012);
+    float3 normal=float3(0.0,1.0,0.0);
+    float t=FAR;
+    if(p.shape<2.5) t=boxHit(ro,rd,lower,upper,normal);
+    else {
+        float2 range=boxInterval(ro,rd,lower,upper);
+        if(range.x<=range.y && range.y>=entry) t=complexHit(ro,rd,p,max(range.x,entry),min(range.y,exit),normal);
+    }
+    // A stud is a real cylinder, with its own silhouette and cast shadow.
+    bool studded=p.shape<1.5 || abs(p.shape-4.0)<0.1 || abs(p.shape-9.0)<0.1 || abs(p.shape-10.0)<0.1 || abs(p.shape-14.0)<0.1;
+    if(studded) {
+        float2 center=floor(cell.xz-p.origin.xz)+p.origin.xz+float2(0.5);
+        if(all(greaterThan(center,p.origin.xz)) && all(lessThan(center,p.origin.xz+p.size.xz))) {
+            float3 sn;
+            float st=cylinderHit(ro,rd,center,p.origin.y+p.size.y-0.025,p.origin.y+p.size.y+STUD_HEIGHT,0.30,sn);
+            if(st<t) { t=st;normal=sn; }
+        }
+    }
+    if(t>=entry-0.004 && t<=exit+0.005) {
+        h.t=t;h.normal=normal;h.albedo=p.albedo;h.id=id;h.shape=p.shape;
+        h.local=ro+rd*t-p.origin;h.size=p.size;
+    }
+    return h;
+}

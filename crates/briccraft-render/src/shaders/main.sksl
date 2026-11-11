@@ -1,0 +1,52 @@
+half4 main(float2 coord) {
+    float2 uv=(coord/layer_size)*2.0-1.0;
+    float aspect=layer_size.x/max(layer_size.y,1.0);
+    float3 ray=normalize(camera_forward.xyz+camera_right.xyz*uv.x*aspect*camera_forward.w-camera_up.xyz*uv.y*camera_forward.w);
+    float3 origin=camera_position.xyz;
+    Hit hit=traceScene(origin,ray,360.0);
+    float waterT=FAR;
+    if(abs(ray.y)>0.000001) {
+        float candidate=(sun_direction.w-origin.y)/ray.y;
+        if(candidate>0.0) waterT=candidate;
+    }
+    float3 color;
+    float surfaceT=min(hit.t,waterT);
+    if(hit.t<waterT && hit.t<FAR) color=shadeBrick(hit,origin+ray*hit.t,ray);
+    else if(waterT<FAR) {
+        color=waterColor(origin+ray*waterT,ray,waterT);
+        if(hit.t<FAR && hit.t-waterT<8.0) {
+            float transmission=exp(-(hit.t-waterT)*0.65)*0.38;
+            color=mix(color,shadeBrick(hit,origin+ray*hit.t,ray)*float3(0.72,0.91,0.96),transmission);
+        }
+    }
+    else color=skyColor(ray);
+    if(construction_grid>0 && hit.t<waterT && hit.t<FAR && hit.moving<0.5 && hit.normal.y>0.7) {
+        float2 p=(origin+ray*hit.t).xz;
+        float2 edge=min(fract(p),1.0-fract(p));
+        float width=clamp(hit.t*0.0005,0.015,0.08);
+        float lines=1.0-smoothstep(width,width*1.7,min(edge.x,edge.y));
+        float2 major=min(mod(p,8.0),8.0-mod(p,8.0));
+        float bold=1.0-smoothstep(width*1.4,width*2.3,min(major.x,major.y));
+        color=mix(color,float3(0.32,0.94,0.85),lines*0.18+bold*0.20);
+    }
+    if(preview_origin.w>0.5) {
+        float3 normal;
+        float ghost=boxHit(origin,ray,preview_origin.xyz+float3(0.012),preview_origin.xyz+preview_size.xyz-float3(0.012),normal);
+        if(ghost<surfaceT+0.08) {
+            float3 p=origin+ray*ghost-preview_origin.xyz;
+            float3 edge=min(p,preview_size.xyz-p);
+            float width=max(0.04,ghost*0.0008)*max(1.0,layer_scale*0.6);
+            float count=(edge.x<width?1.0:0.0)+(edge.y<width?1.0:0.0)+(edge.z<width?1.0:0.0);
+            float3 tint=preview_size.w>0.5?float3(0.25,1.0,0.73):float3(1.0,0.30,0.24);
+            float grid=(abs(fract(p.x)-0.5)>0.46 || abs(fract(p.z)-0.5)>0.46)?0.12:0.0;
+            color=mix(color,tint,count>1.5?0.95:0.24+grid);
+        }
+    }
+    // A gentle filmic shoulder and vignette preserve rich molded colors without
+    // blowing out white parts under the sun. The HUD is outside this effect.
+    color=color/(color*0.28+0.82);
+    color=pow(max(color,float3(0.0)),float3(0.91));
+    float vignette=1.0-0.08*dot(uv*float2(0.65,0.8),uv*float2(0.65,0.8));
+    color*=vignette;
+    return half4(half3(clamp(color,float3(0.0),float3(1.0))),1.0);
+}

@@ -1,0 +1,10 @@
+[package]
+name = "briccraft-render"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+briccraft-parts.workspace = true
+briccraft-world.workspace = true
+ferroui-base.workspace = true

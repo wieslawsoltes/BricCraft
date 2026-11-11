@@ -1,0 +1,90 @@
+uniform float2 layer_size;
+uniform float layer_scale;
+uniform float4 world_dimensions;
+uniform float2 cell_texture_size;
+uniform float2 part_texture_size;
+uniform float4 camera_position;
+uniform float4 camera_forward;
+uniform float4 camera_right;
+uniform float4 camera_up;
+uniform float4 sun_direction;
+uniform float4 preview_origin;
+uniform float4 preview_size;
+uniform int selection;
+uniform int quality;
+uniform int construction_grid;
+uniform float4 vehicle_dimensions;
+uniform float4 vehicle_position;
+uniform float4 vehicle_axis_x;
+uniform float4 vehicle_axis_y;
+uniform float4 vehicle_axis_z;
+uniform float2 vehicle_motion;
+uniform shader cells;
+uniform shader parts;
+
+const float FAR = 10000.0;
+const float PLATE = 0.4;
+const float STUD_HEIGHT = 0.18;
+const float PI = 3.141592653589793;
+
+struct PartData {
+    float3 origin;
+    float3 size;
+    float3 albedo;
+    float shape;
+    float rotation;
+    float moving;
+};
+
+struct Hit {
+    float t;
+    float3 normal;
+    float3 albedo;
+    float id;
+    float shape;
+    float moving;
+    float3 local;
+    float3 size;
+};
+
+float3 bytes(float4 c) { return floor(c.rgb * 255.0 + 0.5); }
+
+float2 texel(float index, float2 size) {
+    return (float2(mod(index, size.x), floor(index / size.x)) + 0.5) / size * layer_size;
+}
+
+float3 record(float id, float field) {
+    return bytes(parts.eval(texel(id * 4.0 + field, part_texture_size)));
+}
+
+PartData readPart(float id) {
+    PartData p;
+    p.origin = record(id, 0.0) * float3(1.0, PLATE, 1.0);
+    p.size = record(id, 1.0) * float3(1.0, PLATE, 1.0);
+    p.albedo = record(id, 2.0) / 255.0;
+    float3 flags = record(id, 3.0);
+    p.shape = flags.x;
+    p.rotation = flags.y;
+    p.moving = flags.z;
+    return p;
+}
+
+float cellId(float3 cell, float3 dimensions, float offset) {
+    if (any(lessThan(cell, float3(0.0))) || any(greaterThanEqual(cell, dimensions))) return 0.0;
+    float index = (cell.y * dimensions.z + cell.z) * dimensions.x + cell.x + offset;
+    float3 v = bytes(cells.eval(texel(index, cell_texture_size)));
+    return dot(v, float3(1.0, 256.0, 65536.0));
+}
+
+Hit miss() {
+    Hit h;
+    h.t = FAR; h.normal = float3(0.0, 1.0, 0.0); h.albedo = float3(0.0);
+    h.id = 0.0; h.shape = 0.0; h.moving = 0.0; h.local = float3(0.0); h.size = float3(1.0);
+    return h;
+}
+
+float3 safeInverse(float3 direction) {
+    float3 s = float3(direction.x < 0.0 ? -1.0 : 1.0,
+        direction.y < 0.0 ? -1.0 : 1.0, direction.z < 0.0 ? -1.0 : 1.0);
+    return s / max(abs(direction), float3(0.000001));
+}

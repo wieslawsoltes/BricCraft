@@ -1,0 +1,21 @@
+name: BricCraft
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: briccraft-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+jobs:
+  application:
+    uses: wieslawsoltes/FerroUI/.github/workflows/app.yml@e1b36bb743a44277d27d63aa461ee671e54e9ec5
+    with:
+      test: -p briccraft-parts -p briccraft-world -p briccraft-mechanics -p briccraft-game
+      check: -p briccraft-browser
+      browser-package: briccraft-browser
+      pages: true
