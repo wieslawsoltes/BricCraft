@@ -36,8 +36,10 @@ export function installStorage(runtime) {
         await save(source); report('World saved. Your collection is available in Worlds.');
     });
     globalThis.briccraftLoad = () => enqueue(async () => {
-        const id=current || await activeId();
-        if (id) await open(id); else report('No saved world yet. Use Save to keep this construction.');
+        try {
+            const id=current || await activeId();
+            if (id) await open(id); else report('No saved world yet. Use Save to keep this construction.');
+        } finally { runtime.briccraftWorldReady(); }
     });
     globalThis.briccraftWorldHost = (action,payload) => enqueue(async () => {
       try {
@@ -46,7 +48,7 @@ export function installStorage(runtime) {
         if (action==='archive') { await archiveRecord(data.id,data.archived); return list(); }
         // A failed autosave prevents switching worlds.
         if (data.snapshot) await save(data.snapshot);
-        if (action==='open') return open(data.id);
+        if (action==='open') return await open(data.id);
         if (action==='copy') {
             await save(data.snapshot,crypto.randomUUID(),data.name);
             report('Saved a separate copy of this world.');
@@ -67,19 +69,30 @@ export function installStorage(runtime) {
     };
     const input=document.getElementById('world-file');
     globalThis.briccraftImport = () => { input.value=''; input.click(); };
-    input.addEventListener('change',() => enqueue(async () => {
+    input.addEventListener('change',() => {
         const file=input.files?.[0]; if (!file) return;
-        if (file.size>MAX_WORLD_BYTES) throw new Error('The world file exceeds the 64 MB limit');
-        const source=await file.text();
-        const previous=runtime.briccraftSerializeWorld(); if (!previous) return;
-        await save(previous);
-        if (runtime.briccraftImportWorld(source)) {
-            current=crypto.randomUUID();
-            const imported=describe(source,current,file.name.replace(/\.briccraft$/i,''));
-            runtime.briccraftWorldIdentity(current,imported.name);
-            await save(runtime.briccraftSerializeWorld(),current,imported.name);
+        const state=JSON.parse(runtime.briccraftState());
+        if (state.worldBusy || state.importBusy) {
+            report('Finish the current world operation before importing a saved world file.');
+            return;
         }
-    }));
+        // The chooser itself stays unlocked; an accepted selection locks before entering the queue.
+        runtime.briccraftWorldBusy();
+        enqueue(async () => {
+            try {
+                if (file.size>MAX_WORLD_BYTES) throw new Error('The world file exceeds the 64 MB limit');
+                const source=await file.text();
+                const previous=runtime.briccraftSerializeWorld(); if (!previous) return;
+                await save(previous);
+                if (runtime.briccraftImportWorld(source)) {
+                    current=crypto.randomUUID();
+                    const imported=describe(source,current,file.name.replace(/\.briccraft$/i,''));
+                    runtime.briccraftWorldIdentity(current,imported.name);
+                    await save(runtime.briccraftSerializeWorld(),current,imported.name);
+                }
+            } finally { runtime.briccraftWorldReady(); }
+        });
+    });
     globalThis.briccraftOpenSource = url => {
         try { const target=new URL(url); if(target.protocol==='https:') window.open(target.href,'_blank','noopener,noreferrer'); }
         catch { /* Only absolute HTTPS source links are opened. */ }

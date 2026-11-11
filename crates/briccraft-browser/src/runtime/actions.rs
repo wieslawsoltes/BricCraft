@@ -95,6 +95,7 @@ impl Runtime {
                 },
                 UiAction::Load => {
                     game.status = "Opening your saved world…".into();
+                    self.state.world_busy.set(true);
                     crate::bridge::load();
                 }
                 UiAction::Export => match game.to_json() {

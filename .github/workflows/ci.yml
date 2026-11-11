@@ -19,6 +19,7 @@ jobs:
       check: -p briccraft-browser
       browser-package: briccraft-browser
       browser-script: |
+        node tests/import-host.mjs
         bash scripts/build-import-worker.sh "$SITE"
         node tests/import-engine.mjs "$SITE"
         node tests/storage.mjs

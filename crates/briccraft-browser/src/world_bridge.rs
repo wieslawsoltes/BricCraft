@@ -17,6 +17,12 @@ struct LibraryEntry {
     archived: bool,
 }
 
+/// Acquire the host's file-operation lock without reentering the borrowed game session.
+#[wasm_bindgen(js_name=briccraftWorldBusy)]
+pub fn world_busy() {
+    with_runtime(|r| r.state.world_busy.set(true));
+}
+
 #[wasm_bindgen(js_name=briccraftWorldReady)]
 pub fn world_ready() {
     with_runtime(|r| r.state.world_busy.set(false));

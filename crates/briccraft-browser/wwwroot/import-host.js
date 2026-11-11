@@ -14,6 +14,9 @@ export function installImports(runtime,storage) {
         progress('Preparing source geometry…',0.03);
         try {
             await storage.saveBeforeImport(data.snapshot);
+            // Cancellation can occur while an IndexedDB save is queued. A stale
+            // continuation must not restart progress or reuse a newer controller.
+            if(token!==generation) return;
             let bytes;
             if(file) {
                 if(file.size>32*1024*1024) throw new Error('Source exceeds the 32 MB input limit');

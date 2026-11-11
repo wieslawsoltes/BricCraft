@@ -40,11 +40,15 @@ try {
     await command('drive','auto');
     const vehicle=(await state()).vehicle;
     assert(vehicle,'A connected rover must activate');
-    await page.evaluate('briccraft.briccraftKey("KeyW",true,false,false)');
-    await sleep(1800);
-    await page.evaluate('briccraft.briccraftKey("KeyW",false,false,false)');
+    assert(await page.evaluate('briccraft.briccraftKey("KeyW",true,false,false)'), 'Drive input must be accepted');
+    try {
+        // The first body shader may compile on a software GPU. Wait for actual
+        // motion, rather than releasing the key before any frame has advanced.
+        await wait(`${current}.vehicle && Math.hypot(${current}.vehicle[0]-${vehicle[0]},${current}.vehicle[2]-${vehicle[2]}) > 0.25`);
+    } finally { await page.evaluate('briccraft.briccraftKey("KeyW",false,false,false)'); }
     const driven=(await state()).vehicle;
     assert(Math.hypot(driven[0]-vehicle[0],driven[2]-vehicle[2])>0.1,'Vehicle controls must change its real pose');
+    await page.screenshot(path.join(out,'rover.png'));
     await command('park');
     assert(!(await state()).vehicle,'A flat-world rover must park');
 

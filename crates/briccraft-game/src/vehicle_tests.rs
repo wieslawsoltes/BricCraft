@@ -1,6 +1,40 @@
 use crate::Session;
 use briccraft_world::{BuildOp, World};
 
+#[test]
+fn streamed_rover_drives_after_blueprint_undo_and_redo() {
+    let mut session = Session::new_streamed(42, crate::BiomePreset::Flat).unwrap();
+    let baseline = session.world.len();
+    session.spawn_blueprint("rover");
+    let built = session.world.len();
+    assert!(built > baseline);
+    session.undo();
+    assert_eq!(session.world.len(), baseline);
+    session.redo();
+    assert_eq!(session.world.len(), built);
+    session.activate_vehicle("auto");
+    let initial = session
+        .active_vehicle
+        .as_ref()
+        .expect(&session.status)
+        .vehicle
+        .position;
+    assert!(!session.paused);
+    session.input.set_key("KeyW", true);
+    // Reproduce the CI scenario at its reported 18 Hz display rate.
+    for _ in 0..33 {
+        session.tick(1.0 / 18.0);
+    }
+    session.input.set_key("KeyW", false);
+    let vehicle = &session.active_vehicle.as_ref().unwrap().vehicle;
+    let distance = (vehicle.position[0] - initial[0]).hypot(vehicle.position[2] - initial[2]);
+    println!("streamed rover after undo/redo: {initial:?} -> {:?}; distance={distance}; speed={}; motors={}", vehicle.position, vehicle.speed, vehicle.motor_count);
+    assert!(
+        distance > 0.1,
+        "held throttle must advance the restored rover"
+    );
+}
+
 fn flat_session() -> Session {
     let mut session = Session::new(42);
     session.world = World::empty(42);

@@ -27,7 +27,9 @@ fs.writeFileSync(path.join(directory,'fixture.js'),
 // The runtime stub validates only the service contract. Its payload remains opaque text, just as
 // the real Rust session keeps i64/u64 values exact instead of routing them through JS Numbers.
 const live={id:'initial',name:'Initial',preset:null,body:initialPayload};
-const events={messages:[],lists:[],identities:[],imports:[],creates:[],ready:0};
+const events={messages:[],lists:[],identities:[],imports:[],creates:[],ready:0,order:[]};
+const flags={worldBusy:false,importBusy:false};
+const readyWaiters=[];
 function serialize() {
     return '{"version":2,"world_info":'+JSON.stringify({id:live.id,name:live.name,preset:live.preset})+',"payload":'+live.body+'}';
 }
@@ -48,15 +50,20 @@ function editMarker(marker) {
 }
 const runtime={
     briccraftMessage(message) { events.messages.push(message); },
-    briccraftWorldList(source) { events.lists.push(JSON.parse(source)); },
-    briccraftState() { return JSON.stringify({worldId:live.id,worldName:live.name}); },
+    briccraftWorldList(source) { events.lists.push(JSON.parse(source)); events.order.push('list'); },
+    briccraftState() { return JSON.stringify({worldId:live.id,worldName:live.name,...flags}); },
     briccraftWorldIdentity(id,name) {
         live.id=id; live.name=name; events.identities.push({id,name});
     },
-    briccraftWorldReady() { events.ready++; },
+    briccraftWorldBusy() { flags.worldBusy=true; events.order.push('busy'); },
+    briccraftWorldReady() {
+        flags.worldBusy=false; events.ready++; events.order.push('ready');
+        for(const resolve of readyWaiters.splice(0)) resolve();
+    },
     briccraftSerializeWorld:serialize,
     briccraftImportWorld(source) {
         events.imports.push(source);
+        events.order.push('import');
         return installSource(source);
     },
     briccraftCreateWorld(preset,name,seed,id) {
@@ -100,7 +107,15 @@ function failNextWorldWrite(id) {
     return () => { IDBObjectStore.prototype.put=original; return fired; };
 }
 
-globalThis.fixture={db,storage,runtime,live,events,serialize,editMarker,seedLegacy,failNextWorldWrite,legacy,data:{}};
+function chooseWorldFile(source,name='Imported alpine.briccraft') {
+    const input=document.getElementById('world-file');
+    const transfer=new DataTransfer();
+    if(source!==undefined) transfer.items.add(new File([source],name,{type:'application/json'}));
+    input.files=transfer.files;
+    input.dispatchEvent(new Event('change'));
+}
+
+globalThis.fixture={db,storage,runtime,live,events,flags,readyWaiters,chooseWorldFile,serialize,editMarker,seedLegacy,failNextWorldWrite,legacy,data:{}};
 `);
 
 let page;
@@ -163,6 +178,20 @@ try {
         assert.match(result.alpha.source,/"seed":18446744073709551608/);
         assert.match(result.alpha.source,/"x":1152921504606847025/);
         assert.match(result.alpha.source,/"z":-1152921504606846961/);
+    });
+
+    await check('opening a world unlocks only after its actual IndexedDB load and final list',async()=>{
+        const result=await page.evaluate(`(async()=>{
+            const t=fixture;
+            const start=t.events.order.length;
+            await briccraftWorldHost('open',JSON.stringify({id:t.data.alpha.id,snapshot:t.serialize()}));
+            const result={order:t.events.order.slice(start),live:t.live.id,expected:t.data.alpha.id};
+            await briccraftWorldHost('open',JSON.stringify({id:t.data.beta.id,snapshot:t.serialize()}));
+            return result;
+        })()`);
+        assert.equal(result.live,result.expected);
+        assert.deepEqual(result.order,['list','import','list','ready'],
+            'The interaction lock must cover autosave, target load, and its final library refresh');
     });
 
     await check('a delayed snapshot cannot overwrite or activate the current different world',async()=>{
@@ -275,6 +304,105 @@ try {
         assert.equal(result.beta.source,result.expected.beta.source);
         assert.equal(result.live,result.beta.id);
         assert.equal(result.active,result.beta.id);
+    });
+
+    await check('manual Load restores the saved version and releases its lock after replacement',async()=>{
+        const result=await page.evaluate(`(async()=>{
+            const t=fixture;
+            const original=await t.db.readRecord(t.live.id);
+            t.editMarker('unsaved changes deliberately discarded by Load');
+            const start=t.events.order.length;
+            // Runtime::dispatch acquires this lock synchronously before calling the host bridge.
+            t.runtime.briccraftWorldBusy();
+            const loading=briccraftLoad();
+            const immediateBusy=t.flags.worldBusy;
+            await loading;
+            return {original,saved:await t.db.readRecord(t.live.id),source:t.serialize(),
+                immediateBusy,busy:t.flags.worldBusy,order:t.events.order.slice(start)};
+        })()`);
+        assert.equal(result.immediateBusy,true);
+        assert.equal(result.busy,false);
+        assert.equal(result.saved.source,result.original.source,'Load must not autosave over the requested restore point');
+        assert.equal(result.source,result.original.source);
+        assert.deepEqual(result.order,['busy','import','list','ready']);
+    });
+
+    await check('world-file selection ignores cancellation and rejects concurrent world operations',async()=>{
+        const result=await page.evaluate(`(async()=>{
+            const t=fixture;
+            const start=t.events.order.length,messages=t.events.messages.length;
+            const source=t.serialize();
+            t.chooseWorldFile(undefined);
+            const canceled={busy:t.flags.worldBusy,events:t.events.order.length-start};
+            const rejected=[];
+            for(const key of ['worldBusy','importBusy']) {
+                t.flags[key]=true;
+                t.chooseWorldFile(t.data.alpha.source);
+                rejected.push({key,stillBusy:t.flags[key],events:t.events.order.length-start,source:t.serialize()});
+                t.flags[key]=false;
+            }
+            return {canceled,rejected,source,messages:t.events.messages.slice(messages)};
+        })()`);
+        assert.deepEqual(result.canceled,{busy:false,events:0});
+        for(const attempt of result.rejected) {
+            assert.equal(attempt.stillBusy,true,'Rejected file selection must not release another operation\'s lock');
+            assert.equal(attempt.events,0);
+            assert.equal(attempt.source,result.source);
+        }
+        assert.equal(result.messages.length,2);
+        assert(result.messages.every(message=>message.includes('Finish the current world operation')));
+    });
+
+    await check('accepted world-file selection locks synchronously through autosave and final refresh',async()=>{
+        const result=await page.evaluate(`(async()=>{
+            const t=fixture;
+            const previous={id:t.live.id,source:t.serialize()};
+            const start=t.events.order.length;
+            const finished=new Promise(resolve=>t.readyWaiters.push(resolve));
+            t.chooseWorldFile(t.data.alpha.source);
+            const immediate={busy:t.flags.worldBusy,order:t.events.order.slice(start)};
+            await finished;
+            return {immediate,order:t.events.order.slice(start),busy:t.flags.worldBusy,
+                previous,savedPrevious:await t.db.readRecord(previous.id),
+                imported:await t.db.readRecord(t.live.id),source:t.serialize(),alpha:t.data.alpha};
+        })()`);
+        assert.deepEqual(result.immediate,{busy:true,order:['busy']},'File reading must not begin before the synchronous lock');
+        assert.deepEqual(result.order,['busy','list','import','list','ready']);
+        assert.equal(result.busy,false);
+        assert.equal(result.savedPrevious.source,result.previous.source);
+        assert.notEqual(result.imported.id,result.alpha.id);
+        assert.notEqual(result.imported.id,result.previous.id);
+        assert.equal(result.imported.name,'Imported alpine');
+        assert.equal(result.imported.source,result.source);
+        assert.match(result.source,/"seed":18446744073709551608/);
+        assert.match(result.source,/"x":1152921504606847025/);
+    });
+
+    await check('world-file autosave failure releases its lock without replacing the live session',async()=>{
+        const result=await page.evaluate(`(async()=>{
+            const t=fixture;
+            const original=await t.db.readRecord(t.live.id);
+            t.editMarker('file import draft retained after storage failure');
+            const draft=t.serialize(),start=t.events.order.length;
+            const restore=t.failNextWorldWrite(t.live.id);
+            const finished=new Promise(resolve=>t.readyWaiters.push(resolve));
+            let fired;
+            try {
+                t.chooseWorldFile(t.data.beta.source);
+                await finished;
+            } finally { fired=restore(); }
+            // Wait behind the failed queued operation so its reported storage error is observed.
+            await briccraftWorldHost('list','{}');
+            return {fired,original,draft,source:t.serialize(),live:t.live.id,busy:t.flags.worldBusy,
+                saved:await t.db.readRecord(original.id),order:t.events.order.slice(start),messages:t.events.messages};
+        })()`);
+        assert.equal(result.fired,true);
+        assert.equal(result.busy,false);
+        assert.equal(result.live,result.original.id);
+        assert.equal(result.source,result.draft);
+        assert.equal(result.saved.source,result.original.source);
+        assert.deepEqual(result.order,['busy','ready','list']);
+        assert(result.messages.some(message=>message.includes('Injected world storage quota failure')));
     });
 
     assert.deepEqual(page.errors,[],`Unexpected browser errors: ${page.errors.join('\n')}`);
