@@ -4,6 +4,7 @@ import { installStorage } from './storage-host.js';
 import { installInput } from './input-host.js';
 import { installImports } from './import-host.js';
 import { installAudio } from './audio-host.js';
+import { installGraphics } from './graphics-host.js';
 
 const mount = document.getElementById('out');
 const loading = document.getElementById('loading');
@@ -18,14 +19,34 @@ try {
         installImports(runtime,storage);
         installAudio();
         installInput(runtime, mount);
+        installGraphics(mount);
         message.textContent = 'Snapping the last pieces into place…';
         runtime.runMain(location.search);
         storage.ready().finally(() => runtime.briccraftWorldReady());
         let frames = 0;
+        let graphicsVerified = false;
+        let readyAnnounced = false;
         const frame = time => {
             try {
+                // Read the first presented target before preparing another
+                // frame: CPU Skia cannot run this world's shader interactively.
+                if (!graphicsVerified) {
+                    const state = JSON.parse(runtime.briccraftState());
+                    if (state.rendering.frames > 0 && state.rendering.frameKind !== 0) {
+                        console.info('[BricCraft] rendering', JSON.stringify({
+                            rendering: state.rendering,
+                            effectFrames: state.renderer.effectFrames,
+                            uniformFrames: state.renderer.uniformFrames,
+                        }));
+                        if (state.rendering.kind !== 'webgl' || state.rendering.glMajorVersion < 3) {
+                            throw new Error('WebGL 2 is required to render this world. Enable graphics acceleration or try another browser that supports WebGL 2');
+                        }
+                        graphicsVerified = true;
+                    }
+                }
                 runtime.briccraftFrame(time, mount.clientWidth, mount.clientHeight);
-                if (++frames === 3) {
+                if (++frames >= 3 && graphicsVerified && !readyAnnounced) {
+                    readyAnnounced = true;
                     loading.classList.add('ready');
                     setTimeout(() => loading.remove(), 500);
                 }

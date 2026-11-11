@@ -357,7 +357,16 @@ pub fn footer(state: UiState, dispatch: Dispatch) -> Element {
                 .corner_radius(5.0)
                 .child(
                     text_block()
-                        .text(move || format!("SKIA  ·  {:.0} FPS", state.fps.get()))
+                        .text(move || {
+                            let fps = state.fps.get();
+                            if fps < 1.0 {
+                                format!("SKIA  ·  {fps:.2} FPS")
+                            } else if fps < 10.0 {
+                                format!("SKIA  ·  {fps:.1} FPS")
+                            } else {
+                                format!("SKIA  ·  {fps:.0} FPS")
+                            }
+                        })
                         .font_size(10.0)
                         .foreground("#C5D6DC"),
                 ),

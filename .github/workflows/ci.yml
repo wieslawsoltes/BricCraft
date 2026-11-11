@@ -22,6 +22,6 @@ jobs:
         node tests/import-host.mjs
         bash scripts/build-import-worker.sh "$SITE"
         node tests/import-engine.mjs "$SITE"
-        node tests/storage.mjs
-        node tests/browser.mjs "$SITE" "$RUNNER_TEMP/smoke"
+        timeout 2m node tests/storage.mjs
+        timeout 15m node tests/browser.mjs "$SITE" "$RUNNER_TEMP/smoke"
       pages: true

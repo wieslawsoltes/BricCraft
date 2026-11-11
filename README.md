@@ -84,6 +84,8 @@ python3 FerroUI/scripts/apps/sync-workspace.py --check .
 
 `briccraft-render-data` supplies independent atlas tests and a reproducible packing benchmark. `briccraft-render` includes camera tests and a Skia shader smoke tool. The application calls FerroUI's `CustomEffect`, `EffectImage` and immutable effect APIs; all game UI uses `ferroui-view` builders and signals. The JavaScript host supplies browser services only.
 
+Interactive rendering uses **Skia WebGL2**. The pinned framework requests rejection of WebGL contexts with a major performance caveat, which can select CPU Skia even when the browser permits a software WebGL driver. A small browser adapter scopes the game's context preference to its own canvas and permits that browser-approved WebGL2 path. Other canvases and context types keep their original options; the framework submodule is unchanged. When WebGL2 is unavailable, startup explains the graphics requirement. The CI game gate verifies the actual presented target and OpenGL ES version, and the FPS display counts FerroUI's presented frames over elapsed wall time.
+
 ## Workspace
 
 Eleven reusable crates separate the part library, local world, streaming, map/model conversion, worker bindings, mechanics, game state, atlas packing, renderer, UI and browser lifecycle. See [the architecture and current boundaries](docs/architecture.md) for interfaces and implementation details.

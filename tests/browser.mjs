@@ -16,6 +16,9 @@ try {
     await wait(`${current}.ready && !${current}.worldBusy && !document.getElementById('loading')`);
     await sleep(700);
     const start=await state();
+    assert(start.rendering.kind==='webgl' && start.rendering.glMajorVersion===3,
+        `The GPU regression must exercise Skia WebGL2, got ${JSON.stringify(start.rendering)}`);
+    measurements.backend=start.rendering;
     assert(start.parts>5000,'The initial world must contain actual geometry');
     const before=await page.screenshot(undefined,{x:300,y:110,width:640,height:440});
     await page.mouseDown(700,360);

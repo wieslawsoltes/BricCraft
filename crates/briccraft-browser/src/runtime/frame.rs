@@ -84,8 +84,21 @@ impl Runtime {
             self.state.import_status.set(summary.clone());
             crate::world_host::finished(success, &summary);
         }
-        if elapsed > 0.0 {
-            self.fps.set(self.fps.get() * 0.94 + (1.0 / elapsed) * 0.06);
+        let presented = ferroui_browser::rendering::RenderStatistics::current().frames;
+        let last_presented = self.presented_frames.replace(presented);
+        if previous > 0.0 && elapsed > 0.0 {
+            // Count FerroUI's presented frames over actual wall time. Averaging reciprocal intervals
+            // lets brief callbacks conceal multi-second renderer stalls.
+            let seconds = self.fps_elapsed.get() + elapsed;
+            let frames = self.fps_frames.get() + presented.saturating_sub(last_presented);
+            if seconds >= 0.5 {
+                self.fps.set(frames as f64 / seconds);
+                self.fps_elapsed.set(0.0);
+                self.fps_frames.set(0);
+            } else {
+                self.fps_elapsed.set(seconds);
+                self.fps_frames.set(frames);
+            }
         }
         if milliseconds - self.last_hud.get() > 300.0 {
             self.last_hud.set(milliseconds);

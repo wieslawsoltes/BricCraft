@@ -2,6 +2,10 @@
 use crate::{application::App, runtime::Runtime};
 use briccraft_ui::UiAction;
 use ferroui_base::media::FontManagerOptions;
+use ferroui_browser::interop::canvas_helper::{
+    RENDER_TARGET_KIND_SOFTWARE, RENDER_TARGET_KIND_WEB_GL,
+};
+use ferroui_browser::rendering::RenderStatistics;
 use ferroui_browser::{
     BrowserAppBuilder, BrowserPlatformOptions, BrowserRenderer, BrowserRenderingMode,
 };
@@ -317,6 +321,14 @@ pub fn state() -> String {
     with_runtime(|r| {
         let game = r.session.borrow();
         let render = r.renderer.borrow().stats();
+        // These count frames actually presented by FerroUI, independently of
+        // effect snapshots prepared by the game or the selected startup mode.
+        let presented = RenderStatistics::current();
+        let render_kind = match presented.frame_kind {
+            RENDER_TARGET_KIND_WEB_GL => "webgl",
+            RENDER_TARGET_KIND_SOFTWARE => "software",
+            _ => "none",
+        };
         result = serde_json::json!({
             "parts":game.world.len(),"revision":game.world.revision(),"catalog":briccraft_parts::CATALOG.len(),
             "selectedPart":game.selected_part,"color":game.color,"mode":game.mode_name(),"status":game.status,"seed":game.seed.to_string(),
@@ -327,7 +339,13 @@ pub fn state() -> String {
             "cachedChunks":game.stream_stats().map(|s|s.cached_chunks),"sceneGeneration":game.scene_generation,
             "attributions":game.world_info.attributions,"importBusy":r.state.import_busy.get_untracked(),
             "worldBusy":r.state.world_busy.get_untracked(),"worldsOpen":r.state.worlds_open.get_untracked(),"worldCount":r.state.worlds.get_untracked().len(),
-            "renderer":{"uploads":render.uploads,"bytes":render.texture_bytes,"uniformFrames":render.uniform_only_frames,"activeCells":render.active_cells},
+            "renderer":{"uploads":render.uploads,"bytes":render.texture_bytes,"effectFrames":render.effect_frames,"uniformFrames":render.uniform_only_frames,"activeCells":render.active_cells},
+            "rendering":{
+                "kind":render_kind,"frameKind":presented.frame_kind,"glMajorVersion":presented.frame_gl_major_version,
+                "frames":presented.frames,"frameThread":presented.frame_thread,
+                "width":presented.frame_width,"height":presented.frame_height,
+                "ticks":presented.ticks,"proxiedCalls":presented.tick_proxied_calls,"panics":presented.render_thread_panics
+            },
             "ready":r.world_effect.get_untracked().is_some(),"fps":r.state.fps.get_untracked()
         }).to_string();
     });
