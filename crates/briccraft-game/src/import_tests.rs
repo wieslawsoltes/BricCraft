@@ -6,7 +6,7 @@ use glam::Vec3;
 #[test]
 fn real_brandenburg_extract_imports_saves_and_undoes_without_terrain_conflicts() {
     let options = OsmOptions {
-        bounds: GeoBounds::around(52.5163, 13.3777, 160.0).unwrap(),
+        bounds: GeoBounds::around(52.516275, 13.377704, 160.0).unwrap(),
         meters_per_stud: 4.0,
         origin: [48, 18, 48],
         max_height_plates: Some(54),

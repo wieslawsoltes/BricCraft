@@ -23,7 +23,7 @@ fn building(points: &[[f64; 2]], height: &str) -> String {
 #[test]
 fn actual_brandenburg_extract_retains_tagged_height_and_attribution() {
     let options = OsmOptions {
-        bounds: GeoBounds::around(52.5163, 13.3777, 160.0).unwrap(),
+        bounds: GeoBounds::around(52.516275, 13.377704, 160.0).unwrap(),
         meters_per_stud: 4.0,
         origin: [48, 18, 48],
         max_height_plates: Some(54),
@@ -31,8 +31,11 @@ fn actual_brandenburg_extract_retains_tagged_height_and_attribution() {
     };
     let plan =
         import_overpass_json(include_str!("fixtures/brandenburg-osm.json"), &options).unwrap();
-    assert!(plan.report.buildings >= 3);
-    assert!(plan.report.roads > 10);
+    // Same sample center as the shipped worker ABI and browser gallery.
+    assert_eq!(plan.report.parts, 169);
+    assert_eq!(plan.report.voxels, 7329);
+    assert_eq!(plan.report.buildings, 22);
+    assert_eq!(plan.report.roads, 17);
     let gate = plan
         .report
         .height_evidence

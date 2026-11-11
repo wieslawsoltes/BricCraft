@@ -24,6 +24,11 @@ float3 skyColor(float3 ray) {
     return color;
 }
 
+float windowBoundaryFog(float2 position) {
+    float2 edge=min(position,world_dimensions.xz-position);
+    return 1.0-smoothstep(0.0,camera_right.w,min(edge.x,edge.y));
+}
+
 float3 moldedNormal(Hit h) {
     float3 normal=h.normal;
     if(h.shape<2.5) {
@@ -102,8 +107,7 @@ float3 shadeBrick(Hit hit,float3 position,float3 ray) {
     }
     float fog=(1.0-exp(-hit.t*hit.t*0.000026))*0.75;
     if(hit.moving<0.5 && camera_right.w>0.0) {
-        float2 edge=min(position.xz,world_dimensions.xz-position.xz);
-        fog=max(fog,1.0-smoothstep(0.0,camera_right.w,min(edge.x,edge.y)));
+        fog=max(fog,windowBoundaryFog(position.xz));
     }
     return mix(color,skyColor(ray),fog);
 }

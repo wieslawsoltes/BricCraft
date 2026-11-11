@@ -162,8 +162,9 @@ mod tests {
     #[test]
     fn map_options_validate_coordinates_and_projection() {
         let options: OsmOptions =
-            serde_json::from_str(&map_options_json(52.5163, 13.3777, 160.0, 4.0).unwrap()).unwrap();
-        assert!(options.bounds.south < 52.5163 && options.bounds.north > 52.5163);
+            serde_json::from_str(&map_options_json(52.516275, 13.377704, 160.0, 4.0).unwrap())
+                .unwrap();
+        assert!(options.bounds.south < 52.516275 && options.bounds.north > 52.516275);
         assert_eq!(options.max_height_plates, Some(54));
         assert!(map_options_json(91.0, 0.0, 160.0, 4.0).is_err());
     }

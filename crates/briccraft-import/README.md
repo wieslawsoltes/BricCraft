@@ -30,7 +30,7 @@ Triangle/voxel overlap uses separating-axis tests against the actual triangle. E
 use briccraft_import::{GeoBounds, OsmOptions, import_overpass_json};
 
 let options = OsmOptions {
-    bounds: GeoBounds::around(52.5163, 13.3777, 160.0)?,
+    bounds: GeoBounds::around(52.516275, 13.377704, 160.0)?,
     meters_per_stud: 4.0,
     origin: [48, 18, 48],
     max_height_plates: Some(54),
@@ -83,4 +83,4 @@ The committed fixtures have their own data licenses and provenance in [tests/fix
 
 The actual 5,422,412-byte ToyCar GLB, fetched on 2026-11-11, converted with a 48-stud fit and 54-plate height budget to **2,056 parts, 8,565 occupied cells and 14 palette colors from 108,936 triangles**. The observed native debug conversion took 2.869 seconds on the development runner; this is one measurement, not a browser frame-rate guarantee. Embedded textures preserve the source paint colors at the chosen brick resolution. Transparent glass, fabric shading and clearcoat are represented as solid brick colors, and camera/light objects do not become bricks.
 
-The Brandenburg fixture at a 160 m radius, 4 m per stud and origin `[48,18,48]` converted to **176 parts, 7,337 occupied cells, 26 buildings and 17 road features**, within `[8,18,8]..[88,35,88]`. Tests verify the explicit 26 m gate height, inferred-height evidence, signed global positions, courtyards, concave footprints, source-direction projection and nonoverlapping catalog-part coverage.
+The Brandenburg fixture centered at **52.516275° N, 13.377704° E**, with a 160 m radius, 4 m per stud and origin `[48,18,48]`, converts to **169 parts, 7,329 occupied cells, 22 building features and 17 road features**, within `[8,18,8]..[88,35,88]`. Building features include mapped building parts. Native and shipped WASM conversion produce identical placements, reports and attribution for these options. Tests verify the explicit 26 m gate height, inferred-height evidence, signed global positions, courtyards, concave footprints, source-direction projection and nonoverlapping catalog-part coverage. Changing the projection center changes where the sampling grid falls on small source features, so coarse-grid counts can differ even at the same radius and scale.

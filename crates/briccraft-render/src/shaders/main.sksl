@@ -21,10 +21,21 @@ half4 main(float2 coord) {
     float surfaceT=min(hit.t,waterT);
     if(solid) color=brickColor;
     else if(waterT<FAR) {
-        color=waterColor(origin+ray*waterT,ray,waterT);
+        float3 waterPosition=origin+ray*waterT;
+        color=waterColor(waterPosition,ray,waterT);
+        float transmission=0.0;
         if(submerged) {
-            float transmission=exp(-(hit.t-waterT)*0.65)*0.38;
+            transmission=exp(-(hit.t-waterT)*0.65)*0.38;
             color=mix(color,brickColor*float3(0.72,0.91,0.96),transmission);
+        }
+        if(camera_right.w>0.0) {
+            // The bounded terrain and its background share one atmospheric edge.
+            // Otherwise the infinite water plane draws a false square coastline.
+            float3 haze=skyColor(ray);
+            // Detached constructions remain visible when crossing the window,
+            // including the transmitted part of a hull below the water surface.
+            haze=mix(haze,brickColor*float3(0.72,0.91,0.96),transmission*hit.moving);
+            color=mix(color,haze,windowBoundaryFog(waterPosition.xz));
         }
     }
     else color=skyColor(ray);

@@ -21,5 +21,6 @@ jobs:
       browser-script: |
         bash scripts/build-import-worker.sh "$SITE"
         node tests/import-engine.mjs "$SITE"
+        node tests/storage.mjs
         node tests/browser.mjs "$SITE" "$RUNNER_TEMP/smoke"
       pages: true
