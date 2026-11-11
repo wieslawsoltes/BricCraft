@@ -9,19 +9,16 @@ permissions:
   pages: write
   id-token: write
 concurrency:
+  # A newer commit supersedes the previous build; deployment also has its own lock.
   group: briccraft-${{ github.ref }}
-  # A newer commit supersedes an older build; Pages retains its own deployment lock.
   cancel-in-progress: true
 jobs:
   application:
     uses: wieslawsoltes/FerroUI/.github/workflows/app.yml@1c51d201a74fb835c065ab43d1bf091429f92392
     with:
-      test: -p briccraft-parts -p briccraft-world -p briccraft-mechanics -p briccraft-game -p briccraft-stream -p briccraft-import -p briccraft-import-worker -p briccraft-render-data
-      check: -p briccraft-browser
-      script: |
-        python3 -m venv "$RUNNER_TEMP/skia-check"
-        "$RUNNER_TEMP/skia-check/bin/pip" install --quiet --disable-pip-version-check --only-binary=:all: skia-python==144.1
-        BRICCRAFT_SKIA_PYTHON="$RUNNER_TEMP/skia-check/bin/python" bash scripts/check-shaders.sh "$RUNNER_TEMP/smoke"
+      test: ''
+      check: ''
+      script: ''
       browser-package: briccraft-browser
       browser-script: |
         node tests/import-host.mjs
@@ -36,4 +33,92 @@ jobs:
           cp "$RUNNER_TEMP/smoke/$name.png" "$SITE/previews/$name.png"
         done
         cp "$RUNNER_TEMP/smoke/browser-metrics.json" "$SITE/previews/metrics.json"
-      pages: true
+        node scripts/write-build-info.mjs "$SITE"
+      pages: false
+
+  native:
+    name: Native checks and shader variants
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: 0
+      CARGO_PROFILE_DEV_DEBUG: 0
+      CARGO_PROFILE_TEST_DEBUG: 0
+      RUST_BACKTRACE: 1
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          submodules: true
+      - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d # stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          key: native-ubuntu-24.04
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
+      - name: Domain tests
+        run: >-
+          cargo test --locked
+          -p briccraft-parts -p briccraft-world -p briccraft-mechanics
+          -p briccraft-game -p briccraft-stream -p briccraft-import
+          -p briccraft-import-worker -p briccraft-render-data
+      - name: Required native library capabilities
+        run: bash scripts/ensure-native-deps.sh
+      - name: Compile and render all production shader variants
+        run: |
+          python3 -m venv "$RUNNER_TEMP/skia-check"
+          "$RUNNER_TEMP/skia-check/bin/pip" install --quiet --disable-pip-version-check --only-binary=:all: skia-python==144.1
+          BRICCRAFT_SKIA_PYTHON="$RUNNER_TEMP/skia-check/bin/python" bash scripts/check-shaders.sh "$RUNNER_TEMP/shader-checks"
+      - name: Compile the native UI
+        run: cargo check --locked -p briccraft-browser
+      - name: Upload shader validation images
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: shader-checks
+          path: ${{ runner.temp }}/shader-checks
+          if-no-files-found: ignore
+          retention-days: 7
+
+  deploy:
+    name: Deploy validated main to GitHub Pages
+    needs: [application, native]
+    if: >-
+      !cancelled() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+      && needs.application.result == 'success' && needs.native.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    concurrency:
+      group: briccraft-pages
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Publish only the current main commit
+        id: current
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          current="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          if [[ "$current" == "$GITHUB_SHA" ]]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "A newer main commit exists; this validated build will not replace it."
+          fi
+      - id: deployment
+        if: steps.current.outputs.deploy == 'true'
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+      - name: Verify the published commit and public assets
+        if: steps.current.outputs.deploy == 'true'
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: node scripts/verify-pages.mjs "$PAGE_URL" "$GITHUB_SHA"
