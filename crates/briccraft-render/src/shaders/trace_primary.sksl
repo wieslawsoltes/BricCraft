@@ -1,0 +1,101 @@
+Hit traceVolume(float3 ro,float3 rd,float3 dimensions,float offset,float maxDistance) {
+    Hit best=miss();
+    if(dimensions.x<1.0 || dimensions.y<1.0 || dimensions.z<1.0) return best;
+    float3 lower=float3(0.0);
+    float3 upper=dimensions*float3(1.0,PLATE,1.0)+float3(0.0,STUD_HEIGHT,0.0);
+    if(offset<0.5) {
+        if(scene_bounds_max.w<0.5) return best;
+        lower=scene_bounds_min.xyz;
+        upper=scene_bounds_max.xyz;
+    }
+    float2 range=boxInterval(ro,rd,lower,upper);
+    if(range.x>range.y || range.y<0.0 || range.x>maxDistance) return best;
+    float t=max(range.x,0.0)+0.0002;
+    float end=min(range.y,maxDistance);
+    float3 gridRo=ro/float3(1.0,PLATE,1.0);
+    float3 gridRd=rd/float3(1.0,PLATE,1.0);
+    float3 cell=floor(gridRo+gridRd*t);
+    float3 direction=float3(gridRd.x<0.0?-1.0:1.0,gridRd.y<0.0?-1.0:1.0,gridRd.z<0.0?-1.0:1.0);
+    float3 gridInverse=safeInverse(gridRd);
+    float3 delta=abs(gridInverse);
+    float3 edge=cell+max(direction,float3(0.0));
+    float3 next=(edge-gridRo)*gridInverse;
+    // Cache occupancy of the current coarse tile: fine-cell traversal usually
+    // visits several cells in it, so those steps need no coarse texture fetch.
+    float3 previousCoarse=float3(-1.0);
+    float coarseOccupied=0.0;
+    float3 blockSize=float3(4.0,6.0,4.0);
+    float3 coarseDimensions=ceil((dimensions+float3(0.0,1.0,0.0))/blockSize);
+    for(int iteration=0;iteration<384;++iteration) {
+        if(offset<0.5) {
+            float3 coarse=floor(cell/blockSize);
+            if(any(notEqual(coarse,previousCoarse))) {
+                coarseOccupied=cellId(coarse,coarseDimensions,world_dimensions.w);
+                previousCoarse=coarse;
+            }
+            if(coarseOccupied<0.5) {
+                float3 blockEdge=(coarse+max(direction,float3(0.0)))*blockSize;
+                float3 blockNext=(blockEdge-gridRo)*gridInverse;
+                t=min(min(blockNext.x,blockNext.y),blockNext.z)+0.0002;
+                if(t>end) break;
+                cell=floor(gridRo+gridRd*t);
+                next=(cell+max(direction,float3(0.0))-gridRo)*gridInverse;
+                continue;
+            }
+        }
+        float exit=min(min(next.x,next.y),next.z);
+        float id=cellId(cell,dimensions,offset);
+        if(id>0.0) {
+            Hit hit=intersectPart(ro,rd,id,cell,t,exit);
+            if(hit.t<best.t) best=hit;
+        }
+        // The row above a brick contains its studs. It does not occupy a
+        // placement cell: another brick's underside interlocks with them.
+        float below=cellId(cell-float3(0.0,1.0,0.0),dimensions,offset);
+        if(below>0.0 && below!=id) {
+            // This branch can only hit the protruding stud. Avoid duplicating
+            // every complex shape's SDF and re-reading its descriptor here.
+            Hit stud=intersectStud(ro,rd,below,cell,t,exit);
+            if(stud.t<best.t) best=stud;
+        }
+        if(best.t<FAR) return best;
+        if(exit>end) break;
+        t=exit;
+        // Advance all tied axes. This avoids duplicate cells and cracks on
+        // exactly diagonal rays, including axis-aligned camera directions.
+        float3 advance=float3(next.x<=exit+0.00001?1.0:0.0,
+            next.y<=exit+0.00001?1.0:0.0,next.z<=exit+0.00001?1.0:0.0);
+        cell+=direction*advance;
+        next+=delta*advance;
+        if(cell.x<0.0 || cell.z<0.0 || cell.y<0.0 || cell.x>=dimensions.x || cell.z>=dimensions.z || cell.y>dimensions.y) break;
+    }
+    return best;
+}
+
+float3 vehicleLocal(float3 worldPoint) {
+    float3 p=worldPoint-vehicle_position.xyz;
+    return float3(dot(p,vehicle_axis_x.xyz)+vehicle_axis_x.w,
+        dot(p,vehicle_axis_y.xyz)+vehicle_axis_y.w,dot(p,vehicle_axis_z.xyz)+vehicle_axis_z.w);
+}
+
+float3 vehicleDirection(float3 worldDirection) {
+    return float3(dot(worldDirection,vehicle_axis_x.xyz),dot(worldDirection,vehicle_axis_y.xyz),dot(worldDirection,vehicle_axis_z.xyz));
+}
+
+Hit traceScene(float3 ro,float3 rd,float maxDistance) {
+    Hit h=traceVolume(ro,rd,world_dimensions.xyz,0.0,maxDistance);
+    if(vehicle_position.w>0.5) {
+        Hit moving=traceVolume(vehicleLocal(ro),vehicleDirection(rd),vehicle_dimensions.xyz,vehicle_dimensions.w,min(h.t,maxDistance));
+        if(moving.t<h.t) {
+            moving.moving=1.0;
+            h=moving;
+        }
+    }
+    return h;
+}
+
+float solidAt(float3 p) {
+    float id=cellId(floor(p/float3(1.0,PLATE,1.0)),world_dimensions.xyz,0.0);
+    return id>0.0?1.0:0.0;
+}
+

@@ -9,14 +9,25 @@ from pathlib import Path
 import argparse
 import json
 import math
+import re
 import statistics
 import time
 import skia
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = "\n".join((ROOT / "src/shaders" / f"{name}.sksl").read_text()
-                    for name in ("uniforms", "geometry", "trace", "lighting", "main"))
+def source_for_quality(quality):
+    """Read the exact include_str sequence of the production Rust effect."""
+    name = ("FAST_WORLD_SKSL", "BALANCED_WORLD_SKSL", "WORLD_SKSL")[quality]
+    rust = (ROOT / "src/effect.rs").read_text()
+    declaration = re.search(rf"pub const {name}: &str = concat!\((.*?)\n\);", rust, re.S)
+    assert declaration, f"Production source declaration missing: {name}"
+    files = re.findall(r'include_str!\("([^"]+)"\)', declaration.group(1))
+    assert files, f"Production source has no shader files: {name}"
+    return "".join((ROOT / "src" / filename).read_text() for filename in files)
+
+
+SOURCE = source_for_quality(2)
 
 
 def fixture():
@@ -101,7 +112,9 @@ def images(pieces, dimensions, moving=()):
     }
 
 
-def render(output, scene=None, *, quality=1, width=800, height=500, frames=1, source=SOURCE):
+def render(output, scene=None, *, quality=1, width=800, height=500, frames=1, source=None):
+    if source is None:
+        source = source_for_quality(quality)
     dimensions = [96, 72, 96]
     pieces = fixture()
     position = np.array([75.0, 30.0, 87.0])
@@ -141,7 +154,7 @@ def render(output, scene=None, *, quality=1, width=800, height=500, frames=1, so
         'cell_texture_size': [pixel_images[0].shape[1], pixel_images[0].shape[0]],
         'part_texture_size': [pixel_images[1].shape[1], pixel_images[1].shape[0]],
         'camera_position': list(position)+[4.0],
-        'camera_forward': list(forward)+[math.tan(math.radians(26.0))],
+        'camera_forward': list(forward)+[math.tan(content.get('vertical_fov', math.radians(52.0))*0.5)],
         'camera_right': list(right)+[content.get('window_fade', 0.0)], 'camera_up': list(up)+[1.0],
         'sun_direction': list(sun)+[2.4 if scene else 1.2], 'preview_origin': [0.0]*4,
         'preview_size': [0.0]*4, 'selection': 0, 'quality': quality, 'construction_grid': 0,
@@ -184,12 +197,19 @@ def render(output, scene=None, *, quality=1, width=800, height=500, frames=1, so
         draw_ms.append((time.perf_counter()-started)*1000)
     snapshot = surface.makeImageSnapshot()
     Path(output).write_bytes(bytes(snapshot.encodeToData()))
-    rgb = snapshot.toarray()[..., :3]
+    rgb = snapshot.toarray(colorType=skia.ColorType.kRGBA_8888_ColorType)[..., :3]
     assert rgb.std() > 22, 'Rendered fixture is unexpectedly flat or blank'
+    warm_pixels = None
+    if scene is None:
+        # The fixed inspection fixture contains a red roof and warm-colored
+        # bricks. Blue sky/water alone must not pass the visibility gate.
+        red, green, blue = (rgb[..., channel].astype(float) for channel in range(3))
+        warm_pixels = int(np.count_nonzero((red > green*1.15) & (red > blue*1.30)))
+        assert warm_pixels >= max(3, width*height*0.0005), 'Fixture brick/roof geometry is missing'
     result = {
         'shader': 'compiled', 'backend': 'native Skia CPU raster', 'parts': len(pieces)+len(moving),
-        'output': str(output), 'channel_std': float(rgb.std()), 'size': [width, height],
-        'quality': quality, 'compile_ms': compile_ms, 'draw_ms': draw_ms,
+        'output': str(output), 'channel_std': float(rgb.std()), 'warm_fixture_pixels': warm_pixels, 'size': [width, height],
+        'quality': quality, 'variant': ('analytic-fast', 'analytic-balanced', 'full-geometry')[quality], 'compile_ms': compile_ms, 'draw_ms': draw_ms,
         'draw_cpu_ms': draw_cpu_ms,
         'steady_draw_ms_median': statistics.median(draw_ms[1:]) if frames > 1 else None,
         'steady_draw_cpu_ms_median': statistics.median(draw_cpu_ms[1:]) if frames > 1 else None,
@@ -206,18 +226,25 @@ if __name__ == '__main__':
     parser.add_argument('--height', type=int, default=500)
     parser.add_argument('--quality', type=int, choices=(0, 1, 2), default=1)
     parser.add_argument('--frames', type=int, default=1)
+    parser.add_argument('--all-qualities', action='store_true', help='Compile and render all three actual production shader variants')
     parser.add_argument('--source', type=Path, help='Alternate concatenated SkSL, for a baseline benchmark')
     parser.add_argument('--compare-source', type=Path, help='Also render a baseline and report pixel differences')
     args = parser.parse_args()
     if min(args.width, args.height, args.frames) < 1:
         parser.error('width, height, and frames must be positive')
-    settings = dict(quality=args.quality, width=args.width, height=args.height, frames=args.frames)
-    result, rgb = render(args.output, args.scene, source=args.source.read_text() if args.source else SOURCE, **settings)
-    if args.compare_source:
-        baseline, original = render(str(Path(args.output).with_suffix('.baseline.png')), args.scene,
-                                    source=args.compare_source.read_text(), **settings)
-        delta = np.abs(rgb.astype(np.int16)-original.astype(np.int16))
-        result['baseline'] = baseline
-        result['difference'] = {'mean_absolute_channel': float(delta.mean()), 'maximum_channel': int(delta.max()),
-                                'fraction_pixels_over_8': float((delta.max(axis=2) > 8).mean())}
-    print(json.dumps(result))
+    results = []
+    for quality in ((0, 1, 2) if args.all_qualities else (args.quality,)):
+        output = Path(args.output)
+        if args.all_qualities:
+            output = output.with_name(f"{output.stem}.{('fast', 'balanced', 'full')[quality]}{output.suffix}")
+        settings = dict(quality=quality, width=args.width, height=args.height, frames=args.frames)
+        result, rgb = render(output, args.scene, source=args.source.read_text() if args.source else None, **settings)
+        if args.compare_source:
+            baseline, original = render(str(output.with_suffix('.baseline.png')), args.scene,
+                                        source=args.compare_source.read_text(), **settings)
+            delta = np.abs(rgb.astype(np.int16)-original.astype(np.int16))
+            result['baseline'] = baseline
+            result['difference'] = {'mean_absolute_channel': float(delta.mean()), 'maximum_channel': int(delta.max()),
+                                    'fraction_pixels_over_8': float((delta.max(axis=2) > 8).mean())}
+        results.append(result)
+    print(json.dumps(results if args.all_qualities else results[0]))

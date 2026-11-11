@@ -172,6 +172,7 @@ pub fn settings(state: UiState, dispatch: Dispatch) -> Element {
                 }).collect();
                 stack_panel().orientation(Orientation::Horizontal).spacing(5.0).children(buttons).into_element()
             }),
+            controls::caption("The world adapts detail and resolution to keep movement responsive. Your choice sets the maximum detail."),
             check_box().content("Sound effects").is_checked(move || Some(state.sound.get()))
                 .on_click(move |_| sound(UiAction::SetSound(!state.sound.get_untracked()))),
             check_box().content("Construction grid").is_checked(move || Some(state.grid.get()))

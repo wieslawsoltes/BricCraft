@@ -10,6 +10,30 @@ const command=async(name,value='')=>page.evaluate(`briccraft.briccraftCommand(${
 const wait=async expression=>page.waitFor(`globalThis.briccraft && (${expression})`,90000);
 const current='JSON.parse(briccraft.briccraftState())';
 const measurements={};
+const readiness=()=>page.evaluate(`(() => {
+    const loading=document.getElementById('loading');
+    return {
+        timestamp:performance.now(),visibility:document.visibilityState,
+        loading:loading ? {classes:loading.className,text:loading.textContent,display:getComputedStyle(loading).display} : null,
+        state:globalThis.briccraft ? JSON.parse(briccraft.briccraftState()) : null,
+    };
+})()`);
+async function presentedSample(milliseconds=2000) {
+    const observe=()=>page.evaluate(`(() => {
+        const value=JSON.parse(briccraft.briccraftState());
+        return {timestamp:performance.now(),rendering:value.rendering,renderer:value.renderer,worldRendering:value.worldRendering};
+    })()`);
+    const before=await observe();
+    await sleep(milliseconds);
+    const after=await observe();
+    const seconds=(after.timestamp-before.timestamp)/1000;
+    const frames=after.rendering.frames-before.rendering.frames;
+    return {seconds,frames,fps:frames/Math.max(seconds,0.001),
+        effectFrames:after.renderer.effectFrames-before.renderer.effectFrames,
+        atlasUploads:after.renderer.uploads-before.renderer.uploads,
+        start:before.rendering,end:after.rendering,
+        worldStart:before.worldRendering,worldEnd:after.worldRendering};
+}
 const stage=name=>console.log(new Date().toISOString(),name);
 try {
     stage('Waiting for the first native Skia frame');
@@ -19,6 +43,16 @@ try {
     assert(start.rendering.kind==='webgl' && start.rendering.glMajorVersion===3,
         `The GPU regression must exercise Skia WebGL2, got ${JSON.stringify(start.rendering)}`);
     measurements.backend=start.rendering;
+    measurements.initial={hudFps:start.fps,rendering:start.rendering,renderer:start.renderer,worldRendering:start.worldRendering};
+    const worldLayer=start.worldRendering;
+    assert(worldLayer.effectWidth>0 && worldLayer.effectHeight>0,
+        'The world must have a nonempty render layer');
+    assert(worldLayer.effectWidth*worldLayer.effectHeight<=worldLayer.pixelBudget,
+        'Physical shader bounds must respect the adaptive pixel budget');
+    assert(worldLayer.effectiveQuality<=worldLayer.requestedQuality && start.renderer.shaderQuality===worldLayer.effectiveQuality,
+        'The actual shader must respect the requested and adaptive quality limits');
+    measurements.presented=await presentedSample();
+    console.log('Presented frames over elapsed wall time:',JSON.stringify(measurements.presented));
     assert(start.parts>5000,'The initial world must contain actual geometry');
     const before=await page.screenshot(undefined,{x:300,y:110,width:640,height:440});
     await page.mouseDown(700,360);
@@ -27,7 +61,10 @@ try {
     const after=await page.screenshot(undefined,{x:300,y:110,width:640,height:440});
     const pixels=differing(before,after);
     assert(pixels.different>pixels.samples*0.04,'Camera changes must repaint world pixels, including effect uniforms');
-    assert((await state()).renderer.uploads===start.renderer.uploads,'Camera-only frames must reuse atlas images');
+    const cameraState=await state();
+    assert(Math.hypot(...cameraState.camera.map((value,index)=>value-start.camera[index]))>0.01,
+        'Pointer input must change the actual world camera');
+    assert(cameraState.renderer.uploads===start.renderer.uploads,'Camera-only frames must reuse atlas images');
     measurements.cameraPixelsChanged=pixels.different/pixels.samples;
     await page.screenshot(path.join(out,'island.png'));
 
@@ -69,9 +106,13 @@ try {
     await page.screenshot(path.join(out,'world-library.png'));
     await page.press('Escape');
     stage('Importing the actual Brandenburg OSM extract through the worker');
+    const previousWorldId=(await state()).worldId;
     await command('landmark');
-    await wait(`${current}.importBusy`);
-    await wait(`!${current}.importBusy && ${current}.worldName === 'Brandenburg Gate' && ${current}.attributions.length > 0`);
+    const importedWorld=`${current}.worldId !== ${JSON.stringify(previousWorldId)} && ${current}.worldName === 'Brandenburg Gate' && ${current}.attributions.length > 0`;
+    // A small local import can complete between probes; accept its verified
+    // new world rather than requiring observation of the transient busy flag.
+    await wait(`${current}.importBusy || (${importedWorld})`);
+    await wait(`!${current}.importBusy && (${importedWorld})`);
     await wait(`${current}.worldCount >= 3`);
     const map=await state();
     const exported=await page.evaluate('briccraft.briccraftSerializeWorld()');
@@ -79,7 +120,7 @@ try {
     assert(report.height_evidence.some(h=>h.osm_id===518071791 && !h.inferred),'Real map height evidence must survive the full worker/session/save pipeline');
     assert(report.buildings>20 && map.preset==='flat','Map brickification must publish onto a flat streamed world');
     await page.screenshot(path.join(out,'brandenburg.png'));
-    measurements.map={parts:map.parts,importedParts:report.parts,buildings:report.buildings,roads:report.roads,fps:map.fps,renderer:map.renderer};
+    measurements.map={parts:map.parts,importedParts:report.parts,buildings:report.buildings,roads:report.roads,fps:map.fps,renderer:map.renderer,worldRendering:map.worldRendering};
 
     // A tiny real GLB verifies Web Worker module loading and transformed colored meshes offline.
     stage('Converting a real GLB in the shipped worker');
@@ -99,9 +140,14 @@ try {
     console.log(JSON.stringify(measurements,null,2));
     fs.mkdirSync(out,{recursive:true}); fs.writeFileSync(path.join(out,'browser-metrics.json'),JSON.stringify(measurements,null,2));
 } catch(error) {
-    await page.screenshot(path.join(out,'failure.png')).catch(()=>{});
     console.error('Browser regression:',error);
-    console.error('Current state:',await state().catch(()=>null));
+    // A screenshot may wait for further expensive native draws. Capture the
+    // failed readiness state first instead of labeling a later frame as the timeout.
+    const diagnostic=await readiness().catch(error=>({probeError:String(error)}));
+    console.error('State before failure screenshot:',diagnostic);
     console.error(page.errors.join('\n'));
     process.exitCode=1;
+    fs.mkdirSync(out,{recursive:true});
+    fs.writeFileSync(path.join(out,'browser-failure.json'),JSON.stringify({error:String(error),diagnostic,measurements},null,2));
+    await page.screenshot(path.join(out,'failure.png')).catch(()=>{});
 } finally { await page.close(); }

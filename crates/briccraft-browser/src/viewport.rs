@@ -84,7 +84,7 @@ pub fn view(runtime: Rc<Runtime>) -> Element {
     let released = runtime.clone();
     let wheel = runtime.clone();
     let lost = runtime.clone();
-    border()
+    let scene: Element = border()
         .name("WorldViewport")
         .background("#7CABB7")
         .focusable(true)
@@ -241,6 +241,21 @@ pub fn view(runtime: Rc<Runtime>) -> Element {
             game.update_pick();
             event.set_handled(true);
         })
+        .into();
+
+    // Keep the changing effect inside the cached parent. Its dirty rectangle
+    // is collected while the parent's cache is active; caching the effect
+    // visual itself misses that invalidation in the pinned compositor.
+    border()
+        .name("WorldResolutionLayer")
+        .clip_to_bounds(true)
+        .cache_mode(Some(
+            runtime
+                .world_cache
+                .clone()
+                .upcast::<ferroui_base::media::CacheMode>(),
+        ))
+        .child(scene)
         .into()
 }
 

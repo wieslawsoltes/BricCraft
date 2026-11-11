@@ -1,4 +1,5 @@
 use crate::camera::{normalize, rotation_axes};
+use crate::effect::{BalancedBrickWorldEffect, FastBrickWorldEffect, shader_variant_name};
 use crate::{AtlasStats, BrickWorldEffect, RenderFrame};
 use briccraft_render_data::{AtlasError, PixelAtlas, SceneAtlas};
 use briccraft_world::{Instance, World};
@@ -26,6 +27,7 @@ pub struct Renderer {
     uniform_only_frames: u64,
     last_time: Option<f32>,
     rotor_angle: f32,
+    effective_quality: u8,
 }
 
 impl Renderer {
@@ -45,6 +47,8 @@ impl Renderer {
                 rebuilds: self.rebuilds,
                 effect_frames: self.effect_frames,
                 uniform_only_frames: self.uniform_only_frames,
+                shader_quality: self.effective_quality,
+                shader_variant: shader_variant_name(self.effective_quality),
                 ..atlas.stats
             })
             .unwrap_or_default()
@@ -200,7 +204,12 @@ impl Renderer {
         }
         self.effect_frames += 1;
         self.uniform_only_frames += u64::from(self.last_uploaded_bytes == 0);
-        Ok(ImmutableCustomEffect::new(effect).into())
+        self.effective_quality = frame.quality.min(2);
+        Ok(match self.effective_quality {
+            0 => ImmutableCustomEffect::new(FastBrickWorldEffect(effect)).into(),
+            1 => ImmutableCustomEffect::new(BalancedBrickWorldEffect(effect)).into(),
+            _ => ImmutableCustomEffect::new(effect).into(),
+        })
     }
 
     /// Rebuilds when replacing a World with the same revision. Identical images

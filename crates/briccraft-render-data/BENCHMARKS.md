@@ -57,7 +57,9 @@ directory lock, add `--reuse-libraries` to the comparison command. It compiles
 only the small packers and benchmark binaries, finishes both compilers, and then
 runs the measurements. It uses the same optimization and thin-LTO settings.
 
-## Native shader comparison
+## Native shader comparison before adaptive shader variants
+
+These measurements describe the shader in `e8e5c6e`, before the separate analytic Fast/Balanced programs were introduced. They remain a historical comparison of traversal changes, not measurements of the later adaptive renderer. The atlas measurements above are unaffected.
 
 Both shader versions rendered the same fixed 400 × 250 view in Balanced quality.
 Each rendered three frames; the table is the median CPU work of the last two.
@@ -74,10 +76,10 @@ most of the window and does not show a CPU draw-time improvement in this small
 sample: the current result is 4.5% higher. No general browser rendering speedup
 is inferred from these CPU results. GPU timing remains a separate validation.
 
-The shader retains the same geometry and materials for existing worlds. It now
-uses an analytic stud-only branch, fetches material after accepting a hit, has
+The measured shader retained the same geometry and materials for existing worlds. It
+used an analytic stud-only branch, fetches material after accepting a hit, has
 one solid-surface shading call site, and stops tracing beyond opaque water.
-The traversal limits remain fixed at 384 primary DDA steps, 96 shadow steps and
+Its traversal limits were fixed at 384 primary DDA steps, 96 shadow steps and
 28 complex-shape march steps; they do not grow with global region count.
 
 Generate the actual scene without building FerroUI:
@@ -88,19 +90,20 @@ python3 -m pip install skia-python numpy
 python3 crates/briccraft-render/tools/smoke_shader.py /tmp/world.png /tmp/briccraft-scene.json --width 400 --height 250 --frames 3
 ```
 
-Create the older concatenated shader and compare:
+To reproduce the historical shader comparison, extract both measured sources:
 
 ```sh
 python3 - <<'PY'
 from pathlib import Path
 import subprocess
 names = ('uniforms', 'geometry', 'trace', 'lighting', 'main')
-source = '\n'.join(subprocess.check_output(
-    ['git', 'show', f'2c14d12:crates/briccraft-render/src/shaders/{name}.sksl'],
-    text=True) for name in names)
-Path('/tmp/briccraft-baseline.sksl').write_text(source)
+for ref, output in [('2c14d12', '/tmp/briccraft-baseline.sksl'), ('e8e5c6e', '/tmp/briccraft-measured.sksl')]:
+    source = '\n'.join(subprocess.check_output(
+        ['git', 'show', f'{ref}:crates/briccraft-render/src/shaders/{name}.sksl'],
+        text=True) for name in names)
+    Path(output).write_text(source)
 PY
-python3 crates/briccraft-render/tools/smoke_shader.py /tmp/world.png /tmp/briccraft-scene.json --width 400 --height 250 --frames 3 --compare-source /tmp/briccraft-baseline.sksl
+python3 crates/briccraft-render/tools/smoke_shader.py /tmp/world.png /tmp/briccraft-scene.json --width 400 --height 250 --frames 3 --source /tmp/briccraft-measured.sksl --compare-source /tmp/briccraft-baseline.sksl
 ```
 
 Omit the scene argument to use the mixed-part fixture. The tool reports both

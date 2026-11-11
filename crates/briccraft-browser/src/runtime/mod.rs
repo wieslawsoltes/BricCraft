@@ -1,7 +1,8 @@
 use briccraft_game::Session;
 use briccraft_render::{Camera, PlacementPreview, RenderFrame, Renderer, VehicleRender};
 use briccraft_ui::{ColorSwatch, PartCard, UiAction, UiState};
-use ferroui_base::media::effects::IEffect;
+use ferroui_base::media::{effects::IEffect, BitmapCache};
+use ferroui_base::Ref;
 use ferroui_controls::Border;
 use ferroui_view::prelude::*;
 use std::{
@@ -15,6 +16,8 @@ pub struct Runtime {
     pub state: UiState,
     pub viewport: NodeRef<Border>,
     pub world_effect: Signal<Option<Rc<dyn IEffect>>>,
+    pub world_cache: Ref<BitmapCache>,
+    pub world_resolution: RefCell<resolution::ResolutionController>,
     pub pointer: RefCell<crate::viewport::PointerState>,
     pub owner: Owner,
     last_frame: Cell<f64>,
@@ -33,12 +36,18 @@ impl Runtime {
         let session = Session::new(42);
         let state = UiState::new();
         state.world_busy.set(true);
+        let world_cache = BitmapCache::new();
+        // No world effect is published until frame() knows the laid-out bounds
+        // and display scale. Even the initial background uses a small layer.
+        world_cache.set_render_at_scale(0.125);
         Self {
             session: RefCell::new(session),
             renderer: RefCell::new(Renderer::new()),
             state,
             viewport: NodeRef::new(),
             world_effect: signal(None),
+            world_cache,
+            world_resolution: RefCell::new(resolution::ResolutionController::new()),
             pointer: RefCell::new(Default::default()),
             owner,
             last_frame: Cell::new(0.0),
@@ -93,4 +102,5 @@ impl Runtime {
 mod actions;
 mod frame;
 mod hud;
+mod resolution;
 mod world_actions;

@@ -65,7 +65,7 @@ half4 main(float2 coord) {
     // blowing out white parts under the sun. The HUD is outside this effect.
     color=color/(color*0.28+0.82);
     color=pow(max(color,float3(0.0)),float3(0.91));
-    float vignette=1.0-0.08*dot(uv*float2(0.65,0.8),uv*float2(0.65,0.8));
+    float vignette=1.0-(quality==0?0.06:0.08)*dot(uv*float2(0.65,0.8),uv*float2(0.65,0.8));
     color*=vignette;
     return half4(half3(clamp(color,float3(0.0),float3(1.0))),1.0);
 }

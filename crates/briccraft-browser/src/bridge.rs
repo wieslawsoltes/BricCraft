@@ -324,6 +324,7 @@ pub fn state() -> String {
         // These count frames actually presented by FerroUI, independently of
         // effect snapshots prepared by the game or the selected startup mode.
         let presented = RenderStatistics::current();
+        let world_rendering = r.world_resolution.borrow().stats();
         let render_kind = match presented.frame_kind {
             RENDER_TARGET_KIND_WEB_GL => "webgl",
             RENDER_TARGET_KIND_SOFTWARE => "software",
@@ -339,12 +340,22 @@ pub fn state() -> String {
             "cachedChunks":game.stream_stats().map(|s|s.cached_chunks),"sceneGeneration":game.scene_generation,
             "attributions":game.world_info.attributions,"importBusy":r.state.import_busy.get_untracked(),
             "worldBusy":r.state.world_busy.get_untracked(),"worldsOpen":r.state.worlds_open.get_untracked(),"worldCount":r.state.worlds.get_untracked().len(),
-            "renderer":{"uploads":render.uploads,"bytes":render.texture_bytes,"effectFrames":render.effect_frames,"uniformFrames":render.uniform_only_frames,"activeCells":render.active_cells},
+            "renderer":{"uploads":render.uploads,"bytes":render.texture_bytes,"effectFrames":render.effect_frames,"uniformFrames":render.uniform_only_frames,"activeCells":render.active_cells,"shaderQuality":render.shader_quality,"shaderVariant":render.shader_variant},
             "rendering":{
                 "kind":render_kind,"frameKind":presented.frame_kind,"glMajorVersion":presented.frame_gl_major_version,
                 "frames":presented.frames,"frameThread":presented.frame_thread,
                 "width":presented.frame_width,"height":presented.frame_height,
                 "ticks":presented.ticks,"proxiedCalls":presented.tick_proxied_calls,"panics":presented.render_thread_panics
+            },
+            "worldRendering":{
+                "scale":world_rendering.render_scale,
+                "width":world_rendering.pixel_width,"height":world_rendering.pixel_height,
+                "effectWidth":world_rendering.effect_width,"effectHeight":world_rendering.effect_height,
+                "pixels":world_rendering.pixel_width as u64 * world_rendering.pixel_height as u64,
+                "pixelBudget":world_rendering.pixel_budget,
+                "requestedQuality":world_rendering.requested_quality,
+                "effectiveQuality":world_rendering.effective_quality,
+                "presentedFps":world_rendering.presented_fps
             },
             "ready":r.world_effect.get_untracked().is_some(),"fps":r.state.fps.get_untracked()
         }).to_string();

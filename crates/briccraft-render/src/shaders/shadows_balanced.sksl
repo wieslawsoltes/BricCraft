@@ -1,0 +1,52 @@
+// Balanced keeps inexpensive occupancy shadows. It never calls the complex
+// geometry path for a secondary ray and never traces a second vehicle volume.
+const int MATERIAL_DETAIL = 1;
+
+float sunlight(float3 point,float3 direction,float ownId) {
+    float3 ro=point+direction*0.09;
+    float3 gridRo=ro/float3(1.0,PLATE,1.0),gridRd=direction/float3(1.0,PLATE,1.0);
+    float3 inverse=safeInverse(gridRd),delta=abs(inverse),cell=floor(gridRo);
+    float3 steps=float3(gridRd.x<0.0?-1.0:1.0,gridRd.y<0.0?-1.0:1.0,gridRd.z<0.0?-1.0:1.0);
+    float3 next=(cell+max(steps,float3(0.0))-gridRo)*inverse;
+    float3 coarseDimensions=ceil((world_dimensions.xyz+float3(0.0,1.0,0.0))/float3(4.0,6.0,4.0));
+    float3 previousCoarse=float3(-1.0);
+    float coarseOccupied=0.0;
+    for(int i=0;i<40;++i) {
+        if(cell.x<0.0 || cell.y<0.0 || cell.z<0.0 || any(greaterThanEqual(cell,world_dimensions.xyz))) break;
+        float3 coarse=floor(cell/float3(4.0,6.0,4.0));
+        if(any(notEqual(coarse,previousCoarse))) {
+            coarseOccupied=cellId(coarse,coarseDimensions,world_dimensions.w);
+            previousCoarse=coarse;
+        }
+        if(coarseOccupied<0.5) {
+            float3 blockEdge=(coarse+max(steps,float3(0.0)))*float3(4.0,6.0,4.0);
+            float3 blockNext=(blockEdge-gridRo)*inverse;
+            float t=min(min(blockNext.x,blockNext.y),blockNext.z)+0.0002;
+            if(t>28.0) break;
+            cell=floor(gridRo+gridRd*t);
+            next=(cell+max(steps,float3(0.0))-gridRo)*inverse;
+            continue;
+        }
+        float id=cellId(cell,world_dimensions.xyz,0.0);
+        if(id>0.0 && id!=ownId) return 0.28;
+        float t=min(min(next.x,next.y),next.z);
+        if(t>28.0) break;
+        float3 advance=float3(next.x<=t+0.00001?1.0:0.0,next.y<=t+0.00001?1.0:0.0,next.z<=t+0.00001?1.0:0.0);
+        cell+=steps*advance;next+=delta*advance;
+    }
+    if(vehicle_position.w>0.5) {
+        float3 local=vehicleLocal(ro),ray=vehicleDirection(direction);
+        float2 span=boxInterval(local,ray,float3(0.0),vehicle_dimensions.xyz*float3(1.0,PLATE,1.0));
+        // A bounded assembly shadow. Starting within its bounds is excluded to
+        // prevent a moving construction from incorrectly shadowing itself.
+        if(span.x>0.04 && span.x<span.y && span.x<28.0) return 0.36;
+    }
+    return 1.0;
+}
+
+float ambientOcclusion(float3 point,float3 normal) {
+    float3 p=point+normal*0.12;
+    float side=solidAt(p+float3(0.48,0.18,0.0))+solidAt(p+float3(-0.48,0.18,0.0))
+        +solidAt(p+float3(0.0,0.18,0.48))+solidAt(p+float3(0.0,0.18,-0.48));
+    return 1.0-side*0.075;
+}

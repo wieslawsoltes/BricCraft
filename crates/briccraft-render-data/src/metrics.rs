@@ -42,4 +42,7 @@ pub struct AtlasStats {
     /// Effect snapshots prepared, not presented frames or a frame-rate estimate.
     pub effect_frames: u64,
     pub uniform_only_frames: u64,
+    /// Effective shader variant, independent of the user's quality ceiling.
+    pub shader_quality: u8,
+    pub shader_variant: &'static str,
 }

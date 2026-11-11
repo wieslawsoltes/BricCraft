@@ -14,6 +14,8 @@ pub use briccraft_render_data::{
     AtlasError, AtlasStats, MAX_ATLAS_TEXELS, MAX_PACKED_PARTS, MAX_VEHICLE_PARTS,
 };
 pub use camera::Camera;
-pub use effect::{BrickWorldEffect, WORLD_SKSL};
+pub use effect::{
+    BALANCED_WORLD_SKSL, BrickWorldEffect, FAST_WORLD_SKSL, WORLD_SKSL, shader_variant_name,
+};
 pub use frame::{PlacementPreview, RenderFrame, VehicleRender};
 pub use renderer::Renderer;

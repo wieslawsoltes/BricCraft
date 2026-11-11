@@ -1,7 +1,7 @@
 use super::*;
 
 impl Runtime {
-    pub fn frame(&self, milliseconds: f64, width: f64, height: f64) {
+    pub fn frame(&self, milliseconds: f64, width: f64, _height: f64) {
         if !self.owner.is_alive() {
             return;
         }
@@ -12,8 +12,36 @@ impl Runtime {
             ((milliseconds - previous) / 1000.0).max(0.0)
         };
         self.state.compact.set_if_changed(width < 850.0);
+        // Wait for native layout before publishing an expensive world effect.
+        // These are the same logical bounds and DPI the bitmap cache will use.
+        let Some(view) = self.viewport.get_untracked() else {
+            return;
+        };
+        let bounds = view.bounds();
+        if !bounds.width.is_finite()
+            || !bounds.height.is_finite()
+            || bounds.width <= 0.0
+            || bounds.height <= 0.0
+        {
+            return;
+        }
+        let Some(top_level) = ferroui_controls::TopLevel::get_top_level(Some(&view)) else {
+            return;
+        };
+        let presented = ferroui_browser::rendering::RenderStatistics::current().frames;
+        let requested_quality = self.session.borrow().quality;
+        let resolution = self.world_resolution.borrow_mut().update(
+            elapsed,
+            presented,
+            [bounds.width, bounds.height],
+            top_level.render_scaling(),
+            requested_quality,
+        );
+        if self.world_cache.render_at_scale() != resolution.render_scale {
+            self.world_cache.set_render_at_scale(resolution.render_scale);
+        }
         let mut game = self.session.borrow_mut();
-        game.aspect = (width / height.max(1.0)) as f32;
+        game.aspect = (bounds.width / bounds.height) as f32;
         let modal = self.state.modal_untracked();
         if modal {
             game.input.clear();
@@ -46,7 +74,7 @@ impl Runtime {
             water_level: 2.4,
             selected_id: game.hit.as_ref().filter(|_| !modal).map(|h| h.id),
             preview,
-            quality: game.quality,
+            quality: resolution.effective_quality,
             grid: game.grid,
             window_fade: if game.is_streamed() { 16.0 } else { 0.0 },
             vehicle: game.active_vehicle.as_ref().map(|a| VehicleRender {
@@ -84,7 +112,6 @@ impl Runtime {
             self.state.import_status.set(summary.clone());
             crate::world_host::finished(success, &summary);
         }
-        let presented = ferroui_browser::rendering::RenderStatistics::current().frames;
         let last_presented = self.presented_frames.replace(presented);
         if previous > 0.0 && elapsed > 0.0 {
             // Count FerroUI's presented frames over actual wall time. Averaging reciprocal intervals

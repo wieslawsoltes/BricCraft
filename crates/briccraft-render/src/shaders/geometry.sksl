@@ -77,6 +77,15 @@ float partDistance(float3 local, PartData part) {
     float3 q=unrotate(local-part.size*0.5,part.rotation);
     float3 size=part.size;
     if (mod(part.rotation,2.0)>0.5) size=size.zyx;
+    // The catalog uses either horizontal axis for beams and architecture,
+    // and either thin axis for propellers. Match the analytic quality paths
+    // so promotion changes detail rather than rotating openings or rotors.
+    bool wideFace=(part.shape>7.5 && part.shape<10.5) || (part.shape>13.5 && part.shape<14.5);
+    if(wideFace && size.z>size.x) { q=q.zyx;size=size.zyx; }
+    else if(part.shape>14.5) {
+        if(size.x<size.y && size.x<=size.z) { q=q.yxz;size=size.yxz; }
+        else if(size.z<size.y && size.z<size.x) { q=q.xzy;size=size.xzy; }
+    }
     if(part.moving>0.5) {
         if(part.shape>4.5 && part.shape<7.5) {
             if(part.shape<6.5 || size.x>=size.z) q.yz=spin(q.yz,vehicle_motion.x);
@@ -110,11 +119,14 @@ float partDistance(float3 local, PartData part) {
         // Cross axles preserve the characteristic keyed cross section.
         float3 longHalf=halfSize;
         if (size.x>=size.z) {
-            float a=roundedBox(q,float3(longHalf.x,0.10,0.21),0.018);
-            float b=roundedBox(q,float3(longHalf.x,0.21,0.10),0.018);
+            float scale=min(1.0,min(longHalf.y,longHalf.z)/0.232595);
+            float a=roundedBox(q,float3(longHalf.x,0.10*scale,0.21*scale),0.018);
+            float b=roundedBox(q,float3(longHalf.x,0.21*scale,0.10*scale),0.018);
             return min(a,b);
         }
-        return min(roundedBox(q,float3(0.10,0.21,longHalf.z),0.018),roundedBox(q,float3(0.21,0.10,longHalf.z),0.018));
+        float scale=min(1.0,min(longHalf.x,longHalf.y)/0.232595);
+        return min(roundedBox(q,float3(0.10*scale,0.21*scale,longHalf.z),0.018),
+            roundedBox(q,float3(0.21*scale,0.10*scale,longHalf.z),0.018));
     }
     if (kind<8.5) {
         float index=floor(q.x+size.x*0.5)+0.5-size.x*0.5;
@@ -151,8 +163,10 @@ float partDistance(float3 local, PartData part) {
         float opening=max(length(float2(arch.x,max(arch.y,0.0)))-halfSize.x*0.70,abs(q.z)-halfSize.z-0.1);
         return max(outer,-opening);
     }
-    float bladeA=roundedBox(q,float3(halfSize.x,halfSize.y,0.20),0.08);
-    float bladeB=roundedBox(q,float3(0.20,halfSize.y,halfSize.z),0.08);
+    float radius=min(halfSize.x,halfSize.z),width=min(0.20,radius*0.30);
+    float bladeLength=sqrt(max(radius*radius-width*width,0.000001));
+    float bladeA=roundedBox(q,float3(bladeLength,halfSize.y,width),0.08);
+    float bladeB=roundedBox(q,float3(width,halfSize.y,bladeLength),0.08);
     return min(bladeA,bladeB);
 }
 

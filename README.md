@@ -20,7 +20,7 @@ Create a collection of editable brick worlds: open meadows, alpine landscapes, d
 - **Three cameras:** orbit/pan/zoom for building, free flight and ground-following walking with jumping.
 - **Native declarative UI:** responsive HUD, hotbar, searchable/filterable parts library, palette, blueprint chooser, touch controls, settings and controls guide.
 - **Persistence:** transactional IndexedDB saves and versioned `.briccraft` file export/import with validation before replacement.
-- **Skia rendering:** molded surfaces, real stud silhouettes, part seams, procedural mechanical shapes, directional lighting, contact shadows, water, atmosphere and animated vehicle assemblies.
+- **Adaptive Skia rendering:** molded surfaces, real stud silhouettes, part seams, mechanical shapes, lighting, water, atmosphere and animated vehicle assemblies. A separate GPU world layer adapts resolution and shader detail while native controls remain sharp.
 
 ## Real-world studio
 
@@ -60,7 +60,7 @@ git clone --recurse-submodules https://github.com/wieslawsoltes/BricCraft.git
 cd BricCraft
 ```
 
-The current framework is pinned at `e1b36bb743a44277d27d63aa461ee671e54e9ec5`, version `0.5.0-preview.1`. The browser toolchain is pinned by that submodule: Rust 1.99.0, Emscripten 6.0.10 and wasm-bindgen 0.2.129.
+The current framework is pinned at `1c51d201a74fb835c065ab43d1bf091429f92392`, version `0.5.0-preview.1`. The browser toolchain is pinned by that submodule: Rust 1.99.0, Emscripten 6.0.10 and wasm-bindgen 0.2.129.
 
 ```sh
 # Install the exact browser tools once.
@@ -84,7 +84,7 @@ python3 FerroUI/scripts/apps/sync-workspace.py --check .
 
 `briccraft-render-data` supplies independent atlas tests and a reproducible packing benchmark. `briccraft-render` includes camera tests and a Skia shader smoke tool. The application calls FerroUI's `CustomEffect`, `EffectImage` and immutable effect APIs; all game UI uses `ferroui-view` builders and signals. The JavaScript host supplies browser services only.
 
-Interactive rendering uses **Skia WebGL2**. The pinned framework requests rejection of WebGL contexts with a major performance caveat, which can select CPU Skia even when the browser permits a software WebGL driver. A small browser adapter scopes the game's context preference to its own canvas and permits that browser-approved WebGL2 path. Other canvases and context types keep their original options; the framework submodule is unchanged. When WebGL2 is unavailable, startup explains the graphics requirement. The CI game gate verifies the actual presented target and OpenGL ES version, and the FPS display counts FerroUI's presented frames over elapsed wall time.
+Interactive rendering uses **Skia WebGL2**. The pinned framework requests rejection of WebGL contexts with a major performance caveat, which can select CPU Skia even when the browser permits a software WebGL driver. A small browser adapter scopes the game's context preference to its own canvas and permits that browser-approved WebGL2 path. Other canvases and context types keep their original options; the framework submodule is unchanged. When WebGL2 is unavailable, startup explains the graphics requirement. The CI game gate verifies the actual presented target and OpenGL ES version, and the FPS display counts FerroUI's presented frames over elapsed wall time. The world begins with a bounded GPU surface and adjusts its resolution and shader detail to observed presentation performance. Fast, Balanced and Cinematic set the maximum detail; UI stays at the browser's full device resolution. CI compiles and renders all three production shader variants before testing camera repainting and real vehicle movement.
 
 ## Workspace
 

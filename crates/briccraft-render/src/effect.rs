@@ -13,6 +13,35 @@ pub const WORLD_SKSL: &str = concat!(
     include_str!("shaders/main.sksl"),
 );
 
+/// Fast and Balanced are distinct effect types, so FerroUI/Skia compile only
+/// their actual call graph. A uniform branch inside the Full shader would
+/// still require its nested marcher and normal evaluation to be compiled.
+pub const FAST_WORLD_SKSL: &str = concat!(
+    include_str!("shaders/uniforms.sksl"),
+    include_str!("shaders/geometry_analytic.sksl"),
+    include_str!("shaders/trace_primary.sksl"),
+    include_str!("shaders/shadows_fast.sksl"),
+    include_str!("shaders/lighting_efficient.sksl"),
+    include_str!("shaders/main.sksl"),
+);
+
+pub const BALANCED_WORLD_SKSL: &str = concat!(
+    include_str!("shaders/uniforms.sksl"),
+    include_str!("shaders/geometry_analytic.sksl"),
+    include_str!("shaders/trace_primary.sksl"),
+    include_str!("shaders/shadows_balanced.sksl"),
+    include_str!("shaders/lighting_efficient.sksl"),
+    include_str!("shaders/main.sksl"),
+);
+
+pub const fn shader_variant_name(quality: u8) -> &'static str {
+    match quality {
+        0 => "analytic-fast",
+        1 => "analytic-balanced",
+        _ => "full-geometry",
+    }
+}
+
 /// An immutable snapshot shared with the render thread. `Rect` is the framework's
 /// four-float uniform carrier; the members here are vectors, not UI rectangles.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -107,3 +136,32 @@ impl CustomEffect for BrickWorldEffect {
         )
     }
 }
+
+macro_rules! analytic_effect {
+    ($name:ident, $source:ident, $label:literal) => {
+        #[derive(Clone, Debug, Default, PartialEq)]
+        pub(crate) struct $name(pub BrickWorldEffect);
+
+        impl CustomEffect for $name {
+            const NAME: &'static str = $label;
+
+            fn for_each_parameter(&self, f: &mut dyn FnMut(&'static str, EffectParameterValue)) {
+                self.0.for_each_parameter(f);
+            }
+
+            fn set_parameter(&mut self, name: &str, value: EffectParameterValue) -> bool {
+                self.0.set_parameter(name, value)
+            }
+
+            fn shader() -> Option<ShaderEffectDescription> {
+                Some(
+                    ShaderEffectDescription::overlay($source, "", BitmapBlendingMode::Source)
+                        .with_children(["cells", "parts"]),
+                )
+            }
+        }
+    };
+}
+
+analytic_effect!(FastBrickWorldEffect, FAST_WORLD_SKSL, "briccraft-world-fast");
+analytic_effect!(BalancedBrickWorldEffect, BALANCED_WORLD_SKSL, "briccraft-world-balanced");

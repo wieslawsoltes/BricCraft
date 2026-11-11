@@ -1,0 +1,6 @@
+// Fast is a separately compiled effect. Its call graph contains no shadow
+// traversal or ambient-occlusion texture samples; molded stud self-shadowing
+// remains in the shared material shader.
+const int MATERIAL_DETAIL = 0;
+float sunlight(float3 point,float3 direction,float ownId) { return 1.0; }
+float ambientOcclusion(float3 point,float3 normal) { return 1.0; }
