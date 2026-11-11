@@ -1,5 +1,5 @@
 // All source parsing, triangulation, voxelization and brick packing run off the UI thread.
-import init, { processImport, defaultOptions, mapOptions } from './import-engine/briccraft_import_worker.js';
+import init, { processImport, defaultOptions, mapOptions, elevationGrid } from './import-engine/briccraft_import_worker.js';
 let engine;
 self.onmessage = async ({data}) => {
     try {
@@ -9,10 +9,18 @@ self.onmessage = async ({data}) => {
             : defaultOptions(data.kind));
         options.origin=data.kind==='osm' ? [48,18,48] : [0,18,0];
         options.max_height_plates=data.max_height_plates || 54;
+        if(data.kind==='osm' && data.elevation) {
+            self.postMessage({type:'progress',progress:{stage:'Sampling real terrain',completed:0,total:1}});
+            const elevation=JSON.parse(elevationGrid(JSON.stringify(data.elevation.metadata),new Uint8Array(data.elevation.bytes)));
+            options.terrain={elevation,fit_height:data.fit_height!==false,
+                vertical_exaggeration:data.vertical_exaggeration ?? 1,auto_coarsen:true,max_columns:262144};
+        }
         if(data.kind!=='osm') options.fit_size_studs=data.size || 48;
         if(data.units_per_stud) options.units_per_stud=data.units_per_stud;
         // Budgets apply before and throughout conversion, not just to the final JSON.
         options.limits.max_parts=120000;
+        // The bundled complete-area fixture includes all referenced OSM geometry.
+        if(data.terrain_sample) options.limits.max_features=24000;
         let last=0;
         const source=processImport(data.kind,new Uint8Array(data.bytes),JSON.stringify(options),json => {
             const now=performance.now();

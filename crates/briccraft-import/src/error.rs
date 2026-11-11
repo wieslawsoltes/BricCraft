@@ -35,3 +35,15 @@ impl From<serde_json::Error> for ImportError {
 pub(crate) fn invalid(message: impl Into<String>) -> ImportError {
     ImportError::InvalidInput(message.into())
 }
+
+impl From<briccraft_terrain::TerrainError> for ImportError {
+    fn from(value: briccraft_terrain::TerrainError) -> Self {
+        match value {
+            briccraft_terrain::TerrainError::BudgetExceeded { resource, limit } => {
+                Self::BudgetExceeded { resource, limit }
+            }
+            briccraft_terrain::TerrainError::Cancelled => Self::Cancelled,
+            other => Self::InvalidInput(other.to_string()),
+        }
+    }
+}

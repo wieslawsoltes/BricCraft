@@ -1,7 +1,9 @@
 use crate::runtime::Runtime;
 use ferroui_base::styling::ThemeVariant;
 use ferroui_base::{ferro_class, ferro_impl_classes, instantiate, FerroObjectImpl, Ref};
-use ferroui_controls::{Application, ApplicationImpl, ApplicationImplExt, NewApplication};
+use ferroui_controls::{
+    Application, ApplicationImpl, ApplicationImplExt, NewApplication, TopLevel,
+};
 use ferroui_view::{ComponentHost, Owner};
 use std::rc::Rc;
 
@@ -33,6 +35,9 @@ impl ApplicationImpl for App {
             let runtime = runtime.clone();
             move || runtime.view()
         });
+        // The world is full bleed; the declarative interface layer applies the
+        // framework's safe area without shrinking the camera's render target.
+        TopLevel::set_auto_safe_area_padding(&host, false);
         if let Some(lifetime) = this
             .application_lifetime()
             .as_ref()

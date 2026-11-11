@@ -1,6 +1,7 @@
 //! Construction gestures live on the native world visual, below the native HUD.
 //! Each touch contact retains its own identity: a pinch never turns into a tap
 //! when the first finger is lifted, and capture loss cannot strand a drag.
+use crate::gestures::{CameraGesture, GestureTracker};
 use crate::runtime::Runtime;
 use briccraft_ui::UiAction;
 use ferroui_base::input::{IPointer, KeyModifiers, PointerType};
@@ -11,61 +12,22 @@ use std::{collections::BTreeMap, rc::Rc};
 
 #[derive(Default)]
 pub struct PointerState {
-    pub down: bool,
-    pub position: [f64; 2],
-    pub start: [f64; 2],
-    pub button: u8,
-    pub dragged: bool,
-    primary: Option<i32>,
-    touches: BTreeMap<i32, [f64; 2]>,
+    gesture: GestureTracker,
     captures: BTreeMap<i32, Rc<dyn IPointer>>,
-    was_multitouch: bool,
 }
 
 impl PointerState {
-    /// Release captures after dropping the RefCell borrow: capture loss is synchronous.
+    /// Capture loss is synchronous, so callers release after dropping the borrow.
     pub fn reset(&mut self) -> Vec<Rc<dyn IPointer>> {
         let captured = std::mem::take(&mut self.captures).into_values().collect();
-        *self = Self::default();
+        self.gesture = GestureTracker::default();
         captured
     }
 
     fn cancel(&mut self, id: i32) {
         self.captures.remove(&id);
-        self.touches.remove(&id);
-        if self.primary == Some(id) {
-            if let Some((&next, &point)) = self.touches.first_key_value() {
-                self.primary = Some(next);
-                self.position = point;
-                self.start = point;
-                self.dragged = true;
-            } else {
-                self.down = false;
-                self.primary = None;
-            }
-        }
-        if self.touches.is_empty() {
-            self.was_multitouch = false;
-        }
+        self.gesture.cancel(id);
     }
-}
-
-fn pair(touches: &BTreeMap<i32, [f64; 2]>) -> Option<([f64; 2], f64)> {
-    let mut contacts = touches.values();
-    let a = contacts.next()?;
-    let b = contacts.next()?;
-    Some((
-        [(a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5],
-        (b[0] - a[0]).hypot(b[1] - a[1]),
-    ))
-}
-
-fn pinch_delta(before: f64, after: f64) -> f32 {
-    if before < 4.0 || after < 4.0 || !before.is_finite() || !after.is_finite() {
-        return 0.0;
-    }
-    // Camera zoom is exponential; this inverse maps distance directly to finger spacing.
-    (-(after / before).ln() / 0.0015).clamp(-600.0, 600.0) as f32
 }
 
 fn pick_at(runtime: &Runtime, view: &Border, point: Point) {
@@ -91,8 +53,7 @@ pub fn view(runtime: Rc<Runtime>) -> Element {
         .node_ref(runtime.viewport)
         .effect(runtime.world_effect)
         .on_pointer_pressed(move |event| {
-            if pressed.state.import_busy.get_untracked() || pressed.state.world_busy.get_untracked()
-            {
+            if pressed.state.modal_untracked() {
                 return;
             }
             let Some(view) = pressed.viewport.get_untracked() else {
@@ -104,37 +65,26 @@ pub fn view(runtime: Rc<Runtime>) -> Element {
             let touch = event.pointer().type_() == PointerType::Touch;
             let _ = view.focus();
             pick_at(&pressed, &view, point);
+            if touch {
+                pressed.state.touch.set_if_changed(true);
+            }
             {
+                let button = if props.is_right_button_pressed {
+                    2
+                } else if props.is_middle_button_pressed {
+                    1
+                } else {
+                    0
+                };
                 let mut state = pressed.pointer.borrow_mut();
                 state.captures.insert(id, event.pointer().clone());
-                if touch {
-                    state.touches.insert(id, [point.x, point.y]);
-                }
-                if !state.down {
-                    state.down = true;
-                    state.primary = Some(id);
-                    state.position = [point.x, point.y];
-                    state.start = state.position;
-                    state.dragged = false;
-                    state.was_multitouch = false;
-                    state.button = if props.is_right_button_pressed {
-                        2
-                    } else if props.is_middle_button_pressed {
-                        1
-                    } else {
-                        0
-                    };
-                }
-                if state.touches.len() > 1 {
-                    state.was_multitouch = true;
-                    state.dragged = true;
-                }
+                state.gesture.press(id, [point.x, point.y], touch, button);
             }
             event.pointer().capture(Some(&view.clone().upcast()));
             event.set_handled(true);
         })
         .on_pointer_moved(move |event| {
-            if moved.state.import_busy.get_untracked() || moved.state.world_busy.get_untracked() {
+            if moved.state.modal_untracked() {
                 return;
             }
             let Some(view) = moved.viewport.get_untracked() else {
@@ -142,51 +92,20 @@ pub fn view(runtime: Rc<Runtime>) -> Element {
             };
             let point = event.get_position(Some(&view));
             let id = event.pointer().id();
-            let mut gesture = None;
-            let mut drag = None;
-            {
-                let mut state = moved.pointer.borrow_mut();
-                let old = pair(&state.touches);
-                if let Some(contact) = state.touches.get_mut(&id) {
-                    *contact = [point.x, point.y];
-                }
-                if let (Some((before, old_distance)), Some((after, distance))) =
-                    (old, pair(&state.touches))
-                {
-                    gesture = Some((
-                        (after[0] - before[0]) as f32,
-                        (after[1] - before[1]) as f32,
-                        pinch_delta(old_distance, distance),
-                    ));
-                } else if state.down && state.primary == Some(id) {
-                    let dx = (point.x - state.position[0]) as f32;
-                    let dy = (point.y - state.position[1]) as f32;
-                    if (point.x - state.start[0]).hypot(point.y - state.start[1]) > 5.0 {
-                        state.dragged = true;
-                    }
-                    if state.dragged {
-                        drag = Some((
-                            dx,
-                            dy,
-                            state.button == 1
-                                || event.key_modifiers().contains(KeyModifiers::SHIFT),
-                        ));
-                    }
-                    state.position = [point.x, point.y];
-                }
-            }
-            {
+            let gesture = moved.pointer.borrow_mut().gesture.moved(
+                id,
+                [point.x, point.y],
+                event.key_modifiers().contains(KeyModifiers::SHIFT),
+            );
+            if let Some(gesture) = gesture {
                 let mut game = moved.session.borrow_mut();
-                if let Some((dx, dy, delta)) = gesture {
-                    game.camera.zoom(delta);
-                    game.camera.pan(dx, dy);
-                }
-                if let Some((dx, dy, pan)) = drag {
-                    if pan {
-                        game.camera.pan(dx, dy);
-                    } else {
-                        game.camera.orbit(dx, dy);
+                match gesture {
+                    CameraGesture::Pinch { pan, zoom } => {
+                        game.camera.zoom(zoom);
+                        game.camera.pan(pan[0], pan[1]);
                     }
+                    CameraGesture::Pan(dx, dy) => game.camera.pan(dx, dy),
+                    CameraGesture::Orbit(dx, dy) => game.camera.orbit(dx, dy),
                 }
             }
             pick_at(&moved, &view, point);
@@ -196,20 +115,15 @@ pub fn view(runtime: Rc<Runtime>) -> Element {
             let id = event.pointer().id();
             let action = {
                 let mut state = released.pointer.borrow_mut();
-                let tap = state.down
-                    && state.primary == Some(id)
-                    && !state.dragged
-                    && !state.was_multitouch;
-                let action = tap.then_some(state.button);
-                state.cancel(id);
-                action
+                state.captures.remove(&id);
+                state.gesture.release(id)
             };
             // A release may follow a press without a move event (mouse click or touch tap).
             if let Some(view) = released.viewport.get_untracked() {
                 pick_at(&released, &view, event.get_position(Some(&view)));
             }
             event.pointer().capture(None);
-            if let Some(button) = action {
+            if let Some(button) = action.filter(|_| !released.state.modal_untracked()) {
                 match button {
                     0 => released.dispatch(UiAction::Place),
                     2 => released.dispatch(UiAction::Remove),
@@ -225,7 +139,7 @@ pub fn view(runtime: Rc<Runtime>) -> Element {
             lost.pointer.borrow_mut().cancel(event.pointer().id())
         })
         .on_pointer_wheel_changed(move |event| {
-            if wheel.state.import_busy.get_untracked() || wheel.state.world_busy.get_untracked() {
+            if wheel.state.modal_untracked() {
                 return;
             }
             let delta = event.delta();
@@ -257,39 +171,4 @@ pub fn view(runtime: Rc<Runtime>) -> Element {
         ))
         .child(scene)
         .into()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn spreading_contacts_zooms_in_and_reverses_exactly() {
-        assert!(pinch_delta(100.0, 150.0) < 0.0);
-        assert!((pinch_delta(100.0, 150.0) + pinch_delta(150.0, 100.0)).abs() < 0.001);
-        assert_eq!(pinch_delta(0.0, 50.0), 0.0);
-    }
-    #[test]
-    fn lifting_one_finger_preserves_the_remaining_drag_without_placing() {
-        let mut state = PointerState {
-            down: true,
-            primary: Some(1),
-            was_multitouch: true,
-            dragged: true,
-            ..Default::default()
-        };
-        state.touches.insert(1, [10.0, 20.0]);
-        state.touches.insert(2, [50.0, 60.0]);
-        state.cancel(1);
-        assert!(state.down && state.dragged && state.was_multitouch);
-        assert_eq!(state.primary, Some(2));
-        assert_eq!(state.position, [50.0, 60.0]);
-        state.cancel(2);
-        assert!(!state.down);
-        assert!(!state.was_multitouch);
-    }
-    #[test]
-    fn contact_pair_is_stable_under_event_order_and_tracks_centroid() {
-        let contacts = BTreeMap::from([(9, [80.0, 20.0]), (2, [20.0, 20.0])]);
-        assert_eq!(pair(&contacts), Some(([50.0, 20.0], 60.0)));
-    }
 }

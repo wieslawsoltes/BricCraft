@@ -1,4 +1,5 @@
 use crate::data_texture::PixelAtlas;
+use crate::height_hierarchy::HeightHierarchy;
 use crate::metrics::{AtlasStats, MAX_ATLAS_TEXELS, MAX_PACKED_PARTS, MAX_VEHICLE_PARTS};
 use crate::part_lookup::PartLookup;
 use briccraft_parts::{PALETTE, part};
@@ -58,6 +59,8 @@ pub struct SceneAtlas {
     pub vehicle_size: [u16; 3],
     pub vehicle_offset: usize,
     pub coarse_offset: usize,
+    /// RGB maxima for 4-, 16- and 64-stud columns, expressed in plates.
+    pub height_offset: usize,
     pub stats: AtlasStats,
 }
 
@@ -103,7 +106,10 @@ impl SceneAtlas {
         ];
         let coarse_tiles = coarse_size.iter().product::<usize>();
         let coarse_offset = volume + vehicle_volume;
-        let mut cells = PixelAtlas::new(coarse_offset + coarse_tiles)?;
+        let height_offset = coarse_offset + coarse_tiles;
+        let mut heights = HeightHierarchy::new(grid);
+        let height_columns = heights.len();
+        let mut cells = PixelAtlas::new(height_offset + height_columns)?;
         let mut parts = PixelAtlas::new((count + 1) * 4)?;
         let mut packed_ids = PartLookup::with_capacity(count);
         let mut lower = dimensions;
@@ -153,6 +159,7 @@ impl SceneAtlas {
                 cells.fill_box(volume, vehicle_grid, position, extent, packed_id);
             } else {
                 cells.fill_box(0, grid, position, extent, packed_id);
+                heights.include(position, extent);
                 for axis in 0..3 {
                     lower[axis] = lower[axis].min(origin[axis] as u16);
                     upper[axis] = upper[axis].max(origin[axis] as u16 + u16::from(size[axis]));
@@ -169,6 +176,7 @@ impl SceneAtlas {
                 cells.fill_box(coarse_offset, coarse_size, a, coarse_extent, 1);
             }
         }
+        heights.write(&mut cells, height_offset);
         packed_ids.finish();
         let occupied_coarse_tiles = cells.pixels
             [coarse_offset * 4..(coarse_offset + coarse_tiles) * 4]
@@ -191,6 +199,7 @@ impl SceneAtlas {
             vehicle_size,
             vehicle_offset: volume,
             coarse_offset,
+            height_offset,
             stats: AtlasStats {
                 instances: count,
                 static_instances: fixed.len(),
@@ -200,6 +209,7 @@ impl SceneAtlas {
                 vehicle_cells: vehicle_volume,
                 coarse_tiles,
                 occupied_coarse_tiles,
+                height_columns,
                 texture_bytes,
                 lookup_bytes,
                 staging_bytes,

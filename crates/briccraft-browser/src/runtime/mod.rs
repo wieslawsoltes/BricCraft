@@ -19,6 +19,9 @@ pub struct Runtime {
     pub world_cache: Ref<BitmapCache>,
     pub world_resolution: RefCell<resolution::ResolutionController>,
     pub pointer: RefCell<crate::viewport::PointerState>,
+    pub input_occlusion: Cell<[f64; 2]>,
+    layout_metrics: RefCell<Option<layout::LayoutMetrics>>,
+    modal_active: Cell<bool>,
     pub owner: Owner,
     last_frame: Cell<f64>,
     last_hud: Cell<f64>,
@@ -49,6 +52,9 @@ impl Runtime {
             world_cache,
             world_resolution: RefCell::new(resolution::ResolutionController::new()),
             pointer: RefCell::new(Default::default()),
+            input_occlusion: Cell::new([0.0; 2]),
+            layout_metrics: RefCell::new(None),
+            modal_active: Cell::new(false),
             owner,
             last_frame: Cell::new(0.0),
             last_hud: Cell::new(0.0),
@@ -102,5 +108,6 @@ impl Runtime {
 mod actions;
 mod frame;
 mod hud;
+mod layout;
 mod resolution;
 mod world_actions;

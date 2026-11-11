@@ -69,11 +69,17 @@ PartData readPart(float id) {
     return p;
 }
 
-float cellId(float3 cell, float3 dimensions, float offset) {
-    if (any(lessThan(cell, float3(0.0))) || any(greaterThanEqual(cell, dimensions))) return 0.0;
+// The primary trace already bounds X/Z and handles the two special Y rows.
+// Keeping its hot lookup separate avoids six repeated bounds tests per fetch.
+float volumeId(float3 cell, float3 dimensions, float offset) {
     float index = (cell.y * dimensions.z + cell.z) * dimensions.x + cell.x + offset;
     float3 v = bytes(cells.eval(texel(index, cell_texture_size)));
     return dot(v, float3(1.0, 256.0, 65536.0));
+}
+
+float cellId(float3 cell, float3 dimensions, float offset) {
+    if (any(lessThan(cell, float3(0.0))) || any(greaterThanEqual(cell, dimensions))) return 0.0;
+    return volumeId(cell,dimensions,offset);
 }
 
 Hit miss() {

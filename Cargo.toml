@@ -282,6 +282,7 @@ getrandom = { version = "0.4" }
 # <<< FerroUI workspace dependencies
 briccraft-parts = { path = "crates/briccraft-parts" }
 briccraft-world = { path = "crates/briccraft-world" }
+briccraft-terrain = { path = "crates/briccraft-terrain" }
 briccraft-mechanics = { path = "crates/briccraft-mechanics" }
 briccraft-render = { path = "crates/briccraft-render" }
 briccraft-game = { path = "crates/briccraft-game" }

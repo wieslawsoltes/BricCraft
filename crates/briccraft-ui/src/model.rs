@@ -28,6 +28,13 @@ pub struct WorldSummary {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct SourceCredit {
+    pub label: String,
+    pub url: String,
+    pub license: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum UiAction {
     SelectPart(u16),
     SelectColor(u8),
@@ -59,6 +66,9 @@ pub enum UiAction {
         meters_per_stud: f64,
         endpoint: String,
         local: bool,
+        terrain: bool,
+        fit_height: bool,
+        vertical_exaggeration: f64,
     },
     ImportModel {
         size: f64,
@@ -69,6 +79,7 @@ pub enum UiAction {
         map_scale: bool,
     },
     ImportLandmark,
+    ImportTerrainSample,
     CancelImport,
     ExportReport,
     OpenSource(String),
@@ -90,7 +101,8 @@ pub enum UiAction {
         up: f64,
     },
     /// Set one held touch axis without changing the others. Zero releases it.
-    /// Axes: 0 = strafe / steer, 1 = rise / descend, 2 = forward / reverse.
+    /// Axes: 0 = strafe / steer, 1 = rise / descend, 2 = forward / reverse,
+    /// 3 = brake (positive values hold the brake).
     TouchAxis {
         axis: u8,
         value: f64,
@@ -120,6 +132,7 @@ pub struct UiState {
     pub coordinates: Signal<String>,
     pub attribution: Signal<String>,
     pub attribution_url: Signal<String>,
+    pub credits: Signal<Vec<SourceCredit>>,
     pub import_status: Signal<String>,
     pub import_busy: Signal<bool>,
     pub world_busy: Signal<bool>,
@@ -131,9 +144,12 @@ pub struct UiState {
     pub settings_open: Signal<bool>,
     pub worlds_open: Signal<bool>,
     pub imports_open: Signal<bool>,
+    pub credits_open: Signal<bool>,
     pub sound: Signal<bool>,
     pub grid: Signal<bool>,
     pub compact: Signal<bool>,
+    pub layout: Signal<crate::layout::UiLayout>,
+    pub touch: Signal<bool>,
     pub paused: Signal<bool>,
     pub fps: Signal<f64>,
     pub daylight: Signal<f64>,
@@ -160,6 +176,7 @@ impl UiState {
             coordinates: signal(String::new()),
             attribution: signal(String::new()),
             attribution_url: signal(String::new()),
+            credits: signal(Vec::new()),
             import_status: signal(String::new()),
             import_busy: signal(false),
             world_busy: signal(false),
@@ -173,9 +190,12 @@ impl UiState {
             settings_open: signal(false),
             worlds_open: signal(false),
             imports_open: signal(false),
+            credits_open: signal(false),
             sound: signal(true),
             grid: signal(false),
             compact: signal(false),
+            layout: signal(crate::layout::UiLayout::default()),
+            touch: signal(false),
             paused: signal(false),
             fps: signal(0.0),
             daylight: signal(0.35),
@@ -192,6 +212,7 @@ impl UiState {
             self.settings_open.set(false);
             self.worlds_open.set(false);
             self.imports_open.set(false);
+            self.credits_open.set(false);
         });
     }
 
@@ -202,6 +223,7 @@ impl UiState {
             || self.settings_open.get()
             || self.worlds_open.get()
             || self.imports_open.get()
+            || self.credits_open.get()
             || self.import_busy.get()
             || self.world_busy.get()
     }
@@ -213,6 +235,7 @@ impl UiState {
             || self.settings_open.get_untracked()
             || self.worlds_open.get_untracked()
             || self.imports_open.get_untracked()
+            || self.credits_open.get_untracked()
             || self.import_busy.get_untracked()
             || self.world_busy.get_untracked()
     }

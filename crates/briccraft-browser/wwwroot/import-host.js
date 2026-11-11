@@ -1,11 +1,13 @@
 import { fetchBounded, fetchMap } from './map-source.js';
 import { download } from './storage-host.js';
+import { fetchElevation } from './elevation-source.js';
+import { loadTerrainSample } from './terrain-sample.js';
 
 const TOY='https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ToyCar/glTF-Binary/ToyCar.glb';
 const TOY_CREDIT={text:'ToyCar · Guido Odendahl & Eric Chadwick / Khronos',url:'https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/ToyCar',license:'CC0-1.0',license_url:'https://creativecommons.org/publicdomain/zero/1.0/'};
 
 export function installImports(runtime,storage) {
-    let worker,controller,generation=0,report;
+    let worker,controller,generation=0,requestEpoch=0,report;
     const progress=(text,value=0,busy=true) => runtime.briccraftImportProgress(text,value,busy);
     const stop=() => { generation++; worker?.terminate(); worker=undefined; controller?.abort(); controller=undefined; };
     const fail=error => { stop(); progress(String(error?.message || error),0,false); };
@@ -25,7 +27,11 @@ export function installImports(runtime,storage) {
                     data.kind=/\.glb$/i.test(file.name)?'glb':/\.obj$/i.test(file.name)?'obj':'gltf';
                 }
             } else if(data.kind==='osm') {
-                if(data.landmark) {
+                if(data.terrain_sample) {
+                    progress('Opening the included San Francisco hills…',0.06);
+                    const sample=await loadTerrainSample(controller.signal);
+                    Object.assign(data,sample.options); data.elevation=sample.elevation; bytes=sample.bytes;
+                } else if(data.landmark) {
                     data.latitude=52.516275; data.longitude=13.377704; data.radius=160; data.meters_per_stud=4;
                     data.name='Brandenburg Gate';
                     bytes=await fetchBounded('./assets/maps/brandenburg.json',{signal:controller.signal});
@@ -40,6 +46,13 @@ export function installImports(runtime,storage) {
                 bytes=await fetchBounded(TOY,{signal:controller.signal});
             }
             if(token!==generation) return;
+            if(data.kind==='osm' && data.terrain && !data.landmark && !data.elevation) {
+                progress('Loading measured ground elevation…',0.09);
+                data.elevation=await fetchElevation(data,controller.signal,(done,total)=> {
+                    if(token===generation) progress(`Loading elevation tiles · ${done} / ${total}`,0.09+0.04*done/total);
+                });
+                if(token!==generation) return;
+            }
             progress('Converting geometry to editable bricks…',0.12);
             worker=new Worker(new URL('./import-worker.js',import.meta.url),{type:'module'});
             worker.onerror=event => { if(token===generation) fail(new Error(event.message || 'Conversion worker failed')); };
@@ -62,18 +75,38 @@ export function installImports(runtime,storage) {
                 }
             };
             delete data.snapshot;
-            worker.postMessage({...data,bytes},[bytes]);
+            const transfers=[bytes];
+            if(data.elevation?.bytes) transfers.push(data.elevation.bytes);
+            worker.postMessage({...data,bytes},transfers);
         } catch(error) { if(token===generation) fail(error); }
     };
     globalThis.briccraftImportSource=(action,payload) => {
         const data=JSON.parse(payload); data.kind=action==='model'?'glb':'osm';
+        const request=++requestEpoch,openedGeneration=generation;
+        const currentRequest=()=>request===requestEpoch && openedGeneration===generation;
         if((action==='model' && !data.sample) || data.local) {
             // A native file chooser needs the original user gesture, before awaiting storage.
             const input=document.createElement('input'); input.type='file';
             input.accept=data.kind==='osm'?'.json,application/json':'.glb,.gltf,.obj';
-            input.addEventListener('change',()=>{ if(input.files?.[0]) convert(data,input.files[0]); },{once:true});
+            input.addEventListener('change',()=>{
+                const file=input.files?.[0]; if(!file) return;
+                if(!currentRequest()) {
+                    runtime.briccraftMessage('This file selection belongs to an earlier import request. Open the importer again.');
+                    return;
+                }
+                const state=JSON.parse(runtime.briccraftState());
+                if(state.worldBusy || state.importBusy || state.worldId!==data.world_id) {
+                    runtime.briccraftMessage('The world changed or another operation started while choosing a file. Finish that operation and open the importer again.');
+                    return;
+                }
+                // A chooser stays unlocked. Capture the accepted world's current
+                // state, rather than autosaving its older pre-chooser snapshot.
+                const snapshot=runtime.briccraftSerializeWorld(); if(!snapshot) return;
+                data.snapshot=snapshot;
+                convert(data,file);
+            },{once:true});
             input.click();
-        } else queueMicrotask(()=>convert(data));
+        } else queueMicrotask(()=>{ if(currentRequest()) convert(data); });
     };
     globalThis.briccraftCancelImport=() => { stop(); queueMicrotask(()=>progress('Import cancelled. No partial construction was added.',0,false)); };
     globalThis.briccraftImportFinished=(success,summary) => queueMicrotask(async () => {

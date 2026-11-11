@@ -1,0 +1,22 @@
+SPDX-FileCopyrightText: OpenStreetMap contributors
+SPDX-License-Identifier: ODbL-1.0
+
+Original area source:
+https://api.openstreetmap.org/api/0.6/map.json?bbox=-122.4109161,37.7983576,-122.4006839,37.8064424
+
+Supplementary complete courtyard geometry:
+https://api.openstreetmap.org/api/0.6/way/147507696/full.json
+https://api.openstreetmap.org/api/0.6/way/147507701/full.json
+https://api.openstreetmap.org/api/0.6/way/288477109/full.json
+https://api.openstreetmap.org/api/0.6/way/288477110/full.json
+https://api.openstreetmap.org/api/0.6/way/288478659/full.json
+https://api.openstreetmap.org/api/0.6/way/288478662/full.json
+
+Downloaded: 2026-11-11
+License: https://opendatacommons.org/licenses/odbl/1-0/
+Attribution: https://www.openstreetmap.org/copyright
+
+All supported original ways/relations and their complete reference closure are
+preserved. No coordinates, tags, polygon rings or geographic extent were changed.
+Source hashes, original supported identities and derived counts are recorded in
+telegraph-hill.provenance.json. See telegraph-hill.README.md for preparation.

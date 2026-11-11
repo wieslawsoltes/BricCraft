@@ -8,6 +8,7 @@ description = "Bounded OpenStreetMap and static mesh conversion into reusable gl
 [dependencies]
 briccraft-parts.workspace = true
 briccraft-world.workspace = true
+briccraft-terrain.workspace = true
 glam.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
@@ -17,3 +18,4 @@ jpeg-decoder = { version = "0.3.2", default-features = false }
 
 [dev-dependencies]
 jpeg-encoder.workspace = true
+briccraft-stream = { path = "../briccraft-stream" }

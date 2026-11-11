@@ -12,6 +12,8 @@ import math
 import re
 import statistics
 import time
+import functools
+import importlib.util
 import skia
 import numpy as np
 
@@ -28,6 +30,15 @@ def source_for_quality(quality):
 
 
 SOURCE = source_for_quality(2)
+
+
+@functools.lru_cache(maxsize=1)
+def native_gl_backend():
+    # Lazy file-local import also supports loading this tool with importlib.
+    spec = importlib.util.spec_from_file_location('briccraft_native_gl', ROOT / 'tools/native_gl.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.NativeGlBackend(skia)
 
 
 def fixture():
@@ -90,12 +101,24 @@ def images(pieces, dimensions, moving=()):
             local[y:y+sy, z:z+sz, x:x+sx] = i
     coarse_offset = occupancy.size+local.size
     ids = np.concatenate((occupancy.ravel(), local.ravel(), coarse.ravel()))
-    pixels = np.zeros((math.ceil(len(ids)/1024), 1024, 4), dtype=np.uint8)
+    height_offset = len(ids)
+    heights = np.zeros((coarse_size[2], coarse_size[0], 3), dtype=np.uint8)
+    for origin, size, *_rest in pieces:
+        x, y, z = origin
+        sx, sy, sz = size
+        columns = heights[z//4:math.ceil((z+sz)/4), x//4:math.ceil((x+sx)/4), 0]
+        np.maximum(columns, y+sy, out=columns)
+    for channel, stride in ((1, 4), (2, 16)):
+        for z in range(0, coarse_size[2], stride):
+            for x in range(0, coarse_size[0], stride):
+                heights[z:z+stride, x:x+stride, channel] = heights[z:z+stride, x:x+stride, 0].max()
+    pixels = np.zeros((math.ceil((len(ids)+heights.shape[0]*heights.shape[1])/1024), 1024, 4), dtype=np.uint8)
     pixels[..., 3] = 255
     flat = pixels.reshape(-1, 4)
     flat[:len(ids), 0] = ids & 255
     flat[:len(ids), 1] = (ids >> 8) & 255
     flat[:len(ids), 2] = (ids >> 16) & 255
+    flat[height_offset:height_offset+heights.shape[0]*heights.shape[1], :3] = heights.reshape(-1, 3)
     all_parts = list(pieces)+list(moving)
     records = np.zeros((math.ceil((len(all_parts)+1)*4/1024), 1024, 4), dtype=np.uint8)
     records[..., 3] = 255
@@ -109,10 +132,12 @@ def images(pieces, dimensions, moving=()):
     return (pixels, records), {
         'vehicle_min': vehicle_min, 'vehicle_size': vehicle_size,
         'coarse_offset': coarse_offset, 'vehicle_offset': occupancy.size,
+        'height_offset': height_offset,
     }
 
 
-def render(output, scene=None, *, quality=1, width=800, height=500, frames=1, source=None):
+def render(output, scene=None, *, quality=1, width=800, height=500, frames=1, source=None,
+           backend='raster', animate_uniforms=False, validate=True):
     if source is None:
         source = source_for_quality(quality)
     dimensions = [96, 72, 96]
@@ -150,7 +175,7 @@ def render(output, scene=None, *, quality=1, width=800, height=500, frames=1, so
     values = {
         'layer_size': [width, height], 'layer_scale': 1.0,
         'world_dimensions': dimensions+[float(atlas['coarse_offset'])],
-        'scene_bounds_min': list(lower)+[0.0], 'scene_bounds_max': list(upper)+[float(bool(pieces))],
+        'scene_bounds_min': list(lower)+[float(atlas['height_offset'])], 'scene_bounds_max': list(upper)+[float(bool(pieces))],
         'cell_texture_size': [pixel_images[0].shape[1], pixel_images[0].shape[0]],
         'part_texture_size': [pixel_images[1].shape[1], pixel_images[1].shape[0]],
         'camera_position': list(position)+[4.0],
@@ -184,30 +209,44 @@ def render(output, scene=None, *, quality=1, width=800, height=500, frames=1, so
         matrix = skia.Matrix.Scale(width/pixels.shape[1], height/pixels.shape[0])
         builder.setChild(name, image.makeShader(skia.TileMode.kDecal, skia.TileMode.kDecal,
             skia.SamplingOptions(skia.FilterMode.kNearest), matrix))
-    # A raster surface deliberately measures native CPU Skia, not browser GPU FPS.
-    surface = skia.Surface(width, height)
+    # EGL measures synchronized native Ganesh draws; the default remains CPU
+    # raster. Neither backend measures browser application presentation.
+    gpu = native_gl_backend() if backend == 'egl' else None
+    surface = gpu.surface(width, height) if gpu else skia.Surface(width, height)
     paint = skia.Paint(Shader=builder.makeShader())
     draw_ms = []
     draw_cpu_ms = []
-    for _ in range(frames):
+    for frame in range(frames):
+        if animate_uniforms:
+            builder.setUniform('camera_position', list(position)+[4.0+frame/60.0])
+            paint = skia.Paint(Shader=builder.makeShader())
         started = time.perf_counter()
         cpu_started = time.process_time()
         surface.getCanvas().drawRect(skia.Rect.MakeWH(width, height), paint)
+        if gpu:
+            gpu.synchronize()
         draw_cpu_ms.append((time.process_time()-cpu_started)*1000)
         draw_ms.append((time.perf_counter()-started)*1000)
     snapshot = surface.makeImageSnapshot()
+    if gpu:
+        # Readback is deliberately outside the measured draw interval.
+        snapshot = snapshot.makeRasterImage()
+    assert snapshot is not None, 'Skia snapshot/readback failed'
     Path(output).write_bytes(bytes(snapshot.encodeToData()))
     rgb = snapshot.toarray(colorType=skia.ColorType.kRGBA_8888_ColorType)[..., :3]
-    assert rgb.std() > 22, 'Rendered fixture is unexpectedly flat or blank'
+    if validate:
+        assert rgb.std() > 22, 'Rendered fixture is unexpectedly flat or blank'
     warm_pixels = None
-    if scene is None:
+    if validate and scene is None:
         # The fixed inspection fixture contains a red roof and warm-colored
         # bricks. Blue sky/water alone must not pass the visibility gate.
         red, green, blue = (rgb[..., channel].astype(float) for channel in range(3))
         warm_pixels = int(np.count_nonzero((red > green*1.15) & (red > blue*1.30)))
         assert warm_pixels >= max(3, width*height*0.0005), 'Fixture brick/roof geometry is missing'
     result = {
-        'shader': 'compiled', 'backend': 'native Skia CPU raster', 'parts': len(pieces)+len(moving),
+        'shader': 'compiled', 'backend': gpu.name if gpu else 'native Skia CPU raster',
+        'context': gpu.context_info if gpu else None, 'uniform_updates': animate_uniforms,
+        'parts': len(pieces)+len(moving),
         'output': str(output), 'channel_std': float(rgb.std()), 'warm_fixture_pixels': warm_pixels, 'size': [width, height],
         'quality': quality, 'variant': ('analytic-fast', 'analytic-balanced', 'full-geometry')[quality], 'compile_ms': compile_ms, 'draw_ms': draw_ms,
         'draw_cpu_ms': draw_cpu_ms,
@@ -226,6 +265,10 @@ if __name__ == '__main__':
     parser.add_argument('--height', type=int, default=500)
     parser.add_argument('--quality', type=int, choices=(0, 1, 2), default=1)
     parser.add_argument('--frames', type=int, default=1)
+    parser.add_argument('--backend', choices=('raster', 'egl'), default='raster',
+                        help='Native CPU raster or synchronized Ganesh OpenGL (requires PyOpenGL/EGL)')
+    parser.add_argument('--animate-uniforms', action='store_true',
+                        help='Build a new shader snapshot with changing time uniforms each frame')
     parser.add_argument('--all-qualities', action='store_true', help='Compile and render all three actual production shader variants')
     parser.add_argument('--source', type=Path, help='Alternate concatenated SkSL, for a baseline benchmark')
     parser.add_argument('--compare-source', type=Path, help='Also render a baseline and report pixel differences')
@@ -237,7 +280,8 @@ if __name__ == '__main__':
         output = Path(args.output)
         if args.all_qualities:
             output = output.with_name(f"{output.stem}.{('fast', 'balanced', 'full')[quality]}{output.suffix}")
-        settings = dict(quality=quality, width=args.width, height=args.height, frames=args.frames)
+        settings = dict(quality=quality, width=args.width, height=args.height, frames=args.frames,
+                        backend=args.backend, animate_uniforms=args.animate_uniforms)
         result, rgb = render(output, args.scene, source=args.source.read_text() if args.source else None, **settings)
         if args.compare_source:
             baseline, original = render(str(output.with_suffix('.baseline.png')), args.scene,

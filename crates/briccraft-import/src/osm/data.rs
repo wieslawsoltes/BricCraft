@@ -51,6 +51,7 @@ struct Member {
 }
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Kind {
+    Landcover,
     Water,
     Road,
     Building,
@@ -77,6 +78,29 @@ fn kind(tags: &BTreeMap<String, String>) -> Option<Kind> {
         || tags.get("landuse").is_some_and(|v| v == "reservoir")
     {
         Some(Kind::Water)
+    } else if tags.contains_key("landuse")
+        || tags.get("natural").is_some_and(|v| {
+            matches!(
+                v.as_str(),
+                "wood"
+                    | "scrub"
+                    | "grassland"
+                    | "heath"
+                    | "sand"
+                    | "beach"
+                    | "bare_rock"
+                    | "wetland"
+                    | "glacier"
+            )
+        })
+        || tags.get("leisure").is_some_and(|v| {
+            matches!(
+                v.as_str(),
+                "park" | "garden" | "golf_course" | "pitch" | "recreation_ground"
+            )
+        })
+    {
+        Some(Kind::Landcover)
     } else {
         None
     }
@@ -192,7 +216,7 @@ pub(super) fn parse(
             continue;
         }
         let closed = points.len() >= 4 && geometry::same(points[0], *points.last().unwrap());
-        if kind == Kind::Building && !closed {
+        if matches!(kind, Kind::Building | Kind::Landcover) && !closed {
             report
                 .warn("An open building footprint was skipped; its missing edge was not invented.");
             continue;
@@ -215,9 +239,10 @@ pub(super) fn parse(
     result.sort_by_key(|f| {
         (
             match f.kind {
-                Kind::Water => 0,
-                Kind::Road => 1,
-                Kind::Building => 2,
+                Kind::Landcover => 0,
+                Kind::Water => 1,
+                Kind::Road => 2,
+                Kind::Building => 3,
             },
             f.id,
         )

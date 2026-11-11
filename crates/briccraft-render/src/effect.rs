@@ -8,7 +8,9 @@ use ferroui_base::{Rect, Size};
 pub const WORLD_SKSL: &str = concat!(
     include_str!("shaders/uniforms.sksl"),
     include_str!("shaders/geometry.sksl"),
-    include_str!("shaders/trace.sksl"),
+    include_str!("shaders/height_hierarchy.sksl"),
+    include_str!("shaders/trace_primary.sksl"),
+    include_str!("shaders/shadows_full.sksl"),
     include_str!("shaders/lighting.sksl"),
     include_str!("shaders/main.sksl"),
 );
@@ -19,6 +21,7 @@ pub const WORLD_SKSL: &str = concat!(
 pub const FAST_WORLD_SKSL: &str = concat!(
     include_str!("shaders/uniforms.sksl"),
     include_str!("shaders/geometry_analytic.sksl"),
+    include_str!("shaders/height_hierarchy.sksl"),
     include_str!("shaders/trace_primary.sksl"),
     include_str!("shaders/shadows_fast.sksl"),
     include_str!("shaders/lighting_efficient.sksl"),
@@ -28,6 +31,7 @@ pub const FAST_WORLD_SKSL: &str = concat!(
 pub const BALANCED_WORLD_SKSL: &str = concat!(
     include_str!("shaders/uniforms.sksl"),
     include_str!("shaders/geometry_analytic.sksl"),
+    include_str!("shaders/height_hierarchy.sksl"),
     include_str!("shaders/trace_primary.sksl"),
     include_str!("shaders/shadows_balanced.sksl"),
     include_str!("shaders/lighting_efficient.sksl"),
@@ -163,5 +167,13 @@ macro_rules! analytic_effect {
     };
 }
 
-analytic_effect!(FastBrickWorldEffect, FAST_WORLD_SKSL, "briccraft-world-fast");
-analytic_effect!(BalancedBrickWorldEffect, BALANCED_WORLD_SKSL, "briccraft-world-balanced");
+analytic_effect!(
+    FastBrickWorldEffect,
+    FAST_WORLD_SKSL,
+    "briccraft-world-fast"
+);
+analytic_effect!(
+    BalancedBrickWorldEffect,
+    BALANCED_WORLD_SKSL,
+    "briccraft-world-balanced"
+);

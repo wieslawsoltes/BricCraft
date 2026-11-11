@@ -6,6 +6,7 @@
 
 mod atlas;
 mod data_texture;
+mod height_hierarchy;
 mod metrics;
 mod part_lookup;
 

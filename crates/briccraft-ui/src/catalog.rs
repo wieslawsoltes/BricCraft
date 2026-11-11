@@ -29,7 +29,7 @@ pub fn catalog(
                 .name("PartSearch")
                 .placeholder_text("Search bricks, axles, windows…")
                 .text(search.two_way())
-                .margin((0.0, 0.0, 0.0, 12.0)),
+                .margin((0.0, 0.0, 0.0, 8.0)),
             rerender(move || {
                 let selected = category.get();
                 let choices: Vec<Element> = categories
@@ -38,10 +38,10 @@ pub fn catalog(
                         let target = name.clone();
                         button()
                             .content(name.clone())
-                            .font_size(10.0)
-                            .padding((9.0, 5.0))
-                            .min_height(29.0)
-                            .margin((0.0, 0.0, 5.0, 5.0))
+                            .font_size(11.0)
+                            .padding((10.0, 6.0))
+                            .min_height(44.0)
+                            .margin((0.0, 0.0, 5.0, 0.0))
                             .corner_radius(6.0)
                             .background(if *name == selected {
                                 "#533A29"
@@ -62,7 +62,7 @@ pub fn catalog(
                         .grid_row(1)
                         .height(44.0)
                         .margin((0.0, 0.0, 0.0, 8.0))
-                        .horizontal_scroll_bar_visibility(ScrollBarVisibility::Auto)
+                        .horizontal_scroll_bar_visibility(ScrollBarVisibility::Hidden)
                         .vertical_scroll_bar_visibility(ScrollBarVisibility::Disabled)
                         .child(
                             stack_panel()
@@ -148,8 +148,8 @@ pub fn catalog(
                 })),
             stack_panel()
                 .grid_row(3)
-                .spacing(10.0)
-                .margin((0.0, 14.0, 0.0, 0.0))
+                .spacing(8.0)
+                .margin((0.0, 8.0, 0.0, 0.0))
                 .children((
                     grid().column_definitions("*,Auto").children((
                         controls::label("MOLDED COLORS"),
@@ -161,6 +161,12 @@ pub fn catalog(
                     )),
                     rerender(move || {
                         let selected = state.selected_color.get();
+                        let compact = state.compact.get();
+                        let size = if compact || state.layout.get().touch {
+                            44.0
+                        } else {
+                            28.0
+                        };
                         let swatches: Vec<Element> = colors
                             .iter()
                             .map(|color| {
@@ -168,11 +174,11 @@ pub fn catalog(
                                 let dispatch = color_dispatch.clone();
                                 button()
                                     .name(format!("Color{}", color.id))
-                                    .width(25.0)
-                                    .height(25.0)
+                                    .width(size)
+                                    .height(size)
                                     .min_width(0.0)
                                     .min_height(0.0)
-                                    .margin((0.0, 0.0, 6.0, 6.0))
+                                    .margin((0.0, 0.0, 6.0, if compact { 0.0 } else { 6.0 }))
                                     .padding(0.0)
                                     .corner_radius(5.0)
                                     .background(color.hex.as_str())
@@ -187,12 +193,25 @@ pub fn catalog(
                                     .into()
                             })
                             .collect();
-                        scroll_viewer()
-                            .max_height(if state.compact.get() { 92.0 } else { 140.0 })
-                            .horizontal_scroll_bar_visibility(ScrollBarVisibility::Disabled)
-                            .vertical_scroll_bar_visibility(ScrollBarVisibility::Auto)
-                            .child(wrap_panel().children(swatches))
-                            .into_element()
+                        if compact {
+                            scroll_viewer()
+                                .height(44.0)
+                                .horizontal_scroll_bar_visibility(ScrollBarVisibility::Hidden)
+                                .vertical_scroll_bar_visibility(ScrollBarVisibility::Disabled)
+                                .child(
+                                    stack_panel()
+                                        .orientation(Orientation::Horizontal)
+                                        .children(swatches),
+                                )
+                                .into_element()
+                        } else {
+                            scroll_viewer()
+                                .max_height(140.0)
+                                .horizontal_scroll_bar_visibility(ScrollBarVisibility::Disabled)
+                                .vertical_scroll_bar_visibility(ScrollBarVisibility::Auto)
+                                .child(wrap_panel().children(swatches))
+                                .into_element()
+                        }
                     }),
                 )),
         ))

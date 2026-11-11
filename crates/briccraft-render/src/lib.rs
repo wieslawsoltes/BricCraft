@@ -15,7 +15,7 @@ pub use briccraft_render_data::{
 };
 pub use camera::Camera;
 pub use effect::{
-    BALANCED_WORLD_SKSL, BrickWorldEffect, FAST_WORLD_SKSL, WORLD_SKSL, shader_variant_name,
+    shader_variant_name, BrickWorldEffect, BALANCED_WORLD_SKSL, FAST_WORLD_SKSL, WORLD_SKSL,
 };
 pub use frame::{PlacementPreview, RenderFrame, VehicleRender};
 pub use renderer::Renderer;

@@ -9,6 +9,33 @@ export function installInput(runtime, mount) {
     let gestureScale = 1;
     let gestureFromTouch = false;
     let lastControlWheel = -Infinity;
+    let touchUsed = false;
+    let environmentFrame = 0;
+    const coarse = window.matchMedia('(pointer: coarse)');
+    const syncEnvironment = () => {
+        environmentFrame = 0;
+        if (subscriptions.signal.aborted) return;
+        const bounds = mount.getBoundingClientRect();
+        const visible = window.visualViewport;
+        // The native InputPane handles browsers with VirtualKeyboard support.
+        // Safari's visible viewport supplies the same occlusion when that API
+        // is absent. Ignore page zoom, which is not a keyboard rectangle.
+        const keyboard = visible && Math.abs(visible.scale - 1) < 0.01 &&
+            bounds.height - visible.height > 80;
+        const top = keyboard ? Math.max(0, visible.offsetTop - bounds.top) : 0;
+        const bottom = keyboard ? Math.max(0, bounds.bottom - visible.offsetTop - visible.height) : 0;
+        runtime.briccraftInputEnvironment(coarse.matches || touchUsed, top, bottom);
+    };
+    const scheduleEnvironment = () => {
+        if (!environmentFrame) environmentFrame = requestAnimationFrame(syncEnvironment);
+    };
+    const resize = new ResizeObserver(scheduleEnvironment);
+    resize.observe(mount);
+    coarse.addEventListener('change', scheduleEnvironment, options);
+    window.addEventListener('resize', scheduleEnvironment, options);
+    window.visualViewport?.addEventListener('resize', scheduleEnvironment, options);
+    window.visualViewport?.addEventListener('scroll', scheduleEnvironment, options);
+    scheduleEnvironment();
     const isTextInput = target => target instanceof HTMLElement &&
         (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
     const isFrameworkInput = target => target instanceof HTMLElement &&
@@ -41,7 +68,12 @@ export function installInput(runtime, mount) {
         position.y = event.clientY - bounds.top;
     }, captures);
     mount.addEventListener('pointerdown', event => {
-        if (event.pointerType === 'touch') { touches.add(event.pointerId); gestureFromTouch = true; }
+        if (event.pointerType === 'touch') {
+            touches.add(event.pointerId);
+            gestureFromTouch = true;
+            touchUsed = true;
+            scheduleEnvironment();
+        }
     }, captures);
     const release = event => touches.delete(event.pointerId);
     window.addEventListener('pointerup', release, captures);
@@ -67,5 +99,10 @@ export function installInput(runtime, mount) {
         gestureScale = scale;
     }, { ...options, passive: false });
     mount.addEventListener('gestureend', () => { gestureScale = 1; gestureFromTouch = false; }, options);
-    return () => { subscriptions.abort(); reset(); };
+    return () => {
+        subscriptions.abort();
+        resize.disconnect();
+        if (environmentFrame) cancelAnimationFrame(environmentFrame);
+        reset();
+    };
 }

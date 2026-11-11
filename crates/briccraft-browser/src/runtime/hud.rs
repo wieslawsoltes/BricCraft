@@ -42,13 +42,26 @@ impl Runtime {
         } else {
             String::new()
         };
-        let attribution = game
+        let credits: Vec<_> = game
             .world_info
             .attributions
             .iter()
-            .map(|a| a.label.as_str())
-            .collect::<Vec<_>>()
-            .join(" · ");
+            .map(|source| briccraft_ui::SourceCredit {
+                label: source.label.clone(),
+                url: source.url.clone(),
+                license: source.license.clone(),
+            })
+            .collect();
+        let attribution = credits.first().map_or_else(String::new, |source| {
+            let mut label: String = source.label.chars().take(72).collect();
+            if source.label.chars().count() > 72 {
+                label.push('…');
+            }
+            if credits.len() > 1 {
+                label.push_str(&format!(" · +{} sources", credits.len() - 1));
+            }
+            label
+        });
         let attribution_url = game
             .world_info
             .attributions
@@ -86,6 +99,7 @@ impl Runtime {
             state.streamed.set_if_changed(streamed);
             state.coordinates.set_if_changed(coordinates);
             state.attribution.set_if_changed(attribution);
+            state.credits.set_if_changed(credits);
             state.attribution_url.set_if_changed(attribution_url);
             state.fps.set_if_changed(self.fps.get());
             state.seed.set_if_changed(seed);

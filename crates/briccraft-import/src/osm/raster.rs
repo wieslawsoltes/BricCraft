@@ -11,7 +11,7 @@ use crate::{
 };
 
 /// OSM numeric lengths are meters unless an explicit feet suffix is present.
-fn meters(value: &str) -> Option<f64> {
+pub(super) fn meters(value: &str) -> Option<f64> {
     let value = value.trim();
     let numeric: String = value
         .chars()
@@ -26,7 +26,7 @@ fn meters(value: &str) -> Option<f64> {
     }
     (number.is_finite() && number >= 0.0 && number <= 10_000.0).then_some(number)
 }
-fn building_height(feature: &Feature, options: &OsmOptions) -> HeightEvidence {
+pub(super) fn building_height(feature: &Feature, options: &OsmOptions) -> HeightEvidence {
     if let Some(height) = feature
         .tags
         .get("height")
@@ -65,16 +65,20 @@ fn building_height(feature: &Feature, options: &OsmOptions) -> HeightEvidence {
     }
 }
 
-fn projected(
+pub(super) fn projected(
     rings: &[Vec<[f64; 2]>],
     projection: &GeoReference,
 ) -> ImportResult<Vec<Vec<[f64; 2]>>> {
     rings
         .iter()
-        .map(|r| r.iter().map(|p| projection.project(p[0], p[1])).collect())
+        .map(|r| {
+            r.iter()
+                .map(|p| projection.project(p[0], p[1]).map_err(Into::into))
+                .collect()
+        })
         .collect()
 }
-fn bounds<'a>(
+pub(super) fn bounds<'a>(
     points: impl Iterator<Item = &'a [f64; 2]>,
     clip: [i32; 4],
     padding: f64,
@@ -141,7 +145,7 @@ pub(super) fn render(
         let line: Vec<_> = feature
             .line
             .iter()
-            .map(|p| projection.project(p[0], p[1]))
+            .map(|p| projection.project(p[0], p[1]).map_err(Into::into))
             .collect::<ImportResult<_>>()?;
         let surface = options.origin[1] + 1;
         let mut drawn = false;
@@ -185,6 +189,7 @@ pub(super) fn render(
                     .unwrap_or(10),
                 Kind::Road => 7,
                 Kind::Water => 14,
+                Kind::Landcover => landcover_color(feature),
             };
             let roof_color = feature
                 .tags
@@ -284,6 +289,7 @@ pub(super) fn render(
                 Kind::Building => report.buildings += 1,
                 Kind::Road => report.roads += 1,
                 Kind::Water => report.water += 1,
+                Kind::Landcover => report.landcover += 1,
             }
         }
     }
@@ -299,5 +305,29 @@ mod tests {
         assert_eq!(meters("10 ft"), Some(3.048));
         assert_eq!(meters("10;20"), None);
         assert_eq!(meters("NaN"), None);
+    }
+}
+
+/// Stylized material selection; source polygon boundaries remain unchanged.
+pub(super) fn landcover_color(feature: &Feature) -> u8 {
+    let tag = feature
+        .tags
+        .get("natural")
+        .or_else(|| feature.tags.get("landuse"))
+        .or_else(|| feature.tags.get("leisure"))
+        .map(String::as_str)
+        .unwrap_or("");
+    match tag {
+        "wood" | "forest" | "orchard" => 5,
+        "scrub" | "heath" | "cemetery" => 25,
+        "grassland" | "grass" | "meadow" | "park" | "garden" | "golf_course" | "pitch"
+        | "recreation_ground" => 12,
+        "sand" | "beach" | "construction" | "quarry" => 10,
+        "bare_rock" => 6,
+        "wetland" => 13,
+        "glacier" => 3,
+        "farmland" | "farmyard" | "allotments" | "vineyard" => 26,
+        "industrial" | "commercial" | "retail" | "railway" | "garages" => 6,
+        _ => 29,
     }
 }

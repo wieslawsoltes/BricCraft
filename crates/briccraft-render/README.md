@@ -20,7 +20,20 @@ occupancy array or perform hash lookups for every occupied cell. Atlas image
 initialization remains proportional to the bounded texture size.
 
 The SkSL clips rays to the static occupied bounds, then traverses cells with a
-three-dimensional DDA and skips empty 4 × 6 × 4 coarse tiles. Bricks and their studs
+three-dimensional DDA and skips empty 4 × 6 × 4 coarse tiles. A conservative
+column hierarchy also skips air above all geometry at 4-, 16- and 64-stud scales.
+It is enabled when the occupied vertical span exceeds 12 studs; shallower scenes
+already clip tightly enough to avoid another column fetch.
+One RGB texel carries all three maxima, including a stud-height margin in the
+shader. This remains a full 3D renderer: below those bounds it resolves the
+original bricks, openings, tunnels, overhangs and moving bodies. The hierarchy
+does not depend on how terrain or an imported model was created.
+
+All three qualities share this traversal. It keeps integer and fractional ray
+origins separate when locating a cell, so a tiny negative movement from an
+integer camera coordinate cannot round back onto the old tile and stall.
+Primary volume bounds are checked once, leaving only the two special Y-row
+checks in the hot cell fetches. Bricks and their studs
 have analytic box/cylinder intersections. Fast and Balanced solve shaped parts
 analytically as well; Full uses the original bounded signed-distance intersections.
 The analytic traversal caches each coarse tile while visiting its fine cells. Studs extend above placement
@@ -95,8 +108,10 @@ connectivity, collision geometry, construction data, or vehicle mechanics.
 `Renderer::stats()` reports atlas payload/storage, active cells, coarse occupancy,
 part/texture budgets, rebuilds, per-image publications, bytes published, and
 uniform-only effect snapshots. `shader_quality` and `shader_variant` identify the
-actual program selected for the most recent frame. These counters do not estimate presented FPS or
-GPU transfer time. See [the measured CPU benchmarks](../briccraft-render-data/BENCHMARKS.md).
+actual program selected for the most recent frame. `height_columns` reports the
+bounded column working set. These counters do not estimate presented FPS or
+GPU transfer time. See [the shader measurements](BENCHMARKS.md) and
+[the atlas measurements](../briccraft-render-data/BENCHMARKS.md).
 
 The geometry is a curated procedural representation of the catalog. Wheels,
 gears, axles, liftarms and architecture have distinctive geometry, but it does
@@ -113,6 +128,7 @@ not another implementation of the game. To inspect the real generated world:
 cargo run --release -p briccraft-render-data --example export_scene -- /tmp/briccraft-scene.json
 python3 -m pip install skia-python
 python3 crates/briccraft-render/tools/smoke_shader.py /tmp/briccraft-world.png /tmp/briccraft-scene.json --all-qualities --width 160 --height 100
+python3 crates/briccraft-render/tools/test_shader_rays.py
 ```
 
 The tool reads the exact `include_str!` sequence from each production Rust source
@@ -122,8 +138,12 @@ fixture also checks for visible warm-colored bricks/roof pixels, so an image of
 sky and water alone cannot pass. It also
 supports `--quality`, `--width`, `--height`, `--frames`, and
 `--compare-source` for equal-resolution comparisons with an older concatenated
-SkSL source. Timings explicitly identify the native CPU raster backend; browser
-GPU throughput must be measured in the running application.
+SkSL source. CPU raster is the default. `--backend egl` selects synchronized
+native Ganesh OpenGL, requires PyOpenGL/EGL, and reports the actual driver.
+`--animate-uniforms` verifies repeated draws with changing effect snapshots.
+`tools/benchmark_shader.py` compares each production source against its matching
+variant in a Git revision at identical settings. Browser GPU throughput must
+still be measured in the running application.
 
 The historical CPU benchmark report predates these specialized shader programs.
 It is not evidence of current browser GPU throughput. Browser performance gates

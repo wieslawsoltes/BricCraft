@@ -9,6 +9,7 @@ BricCraft is a Rust workspace with a pinned FerroUI submodule. All visible game 
 | `briccraft-parts` | Stable catalogue identities, dimensions, colors and connectors | None |
 | `briccraft-world` | Seeded world, occupancy, atomic construction/history, picking, blueprints, validated persistence | None |
 | `briccraft-stream` | Global coordinates/identities, deterministic chunks, bounded residency, sparse edits, global history and staged imports | None |
+| `briccraft-terrain` | Geographic/WebMercator elevation grids, Terrarium/HGT decoding, bilinear sampling, height fitting and solid terrain packing | None |
 | `briccraft-import` | OSM geometry, georeferencing, OBJ/glTF/GLB parsing, texture sampling, surface voxelization and exact-cover brick packing | None |
 | `briccraft-import-worker` | Small wasm-bindgen conversion boundary for a dedicated Web Worker | wasm-bindgen only |
 | `briccraft-mechanics` | Gear constraints, shafts, transmission, differential, steering, springs, rails and vehicle dynamics | None |
@@ -45,7 +46,8 @@ budgets, not claims that the entire visible world must be loaded.
 
 Network access is user initiated and owned by the browser host. One bounded Overpass
 request retrieves a selected area; a small source cache avoids repeated downloads.
-Local extracts and the included Brandenburg Gate extract need no live map backend.
+Local map extracts and the included Brandenburg Gate extract need no live map backend.
+The Telegraph Hill sample also includes its original elevation tiles and provenance.
 Traveling through a world does not scrape successive public-service bounding boxes.
 The endpoint is configurable for self-hosted or dedicated use.
 
@@ -53,7 +55,38 @@ The endpoint is configurable for self-hosted or dedicated use.
 mapped footprints, roads and water to plate-grid cells, and records the evidence used
 for each building height. Explicit height tags remain distinct from inferred floor
 counts or defaults. Source reports retain projection, dimensions, warning lists and
-attribution. Missing elevation and facade geometry are reported rather than invented.
+attribution. Facade geometry is not inferred from footprint tags.
+
+### Elevation and complete-area generation
+
+`briccraft-terrain` owns elevation independently of OSM and rendering. An `ElevationGrid`
+records node-center bounds, Geographic or WebMercator spacing, nullable metre samples,
+vertical datum and source evidence. Terrarium decoding preserves the original 8-bit
+channels; browser canvas color management never touches elevation bytes. Bilinear
+sampling crosses tile seams and rejects missing required neighbors. HGT decoding is
+also available to Rust consumers; the browser's live path uses Terrarium.
+
+The browser plans at most 16 DEM tiles, downloads three concurrently, limits each
+compressed tile to 1 MiB and their combined payload to 12 MiB, and caches at most 48
+tiles. Packed bytes transfer to the worker. The Rust decoder validates exact ranges,
+dimensions, alpha and bounded allocation before sampling the area. No survey timestamp
+or datum is invented when the provider has not supplied one.
+
+For an area import, elevation is sampled over the whole requested projected rectangle.
+Roads and land cover follow it. Buildings use level foundations at their highest ground
+sample. Enclosed water uses a recorded inferred elevation. Solid ground is packed from
+column heights, without allocating every interior voxel in a hash table. Parts stay
+within global 16×16 chunk boundaries, so terrain remains complete when a resident
+window moves. Feature geometry retains its separate bounded voxel budget.
+
+The default fit option computes a shared vertical scale for terrain relief and buildings
+within the 54 available plates above the import baseline. Horizontal scale remains
+unchanged unless a resource budget forces deterministic whole-area coarsening. Up to
+nine complete conversion attempts are allowed; failure never publishes a partial area.
+Reports retain requested/effective horizontal and vertical scales, compression,
+elevation range, datum, column counts and inference counts. Strict height mode rejects
+overflow instead. The [terrain contract](../crates/briccraft-terrain/README.md) documents
+the node-center and boundary-cell conventions.
 
 Static mesh import applies source scene transforms and triangulates supported geometry.
 Vertex colors, base-color factors and embedded PNG/JPEG textures contribute to palette
@@ -93,6 +126,29 @@ The world effect belongs to a child visual inside a separate parent `BitmapCache
 
 An adaptive controller uses actual presented frames and elapsed time to adjust the world's physical pixel budget. It starts with a bounded 65,536-pixel world surface, accounts for browser device scale, reduces work promptly on slow devices, and raises detail only after sustained headroom. The user's quality selection is an upper bound. Fast and Balanced use analytic part intersections; Cinematic retains the detailed signed-distance part shapes. Their shader programs are separate effect types, so the fast program excludes the expensive secondary traversal instead of only hiding it behind a uniform branch. Diagnostics expose requested/effective quality, world surface dimensions, scale and measured presentation rate. None of these changes lowers native UI resolution.
 
+A conservative hierarchy stores maximum occupied heights for 4-, 16- and 64-stud
+columns in 576 RGB texels. Rays skip air only above the full part envelope plus its
+studs; roofs, caves and overhangs still use ordinary three-dimensional intersections.
+All qualities share the primary traversal and cache coarse occupancy. Fractional-origin
+cell calculations prevent a tiny negative ray direction from rounding back onto an
+integer camera boundary and exhausting the traversal loop. This fixes missing geometry
+as well as unnecessary work.
+
+## Responsive UI and touch
+
+The world occupies the full native viewport. A separate declarative UI layer derives
+its usable rectangle from FerroUI `InsetsManager` and `InputPane`, with browser viewport
+and coarse-pointer information supplied only as environment signals. The layer adapts
+between portrait, wide and short-landscape layouts; scrollable panels remain reachable
+above the keyboard and safe areas. Buttons use 44–48-pixel touch targets.
+
+Touch navigation tracks contacts independently. A single finger aims/orbits, two fingers
+pan and pinch, and lifting one finger after a pinch cannot place a part. Explicit Place,
+Remove and Rotate buttons perform edits; the movement pad and vehicle Brake/Park actions
+use the same game commands as desktop input. Modal panels own a full backdrop, and the
+world rejects pointer/wheel gestures while a modal is open. Source credits expand into a
+native scrollable panel rather than occupying the world with a long attribution string.
+
 ## Simulation and persistence
 
 The session samples held input at 60 Hz. Vehicle integration subdivides to 120 Hz; display frame spikes are bounded. Input is cleared on focus loss, panel interaction and pause. Picking and placement share the same world coordinate conventions as rendering.
@@ -113,8 +169,8 @@ Rust, while separate copies and reversible archiving operate on independent reco
 This release implements a creative construction sandbox with horizontally streamed worlds.
 Complete Minecraft gameplay parity—survival progression, hostile creatures, crafting
 recipes, redstone-like logic and networking—is not implemented. Vertical occupancy is
-72 plates (28.8 studs); imports must fit uniformly within that budget. There is no
-planet-scale terrain-elevation or photogrammetric tile service. Imported real areas are
+72 plates (28.8 studs); mesh imports fit uniformly, while area imports expose explicit
+vertical fitting. There is no continuously streamed planet or photogrammetric tile service. Imported real areas are
 finite source datasets placed in the open procedural world; their footprint/height
 fidelity is limited by source evidence and selected stud resolution.
 

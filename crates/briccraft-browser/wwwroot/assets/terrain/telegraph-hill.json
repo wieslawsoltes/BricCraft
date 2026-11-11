@@ -1,0 +1,85 @@
+{
+  "latitude": 37.8024,
+  "longitude": -122.4058,
+  "radius": 450,
+  "meters_per_stud": 8,
+  "name": "San Francisco \u00b7 Telegraph Hill",
+  "metadata": {
+    "bounds": {
+      "south": 37.798213850776,
+      "west": -122.41109805567409,
+      "north": 37.806586149223996,
+      "east": -122.40050194432591
+    },
+    "width": 118,
+    "height": 118,
+    "tiles": [
+      {
+        "z": 14,
+        "x": 2620,
+        "y": 6330,
+        "offset": 0,
+        "length": 90010
+      },
+      {
+        "z": 14,
+        "x": 2621,
+        "y": 6330,
+        "offset": 90010,
+        "length": 77392
+      },
+      {
+        "z": 14,
+        "x": 2620,
+        "y": 6331,
+        "offset": 167402,
+        "length": 99719
+      },
+      {
+        "z": 14,
+        "x": 2621,
+        "y": 6331,
+        "offset": 267121,
+        "length": 90404
+      }
+    ],
+    "source": {
+      "name": "Mapzen Terrain Tiles",
+      "url": "https://registry.opendata.aws/terrain-tiles/",
+      "attribution": "Mapzen Terrain Tiles. ArcticDEM: DigitalGlobe imagery, NSF awards 1043681, 1559691, 1542736. Australia: \u00a9 Commonwealth of Australia (Geoscience Australia) 2017. Austria: \u00a9 offene Daten \u00d6sterreichs \u2013 Digitales Gel\u00e4ndemodell (DGM) \u00d6sterreich. Canada: contains information licensed under the Open Government Licence \u2013 Canada. Europe: produced using Copernicus data and information funded by the European Union \u2013 EU-DEM layers. ETOPO1: U.S. National Oceanic and Atmospheric Administration. Mexico: INEGI, Continental relief, 2016. New Zealand: Copyright 2011 Crown copyright (c), Land Information New Zealand and the New Zealand Government, all rights reserved. Norway: \u00a9 Kartverket. United Kingdom: \u00a9 Environment Agency copyright and/or database right 2015, all rights reserved. United States 3DEP and global GMTED2010/SRTM: courtesy of the U.S. Geological Survey.",
+      "license": "Multiple open source-data licenses; see provider credits",
+      "license_url": "https://github.com/tilezen/joerd/blob/master/docs/attribution.md",
+      "resolution_m": 7.549392322495393
+    },
+    "vertical_datum": "Unknown"
+  },
+  "tiles_file": "telegraph-hill.dem",
+  "map_file": "../maps/telegraph-hill.json",
+  "downloaded_at": "2026-11-11T15:20:39.717352+00:00",
+  "tile_sources": [
+    {
+      "url": "https://elevation-tiles-prod.s3.amazonaws.com/terrarium/14/2620/6330.png",
+      "etag": "\"39d90d7e5130ff2360f877e72486a2a3\"",
+      "last_modified": "Sat, 11 Nov 2017 10:58:52 GMT",
+      "imagery_sources": "ned_topobathy/ned19_n38x00_w122x50_ca_sanfrancisco_topobathy_2010.tif"
+    },
+    {
+      "url": "https://elevation-tiles-prod.s3.amazonaws.com/terrarium/14/2621/6330.png",
+      "etag": "\"58833c2e3583e599c0ae07928f4c1d85\"",
+      "last_modified": "Sat, 11 Nov 2017 10:58:52 GMT",
+      "imagery_sources": "ned_topobathy/ned19_n38x00_w122x50_ca_sanfrancisco_topobathy_2010.tif"
+    },
+    {
+      "url": "https://elevation-tiles-prod.s3.amazonaws.com/terrarium/14/2620/6331.png",
+      "etag": "\"6c5c45144c56221ec87bc67f1d17f36d\"",
+      "last_modified": "Sat, 11 Nov 2017 10:58:52 GMT",
+      "imagery_sources": "ned_topobathy/ned19_n38x00_w122x50_ca_sanfrancisco_topobathy_2010.tif"
+    },
+    {
+      "url": "https://elevation-tiles-prod.s3.amazonaws.com/terrarium/14/2621/6331.png",
+      "etag": "\"35f7357b21e3da26e1194c7576c62964\"",
+      "last_modified": "Sat, 11 Nov 2017 10:58:52 GMT",
+      "imagery_sources": "ned_topobathy/ned19_n38x00_w122x50_ca_sanfrancisco_topobathy_2010.tif"
+    }
+  ]
+}

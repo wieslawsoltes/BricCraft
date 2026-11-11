@@ -16,6 +16,18 @@ Attribution and source provenance are retained in the fixture notices, import re
 and exported mapped worlds. See [OpenStreetMap copyright](https://www.openstreetmap.org/copyright).
 Application code remains MIT; that license does not replace the source data license.
 
+The included Telegraph Hill OSM extract follows the same ODbL terms. Its complete
+source graph, source URLs, filtering procedure and hashes are documented beside
+`assets/maps/telegraph-hill.json`. Terrain is derived from Mapzen Terrain Tiles,
+distributed through the [AWS Open Data registry](https://registry.opendata.aws/terrain-tiles/).
+The four bundled Terrarium PNG tiles are retained byte-for-byte inside
+`assets/terrain/telegraph-hill.dem`; their manifest records original URLs, ETags,
+modification dates and the provider's USGS NED topobathymetry source metadata.
+Live tiles can derive from different agencies. Full [provider attribution and source
+license terms](https://github.com/tilezen/joerd/blob/master/docs/attribution.md) are
+retained in terrain source credits, import reports and exported worlds. Neither the
+application's MIT license nor the OSM license replaces those elevation-data terms.
+
 ## Model fixtures and samples
 
 The small BoxVertexColors GLB regression fixture comes from the Khronos glTF sample

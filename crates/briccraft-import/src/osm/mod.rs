@@ -2,6 +2,8 @@
 mod data;
 mod geometry;
 mod raster;
+mod terrain;
+mod terrain_raster;
 
 use crate::{
     error::invalid, limits::progress, packing, voxels::Voxels, Attribution, GeoBounds,
@@ -12,6 +14,9 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct OsmOptions {
+    /// Optional measured elevation. None preserves the legacy flat import path.
+    #[serde(default)]
+    pub terrain: Option<briccraft_terrain::TerrainOptions>,
     pub bounds: GeoBounds,
     pub meters_per_stud: f64,
     pub origin: [i32; 3],
@@ -25,6 +30,7 @@ pub struct OsmOptions {
 impl Default for OsmOptions {
     fn default() -> Self {
         Self {
+            terrain: None,
             bounds: GeoBounds {
                 south: 52.515,
                 west: 13.376,
@@ -50,7 +56,7 @@ pub fn overpass_query(bounds: GeoBounds) -> ImportResult<String> {
         "{:.7},{:.7},{:.7},{:.7}",
         bounds.south, bounds.west, bounds.north, bounds.east
     );
-    Ok(format!("[out:json][timeout:25][maxsize:16777216];(way[building]({b});relation[building]({b});way[\"building:part\"]({b});relation[\"building:part\"]({b});way[highway]({b});way[natural=water]({b});relation[natural=water]({b});way[waterway]({b});relation[waterway=riverbank]({b});way[landuse=reservoir]({b});relation[landuse=reservoir]({b}););out tags geom;"))
+    Ok(format!("[out:json][timeout:25][maxsize:16777216];(way[building]({b});relation[building]({b});way[\"building:part\"]({b});relation[\"building:part\"]({b});way[highway]({b});way[natural=water]({b});relation[natural=water]({b});way[waterway]({b});relation[waterway=riverbank]({b});way[landuse=reservoir]({b});relation[landuse=reservoir]({b});way[landuse]({b});relation[landuse]({b});way[natural~\"^(wood|scrub|grassland|heath|sand|beach|bare_rock|wetland|glacier)$\"]({b});relation[natural~\"^(wood|scrub|grassland|heath|sand|beach|bare_rock|wetland|glacier)$\"]({b});way[leisure~\"^(park|garden|golf_course|pitch|recreation_ground)$\"]({b});relation[leisure~\"^(park|garden|golf_course|pitch|recreation_ground)$\"]({b}););out tags geom;"))
 }
 
 pub fn import_overpass_json(source: &str, options: &OsmOptions) -> ImportResult<ImportPlan> {
@@ -84,6 +90,9 @@ pub fn import_overpass_json_with_progress(
         features.len(),
         features.len(),
     )?;
+    if options.terrain.is_some() {
+        return terrain::import(&features, options, report, callback);
+    }
     let mut grid = Voxels::new(&options.limits);
     raster::render(
         &features,

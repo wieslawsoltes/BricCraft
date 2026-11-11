@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "options": {
+    "latitude": 37.8024,
+    "longitude": -122.4058,
+    "radius_m": 450.0,
+    "meters_per_stud": 8.0,
+    "origin": [
+      48,
+      18,
+      48
+    ],
+    "max_height_plates": 54,
+    "fit_height": true,
+    "vertical_exaggeration": 1.0,
+    "max_features": 24000,
+    "max_parts": 120000
+  },
+  "source": {
+    "elements": 20209,
+    "supported_root_ways": 2579,
+    "supported_root_relations": 16,
+    "terrain_tiles": 4,
+    "vertical_datum": "Unknown"
+  },
+  "expected": {
+    "parts": 12820,
+    "voxels": 184645,
+    "buildings": 1351,
+    "roads": 1069,
+    "water": 1,
+    "landcover": 40,
+    "inferred_heights": 415,
+    "bounds": {
+      "min": [
+        -9,
+        18,
+        -9
+      ],
+      "max": [
+        105,
+        71,
+        105
+      ]
+    },
+    "terrain_columns": 12996,
+    "terrain_parts": 9406,
+    "terrain_filled_cells": 166474,
+    "foundation_columns": 1275,
+    "inferred_water_levels": 1,
+    "elevation_min_m": -13.288241232998567,
+    "elevation_max_m": 91.94258469211393,
+    "effective_meters_per_stud": 8.0,
+    "effective_meters_per_plate": 3.2544389600983172,
+    "vertical_compression": 0.9832723978646468,
+    "horizontal_coarsening": 1.0
+  }
+}

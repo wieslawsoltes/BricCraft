@@ -2,6 +2,9 @@
 //! file selection, caching, progress presentation and worker termination.
 #![forbid(unsafe_code)]
 
+mod elevation;
+pub use elevation::elevation_grid_json;
+
 use briccraft_import::{mesh, osm, GeoBounds, ImportPlan, ImportProgress, MeshOptions, OsmOptions};
 
 fn mesh_options() -> MeshOptions {
@@ -85,6 +88,12 @@ pub fn convert(
 mod bindings {
     use super::*;
     use wasm_bindgen::prelude::*;
+
+    /// Decode raw DEM channels and sample a complete georeferenced area off the UI thread.
+    #[wasm_bindgen(js_name = elevationGrid)]
+    pub fn elevation_grid(metadata: &str, png_bytes: &[u8]) -> Result<String, JsValue> {
+        elevation_grid_json(metadata, png_bytes).map_err(|error| JsValue::from_str(&error))
+    }
 
     #[wasm_bindgen(js_name = processImport)]
     pub fn process_import(

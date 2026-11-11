@@ -64,6 +64,64 @@ fn coarse_tiles_include_stud_overhang_above_a_tile_boundary() {
 }
 
 #[test]
+fn height_hierarchy_matches_independent_column_maxima_at_all_scales() {
+    let world = World::generate(DEFAULT_SEED);
+    let atlas = SceneAtlas::build(&world, &[], None).unwrap();
+    let [width, height, depth] = world.dimensions().map(usize::from);
+    let mut columns = vec![0_u8; width * depth];
+    for y in 0..height {
+        for z in 0..depth {
+            for x in 0..width {
+                if world.occupancy()[(y * depth + z) * width + x] != 0 {
+                    columns[z * width + x] = (y + 1) as u8;
+                }
+            }
+        }
+    }
+    assert_eq!(
+        atlas.stats.height_columns,
+        width.div_ceil(4) * depth.div_ceil(4)
+    );
+    for z in (0..depth).step_by(4) {
+        for x in (0..width).step_by(4) {
+            let index = atlas.height_offset + (z / 4) * width.div_ceil(4) + x / 4;
+            let encoded = &atlas.cells.pixels[index * 4..index * 4 + 3];
+            for (channel, stride) in [4, 16, 64].into_iter().enumerate() {
+                let first_x = x / stride * stride;
+                let first_z = z / stride * stride;
+                let mut expected = 0;
+                for row in first_z..(first_z + stride).min(depth) {
+                    for column in first_x..(first_x + stride).min(width) {
+                        expected = expected.max(columns[row * width + column]);
+                    }
+                }
+                assert_eq!(
+                    encoded[channel], expected,
+                    "column {x},{z}, stride {stride}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn height_bounds_include_full_height_parts_but_exclude_detached_bodies() {
+    let mut world = World::empty(1);
+    let active = world.place(Placement::new(0, 0, [15, 69, 15], 0)).unwrap();
+    world.place(Placement::new(0, 0, [95, 69, 95], 0)).unwrap();
+    let atlas = SceneAtlas::build(&world, &[active], None).unwrap();
+    let read = |x: usize, z: usize| {
+        let index = atlas.height_offset + (z / 4) * 24 + x / 4;
+        &atlas.cells.pixels[index * 4..index * 4 + 3]
+    };
+    assert_eq!(read(15, 15), &[0, 0, 0]);
+    // Maxima encode the nominal top. The shared shader adds STUD_HEIGHT to
+    // each level, retaining the stud row above the last placement layer.
+    assert_eq!(read(95, 95), &[72, 72, 72]);
+    assert_eq!(read(64, 64), &[0, 0, 72]);
+}
+
+#[test]
 fn detached_vehicle_ids_do_not_replace_static_ids_after_a_window_swap() {
     let mut world = World::empty(1);
     let fixed = world.place(Placement::new(3, 0, [20, 6, 20], 0)).unwrap();

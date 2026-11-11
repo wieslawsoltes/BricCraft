@@ -10,7 +10,7 @@ Create a collection of editable brick worlds: open meadows, alpine landscapes, d
 
 - **Open worlds:** deterministic 16-stud chunks, signed 64-bit global coordinates, a floating origin, bounded terrain residency, sparse persistent edits and global undo across region changes.
 - **World library:** named browser saves, automatic save before switching, separate copies, reversible archiving and migration of the original single-world save.
-- **Real places:** an included Brandenburg Gate OSM extract; coordinate-based Overpass imports; local JSON extracts; mapped footprints, height tags, roads and water; persistent source attribution and reports identifying inferred dimensions.
+- **Complete mapped areas:** coordinate-based OSM imports combine measured terrain elevation, mapped buildings, roads, water and land cover. Roads follow the ground; buildings receive level foundations. The included Telegraph Hill area contains real San Francisco elevation and 1,351 mapped building features, and works offline after the app assets load. A smaller Brandenburg Gate example remains available.
 - **Real 3D models:** GLB, embedded glTF and OBJ conversion in a background Web Worker. Scene transforms, vertex/material colors and embedded PNG/JPEG base-color textures are sampled into bricks. Open a model world or add a model to an existing mapped world using its meters-per-stud scale.
 - **161 procedural parts and 32 colors:** bricks, plates, tiles, slopes, rounded pieces, arches, windows, doors, furniture, plants, liftarms, gears, axles, wheels, power components and transport pieces.
 - **Eight construction blueprints:** trail rover, island hopper, coastal locomotive, lagoon sailboat, harbor cottage, lighthouse, windmill and bridge.
@@ -18,13 +18,19 @@ Create a collection of editable brick worlds: open meadows, alpine landscapes, d
 - **Working vehicles:** activate connected constructions, drive or fly with the keyboard, then park them back onto the construction grid. Cars, aircraft, trains and boats have distinct simulation models.
 - **Reusable mechanical systems:** connected assembly assessment, motor/power checks, gear speed and torque ratios, locked-loop detection, transmission, differential, steering, spring/damper joints and a sampled rail path.
 - **Three cameras:** orbit/pan/zoom for building, free flight and ground-following walking with jumping.
-- **Native declarative UI:** responsive HUD, hotbar, searchable/filterable parts library, palette, blueprint chooser, touch controls, settings and controls guide.
+- **Native declarative UI:** responsive HUD, hotbar, searchable/filterable parts library, palette, blueprint chooser, touch controls, settings and source credits. Phone layouts account for safe areas, the software keyboard and short landscape screens; world gestures aim and navigate while explicit buttons place and remove parts.
 - **Persistence:** transactional IndexedDB saves and versioned `.briccraft` file export/import with validation before replacement.
 - **Adaptive Skia rendering:** molded surfaces, real stud silhouettes, part seams, mechanical shapes, lighting, water, atmosphere and animated vehicle assemblies. A separate GPU world layer adapts resolution and shader detail while native controls remain sharp.
 
 ## Real-world studio
 
-Open **Worlds → Build a real place or 3D model**. **Brandenburg Gate** uses the included real OSM extract and works without contacting a map service. To import another place, enter latitude, longitude, area radius and meters per stud, then request that area once. Public Overpass availability varies; repeat or production use should use your own endpoint or locally prepared extracts. Panning never triggers network map requests.
+Open **Worlds → Build a real place or 3D model → Generate a real area**. Select **San Francisco hills** to build the included Telegraph Hill area from its real OSM extract and four original Terrarium elevation tiles. **Brandenburg Gate** provides a smaller flat-ground example. Both use the production Web Worker conversion pipeline and need no live map service.
+
+For another location, enter latitude, longitude, radius (20–1,500 metres) and metres per stud. **Use real elevation** requests bounded public elevation tiles alongside the map. Choose **1x** relief for the source scale or **2x** to emphasize the hills. **Fit terrain and building height** fits both together into the current vertical window and records the exact compression; disable it to reject a source that cannot fit at the selected vertical scale. A local OSM extract uses the entered location fields for its elevation request.
+
+The complete requested rectangle is generated, including its ground. If a resource budget requires a lower horizontal resolution, conversion retries the whole area at a recorded coarser scale; it does not silently crop to the first features. Missing required elevation samples fail explicitly. Source reports retain measured ranges, effective scales, vertical datum, inferred building heights, foundation adjustments and water levels. The bundled sample retains all supported source features and their complete geometry; see its [provenance and reference result](crates/briccraft-browser/wwwroot/assets/maps/telegraph-hill.README.md).
+
+Public Overpass availability varies; repeat or production use should use your own endpoint or locally prepared extracts. Elevation requests use at most 16 tiles, three concurrent downloads and a bounded local cache. Panning never triggers network map requests. Source credits are available from the HUD and travel with saved worlds.
 
 Model conversion runs in a separate WASM worker and can be canceled. The complete placement is validated in bounded chunk batches and committed as one undo action. Choose **Add a model to this world** to combine source geometry with your current build; the selected construction target is its anchor. Source reports and attribution travel with `.briccraft` saves.
 
@@ -36,6 +42,8 @@ Model conversion runs in a separate WASM worker and can be canceled. The complet
 | Orbit or look | Drag the world |
 | Pan | Shift-drag or middle-drag |
 | Zoom | Mouse wheel / trackpad / two-finger pinch |
+| Touch navigation | One-finger look/orbit; two-finger pan and pinch; movement pad |
+| Touch construction | Tap to aim, then Place / Remove / Rotate |
 | Pick part and color | Middle-click |
 | Rotate selected part | R |
 | Hotbar | 1–8 |
@@ -76,7 +84,7 @@ Open `http://localhost:8080`. The wrapper also builds the separate `wasm32-unkno
 
 ```sh
 cargo test --locked -p briccraft-parts -p briccraft-world -p briccraft-mechanics \
-  -p briccraft-game -p briccraft-stream -p briccraft-import \
+  -p briccraft-game -p briccraft-stream -p briccraft-terrain -p briccraft-import \
   -p briccraft-import-worker -p briccraft-render-data
 cargo check --locked -p briccraft-browser
 python3 FerroUI/scripts/apps/sync-workspace.py --check .
@@ -88,9 +96,9 @@ Interactive rendering uses **Skia WebGL2**. The pinned framework requests reject
 
 ## Workspace
 
-Eleven reusable crates separate the part library, local world, streaming, map/model conversion, worker bindings, mechanics, game state, atlas packing, renderer, UI and browser lifecycle. See [the architecture and current boundaries](docs/architecture.md) for interfaces and implementation details.
+Twelve reusable crates separate the part library, local world, streaming, elevation and terrain, map/model conversion, worker bindings, mechanics, game state, atlas packing, renderer, UI and browser lifecycle. The framework-independent [terrain crate](crates/briccraft-terrain/README.md) exposes geographic grids, Terrarium/HGT decoding, sampling, vertical fitting and solid-ground packing. See [the architecture and current boundaries](docs/architecture.md) for interfaces and implementation details.
 
-This is a creative construction sandbox. Horizontal worlds stream beyond the visible region; the current GPU working window is 96×72×96 occupancy cells, with one plate equal to 0.4 stud. Source imports retain uniform proportions and must fit the 72-plate vertical budget. OSM footprints and tags are not facade scans or terrain elevation data.
+This is a creative construction sandbox. Horizontal worlds stream beyond the visible region; the current GPU working window is 96×72×96 occupancy cells, with one plate equal to 0.4 stud. Model imports retain uniform proportions. Mapped areas can explicitly fit their vertical scale while preserving horizontal georeferencing; every adjustment is reported. Elevation comes from a separate DEM source, whose resolution and survey age vary. OSM footprints and height tags do not supply facade scans, and a finite imported area is not a continuously streamed planet service.
 
 Complete survival/crafting/mob/multiplayer gameplay, a complete manufacturer part database and a general solver for arbitrary articulated mechanisms remain future work. Cars, aircraft and boats can cross streamed regions; trains currently follow the classic island railway. See the architecture document for precise boundaries.
 

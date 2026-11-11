@@ -3,6 +3,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {open,sleep,assert,differing} from '../FerroUI/scripts/browser/harness.mjs';
+import {checkTerrainArea} from './terrain-browser.mjs';
+import {checkMobile} from './mobile.mjs';
 const site=process.argv[2],out=process.argv[3] || 'target/browser-checks';
 const page=await open(site,{width:1280,height:800,network:true});
 const state=async()=>JSON.parse(await page.evaluate('briccraft.briccraftState()'));
@@ -130,12 +132,17 @@ try {
     assert(meshPlan.placements.length>0 && new Set(meshPlan.placements.map(p=>p.color)).size>1,'The shipped worker must preserve mesh colors');
     measurements.mesh={parts:meshPlan.report.parts,triangles:meshPlan.report.source_triangles};
 
+    stage('Generating a complete real area with measured elevation');
+    measurements.terrain=await checkTerrainArea({page,state,command,wait,current,out,presentedSample});
+
     stage('Checking the compact native world library');
     await page.resize(390,844); await sleep(350); await page.press('g'); await sleep(200);
     await page.screenshot(path.join(out,'compact-world-library.png'));
     const sizes=await page.evaluate(`(() => {const c=document.querySelector('canvas');return {width:innerWidth,height:innerHeight,dpr:devicePixelRatio,canvas:[c.width,c.height]};})()`);
     measurements.compact=sizes;
     assert(Math.abs(sizes.canvas[0]-sizes.width*sizes.dpr)<=2,'Canvas pixel size must match the coherent browser scale');
+    stage('Checking native mobile touch navigation and modal isolation');
+    measurements.mobile=await checkMobile(page,out);
     assert(page.errors.length===0,`Browser errors: ${page.errors.join('\n')}`);
     console.log(JSON.stringify(measurements,null,2));
     fs.mkdirSync(out,{recursive:true}); fs.writeFileSync(path.join(out,'browser-metrics.json'),JSON.stringify(measurements,null,2));

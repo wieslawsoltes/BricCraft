@@ -253,7 +253,7 @@ pub fn help(state: UiState) -> Element {
             separator(), stack_panel().children(keys), separator(),
             text_block().text("Connected by design").font_size(16.0).font_weight(FontWeight::SemiBold),
             controls::caption("Horizontal positions follow the stud grid. Vertical positions use plate units: three plates make one full brick. Axles, pins, gears and hinges provide mechanical connections."),
-            controls::caption("On a touch screen, drag to orbit. Move two fingers together to pan, and pinch to zoom. Use the movement pad and + / − controls to move and build."),
+            controls::caption("On a touch screen, tap a surface to aim. Drag to orbit; move two fingers together to pan, and pinch to zoom. Place brick and Remove edit the target explicitly. Hold the movement pad with one thumb while looking around with the other. Brake and Park & exit appear while driving."),
         ))).into();
     border()
         .is_visible(state.help_open)

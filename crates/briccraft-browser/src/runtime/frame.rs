@@ -1,7 +1,7 @@
 use super::*;
 
 impl Runtime {
-    pub fn frame(&self, milliseconds: f64, width: f64, _height: f64) {
+    pub fn frame(&self, milliseconds: f64, _width: f64, _height: f64) {
         if !self.owner.is_alive() {
             return;
         }
@@ -11,7 +11,6 @@ impl Runtime {
         } else {
             ((milliseconds - previous) / 1000.0).max(0.0)
         };
-        self.state.compact.set_if_changed(width < 850.0);
         // Wait for native layout before publishing an expensive world effect.
         // These are the same logical bounds and DPI the bitmap cache will use.
         let Some(view) = self.viewport.get_untracked() else {
@@ -28,6 +27,27 @@ impl Runtime {
         let Some(top_level) = ferroui_controls::TopLevel::get_top_level(Some(&view)) else {
             return;
         };
+        if !self.state.modal_untracked()
+            && top_level
+                .focus_manager()
+                .get_focused_element()
+                .is_some_and(|focused| !focused.is_effectively_visible())
+        {
+            let _ = view.focus();
+        }
+        let layout = self
+            .layout_metrics
+            .borrow_mut()
+            .get_or_insert_with(|| layout::LayoutMetrics::new(&top_level))
+            .measure(
+                [bounds.width, bounds.height],
+                self.input_occlusion.get(),
+                self.state.touch.get_untracked(),
+            );
+        batch(|| {
+            self.state.compact.set_if_changed(layout.compact);
+            self.state.layout.set_if_changed(layout);
+        });
         let presented = ferroui_browser::rendering::RenderStatistics::current().frames;
         let requested_quality = self.session.borrow().quality;
         let resolution = self.world_resolution.borrow_mut().update(
@@ -38,11 +58,21 @@ impl Runtime {
             requested_quality,
         );
         if self.world_cache.render_at_scale() != resolution.render_scale {
-            self.world_cache.set_render_at_scale(resolution.render_scale);
+            self.world_cache
+                .set_render_at_scale(resolution.render_scale);
+        }
+        let modal = self.state.modal_untracked();
+        let was_modal = self.modal_active.replace(modal);
+        if modal && !was_modal {
+            // A menu opened during a drag must cancel the old world gesture.
+            // Capture loss runs native callbacks, so release outside borrows.
+            let captured = self.pointer.borrow_mut().reset();
+            for pointer in captured {
+                pointer.capture(None);
+            }
         }
         let mut game = self.session.borrow_mut();
         game.aspect = (bounds.width / bounds.height) as f32;
-        let modal = self.state.modal_untracked();
         if modal {
             game.input.clear();
         }

@@ -19,3 +19,7 @@ pub use mesh::{import_glb, import_gltf_json, import_obj, MeshOptions};
 pub use model::{Attribution, GridBounds, HeightEvidence, ImportPlan, ImportReport, SourceKind};
 pub use osm::{import_overpass_json, overpass_query, OsmOptions};
 pub use projection::{GeoBounds, GeoReference};
+
+pub use briccraft_terrain::{
+    ElevationGrid, ElevationSource, GridSpace, TerrainOptions, TerrainReport, VerticalDatum,
+};

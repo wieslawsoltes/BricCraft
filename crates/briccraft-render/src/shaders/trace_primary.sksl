@@ -12,9 +12,14 @@ Hit traceVolume(float3 ro,float3 rd,float3 dimensions,float offset,float maxDist
     if(range.x>range.y || range.y<0.0 || range.x>maxDistance) return best;
     float t=max(range.x,0.0)+0.0002;
     float end=min(range.y,maxDistance);
+    if(t>end) return best;
     float3 gridRo=ro/float3(1.0,PLATE,1.0);
     float3 gridRd=rd/float3(1.0,PLATE,1.0);
-    float3 cell=floor(gridRo+gridRd*t);
+    // Preserve tiny negative movement when the camera lies on an integer
+    // boundary. Adding it directly to a large origin can round it away and
+    // revisit the same empty tile until all 384 iterations are exhausted.
+    float3 gridBase=floor(gridRo),gridFraction=fract(gridRo);
+    float3 cell=gridBase+floor(gridFraction+gridRd*t);
     float3 direction=float3(gridRd.x<0.0?-1.0:1.0,gridRd.y<0.0?-1.0:1.0,gridRd.z<0.0?-1.0:1.0);
     float3 gridInverse=safeInverse(gridRd);
     float3 delta=abs(gridInverse);
@@ -24,34 +29,54 @@ Hit traceVolume(float3 ro,float3 rd,float3 dimensions,float offset,float maxDist
     // visits several cells in it, so those steps need no coarse texture fetch.
     float3 previousCoarse=float3(-1.0);
     float coarseOccupied=0.0;
+    float2 previousColumn=float2(-1.0);
+    float3 heights=float3(0.0);
     float3 blockSize=float3(4.0,6.0,4.0);
     float3 coarseDimensions=ceil((dimensions+float3(0.0,1.0,0.0))/blockSize);
     for(int iteration=0;iteration<384;++iteration) {
         if(offset<0.5) {
+            // Short, nearly flat scenes already clip to a shallow global box;
+            // another height fetch costs more than the few cells it can skip.
+            if(scene_bounds_min.w>0.0 && scene_bounds_max.y-scene_bounds_min.y>12.0) {
+                float2 column=floor(cell.xz/4.0);
+                if(any(notEqual(column,previousColumn))) {
+                    heights=columnHeights(column,coarseDimensions.x);
+                    previousColumn=column;
+                }
+                float jump=emptyAirExit(ro,rd,gridInverse,direction,cell.xz,heights,t);
+                if(jump>=0.0) {
+                    t=jump;
+                    if(t>end) break;
+                    cell=gridBase+floor(gridFraction+gridRd*t);
+                    next=(cell+max(direction,float3(0.0))-gridRo)*gridInverse;
+                    continue;
+                }
+            }
             float3 coarse=floor(cell/blockSize);
             if(any(notEqual(coarse,previousCoarse))) {
-                coarseOccupied=cellId(coarse,coarseDimensions,world_dimensions.w);
+                float index=(coarse.y*coarseDimensions.z+coarse.z)*coarseDimensions.x+coarse.x+world_dimensions.w;
+                coarseOccupied=cells.eval(texel(index,cell_texture_size)).r;
                 previousCoarse=coarse;
             }
-            if(coarseOccupied<0.5) {
+            if(coarseOccupied<0.001) {
                 float3 blockEdge=(coarse+max(direction,float3(0.0)))*blockSize;
                 float3 blockNext=(blockEdge-gridRo)*gridInverse;
                 t=min(min(blockNext.x,blockNext.y),blockNext.z)+0.0002;
                 if(t>end) break;
-                cell=floor(gridRo+gridRd*t);
+                cell=gridBase+floor(gridFraction+gridRd*t);
                 next=(cell+max(direction,float3(0.0))-gridRo)*gridInverse;
                 continue;
             }
         }
         float exit=min(min(next.x,next.y),next.z);
-        float id=cellId(cell,dimensions,offset);
+        float id=cell.y<dimensions.y?volumeId(cell,dimensions,offset):0.0;
         if(id>0.0) {
             Hit hit=intersectPart(ro,rd,id,cell,t,exit);
             if(hit.t<best.t) best=hit;
         }
         // The row above a brick contains its studs. It does not occupy a
         // placement cell: another brick's underside interlocks with them.
-        float below=cellId(cell-float3(0.0,1.0,0.0),dimensions,offset);
+        float below=cell.y>0.0?volumeId(cell-float3(0.0,1.0,0.0),dimensions,offset):0.0;
         if(below>0.0 && below!=id) {
             // This branch can only hit the protruding stud. Avoid duplicating
             // every complex shape's SDF and re-reading its descriptor here.

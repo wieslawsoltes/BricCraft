@@ -90,6 +90,16 @@ pub fn frame(time: f64, width: f64, height: f64) {
     with_runtime(|r| r.frame(time, width, height));
 }
 
+/// Only browser environment data crosses this boundary. Native FerroUI owns
+/// safe-area layout, focus, hit testing, controls, and touch gestures.
+#[wasm_bindgen(js_name=briccraftInputEnvironment)]
+pub fn input_environment(touch: bool, covered_top: f64, covered_bottom: f64) {
+    with_runtime(|runtime| {
+        runtime.state.touch.set_if_changed(touch);
+        runtime.input_occlusion.set([covered_top, covered_bottom]);
+    });
+}
+
 /// Returns whether a key was consumed. The DOM adapter asks before cancelling
 /// browser defaults; native text editing and button keyboard activation stay native.
 #[wasm_bindgen(js_name=briccraftKey)]
@@ -291,12 +301,19 @@ pub fn command(name: &str, value: &str) {
             "quality" => value.parse().ok().map(UiAction::SetQuality),
             "daylight" => value.parse().ok().map(UiAction::SetDaylight),
             "catalog" => {
+                r.state.close_panels();
                 r.state.catalog_open.set(value != "false");
+                None
+            }
+            "studio" => {
+                r.state.close_panels();
+                r.state.imports_open.set(value != "false");
                 None
             }
             "new" => value.parse().ok().map(UiAction::NewWorld),
             "worlds" => Some(UiAction::ShowWorlds),
             "landmark" => Some(UiAction::ImportLandmark),
+            "terrain-sample" => Some(UiAction::ImportTerrainSample),
             "cancel-import" => Some(UiAction::CancelImport),
             "sample-model" => Some(UiAction::ImportModel {
                 size: 48.0,
@@ -325,6 +342,7 @@ pub fn state() -> String {
         // effect snapshots prepared by the game or the selected startup mode.
         let presented = RenderStatistics::current();
         let world_rendering = r.world_resolution.borrow().stats();
+        let interface = r.state.layout.get_untracked();
         let render_kind = match presented.frame_kind {
             RENDER_TARGET_KIND_WEB_GL => "webgl",
             RENDER_TARGET_KIND_SOFTWARE => "software",
@@ -333,7 +351,7 @@ pub fn state() -> String {
         result = serde_json::json!({
             "parts":game.world.len(),"revision":game.world.revision(),"catalog":briccraft_parts::CATALOG.len(),
             "selectedPart":game.selected_part,"color":game.color,"mode":game.mode_name(),"status":game.status,"seed":game.seed.to_string(),
-            "camera":game.camera.position.to_array(),"globalCamera":game.global_camera_position(),
+            "camera":game.camera.position.to_array(),"globalCamera":game.global_camera_position(),"cursor":game.cursor,
             "vehicle":game.active_vehicle.as_ref().map(|v|v.vehicle.position),
             "worldId":game.world_info.id,"worldName":game.world_info.name,"preset":game.world_info.preset,
             "streamed":game.is_streamed(),"origin":{"x":game.world_origin().x.to_string(),"z":game.world_origin().z.to_string()},
@@ -356,6 +374,14 @@ pub fn state() -> String {
                 "requestedQuality":world_rendering.requested_quality,
                 "effectiveQuality":world_rendering.effective_quality,
                 "presentedFps":world_rendering.presented_fps
+            },
+            "interface":{
+                "width":interface.width,"height":interface.height,"insets":interface.insets,
+                "compact":interface.compact,"landscape":interface.landscape,
+                "touch":interface.touch,"keyboard":interface.keyboard,
+                "modal":r.state.modal_untracked(),"panelWidth":interface.panel_width(),
+                "catalogOpen":r.state.catalog_open.get_untracked(),"studioOpen":r.state.imports_open.get_untracked(),
+                "sourceCount":r.state.credits.get_untracked().len()
             },
             "ready":r.world_effect.get_untracked().is_some(),"fps":r.state.fps.get_untracked()
         }).to_string();

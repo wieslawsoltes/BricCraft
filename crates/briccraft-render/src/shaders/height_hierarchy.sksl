@@ -1,0 +1,23 @@
+// Highest bounding surface in this column and its two parents. Adding the
+// protruding stud height makes these bounds conservative for every part shape.
+float3 columnHeights(float2 column,float width) {
+    float index=scene_bounds_min.w+column.y*width+column.x;
+    return bytes(cells.eval(texel(index,cell_texture_size)))*PLATE+STUD_HEIGHT;
+}
+
+// Skip only proven empty air. Below the bound, retain the ordinary 3D trace;
+// this is not a height-field renderer and does not flatten roofs or overhangs.
+float emptyAirExit(float3 ro,float3 rd,float3 inverse,float3 direction,
+    float2 cell,float3 heights,float t) {
+    float y=ro.y+rd.y*t;
+    float stride=0.0,height=0.0;
+    if(y>heights.z+0.0001) { stride=64.0;height=heights.z; }
+    else if(y>heights.y+0.0001) { stride=16.0;height=heights.y; }
+    else if(y>heights.x+0.0001) { stride=4.0;height=heights.x; }
+    if(stride==0.0) return -1.0;
+    float2 tile=floor(cell/stride);
+    float2 boundary=((tile+max(direction.xz,float2(0.0)))*stride-ro.xz)*inverse.xz;
+    float jump=min(boundary.x,boundary.y);
+    if(rd.y<0.0) jump=min(jump,(height-ro.y)/rd.y);
+    return max(t,jump)+0.0002;
+}

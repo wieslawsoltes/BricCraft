@@ -5,6 +5,7 @@ const int MATERIAL_DETAIL = 1;
 float sunlight(float3 point,float3 direction,float ownId) {
     float3 ro=point+direction*0.09;
     float3 gridRo=ro/float3(1.0,PLATE,1.0),gridRd=direction/float3(1.0,PLATE,1.0);
+    float3 gridBase=floor(gridRo),gridFraction=fract(gridRo);
     float3 inverse=safeInverse(gridRd),delta=abs(inverse),cell=floor(gridRo);
     float3 steps=float3(gridRd.x<0.0?-1.0:1.0,gridRd.y<0.0?-1.0:1.0,gridRd.z<0.0?-1.0:1.0);
     float3 next=(cell+max(steps,float3(0.0))-gridRo)*inverse;
@@ -23,7 +24,7 @@ float sunlight(float3 point,float3 direction,float ownId) {
             float3 blockNext=(blockEdge-gridRo)*inverse;
             float t=min(min(blockNext.x,blockNext.y),blockNext.z)+0.0002;
             if(t>28.0) break;
-            cell=floor(gridRo+gridRd*t);
+            cell=gridBase+floor(gridFraction+gridRd*t);
             next=(cell+max(steps,float3(0.0))-gridRo)*inverse;
             continue;
         }

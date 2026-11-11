@@ -1,6 +1,6 @@
 use crate::{controls, preview, theme, ColorSwatch, Dispatch, PartCard, UiAction, UiState};
 use ferroui_base::layout::{HorizontalAlignment as H, Orientation, VerticalAlignment as V};
-use ferroui_base::media::FontWeight;
+use ferroui_base::media::{FontWeight, TextTrimming};
 use ferroui_view::prelude::*;
 use std::rc::Rc;
 
@@ -16,63 +16,79 @@ pub fn hotbar(
         .name("Hotbar")
         .horizontal_alignment(H::Center)
         .vertical_alignment(V::Bottom)
-        .margin((14.0, 0.0, 14.0, 52.0))
+        .margin(move || (12.0, 0.0, 12.0, state.layout.get().hotbar_bottom()))
+        .is_visible(move || {
+            !state.modal() && state.mode.get() != "DRIVE" && !state.layout.get().keyboard
+        })
         .background(theme::SURFACE)
         .border_brush(theme::EDGE)
         .border_thickness(1.0)
         .corner_radius(14.0)
-        .padding((12.0, 10.0))
+        .padding(move || {
+            if state.compact.get() {
+                (10.0, 8.0)
+            } else {
+                (12.0, 10.0)
+            }
+        })
         .effect(theme::shadow())
         .child(
-            stack_panel().spacing(9.0).children((
-                grid().column_definitions("*,Auto").children((
-                    stack_panel()
-                        .orientation(Orientation::Horizontal)
-                        .spacing(9.0)
-                        .vertical_alignment(V::Center)
-                        .children((
-                            text_block()
-                                .text(state.selected_name)
-                                .max_width(move || if state.compact.get() { 140.0 } else { 350.0 })
-                                .text_wrapping(ferroui_base::media::TextWrapping::Wrap)
-                                .font_size(12.0)
-                                .font_weight(FontWeight::SemiBold),
-                            text_block()
-                                .text(state.selected_size)
-                                .font_size(10.0)
-                                .foreground(theme::MUTED)
-                                .is_visible(move || !state.compact.get()),
-                        )),
-                    stack_panel()
-                        .grid_column(1)
-                        .orientation(Orientation::Horizontal)
-                        .spacing(5.0)
-                        .children((
-                            button()
-                                .class("quiet")
-                                .content("R")
-                                .height(24.0)
-                                .min_height(24.0)
-                                .padding((6.0, 2.0))
-                                .tool_tip_tip("Rotate selected part by 90° · R")
-                                .on_click(move |_| rotate(UiAction::Rotate)),
-                            button()
-                                .class("primary")
-                                .content("Place")
-                                .height(24.0)
-                                .min_height(24.0)
-                                .padding((8.0, 2.0))
-                                .tool_tip_tip("Place on the targeted stud · left click")
-                                .on_click(move |_| place(UiAction::Place)),
-                        )),
-                )),
+            stack_panel().spacing(7.0).children((
+                grid()
+                    .column_definitions("*,Auto")
+                    .is_visible(move || !state.layout.get().landscape)
+                    .children((
+                        stack_panel()
+                            .orientation(Orientation::Horizontal)
+                            .spacing(9.0)
+                            .vertical_alignment(V::Center)
+                            .children((
+                                text_block()
+                                    .text(state.selected_name)
+                                    .max_width(
+                                        move || if state.compact.get() { 234.0 } else { 350.0 },
+                                    )
+                                    .max_lines(1)
+                                    .text_trimming(<dyn TextTrimming>::character_ellipsis())
+                                    .font_size(12.0)
+                                    .font_weight(FontWeight::SemiBold),
+                                text_block()
+                                    .text(state.selected_size)
+                                    .font_size(10.0)
+                                    .foreground(theme::MUTED)
+                                    .is_visible(move || !state.compact.get()),
+                            )),
+                        stack_panel()
+                            .grid_column(1)
+                            .is_visible(move || !state.compact.get())
+                            .orientation(Orientation::Horizontal)
+                            .spacing(5.0)
+                            .children((
+                                button()
+                                    .class("quiet")
+                                    .content("Rotate  R")
+                                    .height(32.0)
+                                    .min_height(32.0)
+                                    .padding((6.0, 2.0))
+                                    .tool_tip_tip("Rotate selected part by 90° · R")
+                                    .on_click(move |_| rotate(UiAction::Rotate)),
+                                button()
+                                    .class("primary")
+                                    .content("Place")
+                                    .height(32.0)
+                                    .min_height(32.0)
+                                    .padding((8.0, 2.0))
+                                    .tool_tip_tip("Place on the targeted stud · left click")
+                                    .on_click(move |_| place(UiAction::Place)),
+                            )),
+                    )),
                 rerender(move || {
                     let selected = state.selected_part.get();
                     let color = colors
                         .iter()
                         .find(|c| c.id == state.selected_color.get())
                         .map_or(theme::ACCENT, |c| c.hex.as_str());
-                    let count = if state.compact.get() { 4 } else { 8 };
+                    let count = state.layout.get().hotbar_slots();
                     let tiles: Vec<Element> = crate::HOTBAR_PARTS
                         .iter()
                         .take(count)
@@ -83,8 +99,8 @@ pub fn hotbar(
                             let dispatch = dispatch.clone();
                             button()
                                 .name(format!("HotbarPart{}", part.id))
-                                .width(if state.compact.get() { 58.0 } else { 67.0 })
-                                .height(60.0)
+                                .width(if state.compact.get() { 54.0 } else { 67.0 })
+                                .height(if state.compact.get() { 52.0 } else { 60.0 })
                                 .padding(0.0)
                                 .background(if part.id == selected {
                                     "#533A29"
@@ -101,7 +117,11 @@ pub fn hotbar(
                                 .on_click(move |_| dispatch(UiAction::SelectPart(id)))
                                 .child(
                                     grid().children((
-                                        preview::brick(part, color, 0.88),
+                                        preview::brick(
+                                            part,
+                                            color,
+                                            if state.compact.get() { 0.75 } else { 0.88 },
+                                        ),
                                         text_block()
                                             .text((slot + 1).to_string())
                                             .font_size(9.0)

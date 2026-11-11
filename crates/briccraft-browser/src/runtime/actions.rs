@@ -84,6 +84,7 @@ impl Runtime {
                         game.input.backward = value < -0.1;
                         game.input.forward = value > 0.1;
                     }
+                    3 => game.input.brake = value > 0.1,
                     _ => {}
                 },
                 UiAction::Save => match game.to_json() {

@@ -20,6 +20,8 @@ pub struct AtlasStats {
     pub vehicle_cells: usize,
     pub coarse_tiles: usize,
     pub occupied_coarse_tiles: usize,
+    /// One RGB texel holds conservative maxima at three horizontal scales.
+    pub height_columns: usize,
     /// Bytes in both current RGBA8 atlas images, including row padding.
     pub texture_bytes: usize,
     /// CPU storage for the compact source-to-GPU ID lookup.

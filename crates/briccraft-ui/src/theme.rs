@@ -41,7 +41,7 @@ pub fn styles() -> Vec<StyleBuilder> {
             .set(TemplatedControl::border_thickness_property(), 1.0)
             .set(TemplatedControl::corner_radius_property(), 8.0)
             .set(TemplatedControl::padding_property(), (12.0, 9.0))
-            .set(Layoutable::min_height_property(), 36.0)
+            .set(Layoutable::min_height_property(), 44.0)
             .nested(style("^:pointerover").set(Visual::opacity_property(), 0.86)),
         style("Button.primary")
             .set(TemplatedControl::background_property(), ACCENT)
@@ -55,6 +55,9 @@ pub fn styles() -> Vec<StyleBuilder> {
             .set(TemplatedControl::foreground_property(), TEXT)
             .set(TemplatedControl::border_brush_property(), EDGE)
             .set(TemplatedControl::corner_radius_property(), 8.0)
-            .set(TemplatedControl::font_size_property(), 13.0),
+            .set(TemplatedControl::font_size_property(), 14.0)
+            .set(Layoutable::min_height_property(), 44.0),
+        style("CheckBox").set(Layoutable::min_height_property(), 44.0),
+        style("Slider").set(Layoutable::min_height_property(), 44.0),
     ]
 }

@@ -11,6 +11,13 @@ ID range, so old body IDs cannot shadow new static IDs after streaming.
 
 The global world may contain many regions; this crate only packs the supplied
 96 × 72 × 96 active window. Empty coarse tiles use one occupancy texel each.
+The static column hierarchy uses 576 additional texels, each holding the maximum
+part height over a 4-, 16- and 64-stud area. Its bounds include every static part,
+not only terrain; detached bodies use their independent 3D volume. The shader
+adds the protruding stud height before skipping air above these maxima.
+`SceneAtlas::height_offset` locates this data after the coarse occupancy tiles.
+For the island and dense fixtures, the 576 texels fit in existing row padding,
+so image payload size is unchanged.
 A 100,000-part unit-plate fixture uses 4,288,512 bytes across both atlas images.
 The compact source-ID lookup uses another 800,000 bytes in that fixture.
 `AtlasStats::staging_bytes` reports the owned pixel buffers plus this lookup;

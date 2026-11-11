@@ -54,6 +54,10 @@ pub struct ImportReport {
     pub buildings: usize,
     pub roads: usize,
     pub water: usize,
+    #[serde(default)]
+    pub landcover: usize,
+    #[serde(default)]
+    pub terrain: Option<briccraft_terrain::TerrainReport>,
     pub inferred_heights: usize,
     pub inferred_widths: usize,
     pub height_evidence: Vec<HeightEvidence>,
@@ -77,6 +81,8 @@ impl ImportReport {
             buildings: 0,
             roads: 0,
             water: 0,
+            landcover: 0,
+            terrain: None,
             inferred_heights: 0,
             inferred_widths: 0,
             height_evidence: Vec::new(),

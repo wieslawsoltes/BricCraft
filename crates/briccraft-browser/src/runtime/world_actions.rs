@@ -15,10 +15,12 @@ impl Runtime {
             UiAction::OpenWorld(id) => self.world_request("open",json!({"id":id})),
             UiAction::SaveWorldAs(name) => self.world_request("copy",json!({"name":name})),
             UiAction::ArchiveWorld {id,archived} => crate::world_host::world("archive",&json!({"id":id,"archived":archived}).to_string()),
-            UiAction::ImportMap {latitude,longitude,radius,meters_per_stud,endpoint,local} => self.source_request("map",json!({
+            UiAction::ImportMap {latitude,longitude,radius,meters_per_stud,endpoint,local,terrain,fit_height,vertical_exaggeration} => self.source_request("map",json!({
                 "latitude":latitude,"longitude":longitude,"radius":radius,"meters_per_stud":meters_per_stud,"endpoint":endpoint,"local":local,
+                "terrain":terrain,"fit_height":fit_height,"vertical_exaggeration":vertical_exaggeration,
             })),
             UiAction::ImportLandmark => self.source_request("map",json!({"landmark":true})),
+            UiAction::ImportTerrainSample => self.source_request("map",json!({"terrain_sample":true})),
             UiAction::ImportModel {size,sample} => self.source_request("model",json!({"size":size,"sample":sample})),
             UiAction::AppendModel {size,map_scale} => self.append_model(*size,*map_scale),
             UiAction::CancelImport => {

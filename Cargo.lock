@@ -113,6 +113,8 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "briccraft-parts",
+ "briccraft-stream",
+ "briccraft-terrain",
  "briccraft-world",
  "glam",
  "jpeg-decoder",
@@ -127,7 +129,10 @@ name = "briccraft-import-worker"
 version = "0.1.0"
 dependencies = [
  "briccraft-import",
+ "briccraft-terrain",
  "js-sys",
+ "png",
+ "serde",
  "serde_json",
  "wasm-bindgen",
 ]
@@ -168,6 +173,16 @@ dependencies = [
 
 [[package]]
 name = "briccraft-stream"
+version = "0.1.0"
+dependencies = [
+ "briccraft-parts",
+ "briccraft-world",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "briccraft-terrain"
 version = "0.1.0"
 dependencies = [
  "briccraft-parts",

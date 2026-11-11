@@ -1,0 +1,13 @@
+[package]
+name = "briccraft-terrain"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+briccraft-parts.workspace = true
+briccraft-world.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

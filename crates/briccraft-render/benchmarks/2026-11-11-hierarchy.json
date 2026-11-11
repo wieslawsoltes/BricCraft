@@ -1,0 +1,1008 @@
+{
+  "date": "2026-11-11",
+  "baseline_ref": "03e25226ec80f837fda226026b9c7b38a13f113f",
+  "skia_python": "144.1",
+  "python": "3.12.14",
+  "measurements": {
+    "island-egl": {
+      "baseline_ref": "03e25226",
+      "scene": "/tmp/briccraft-render-profile/generated.json",
+      "measurements": [
+        {
+          "quality": 0,
+          "baseline": {
+            "shader": "compiled",
+            "backend": "native Skia Ganesh OpenGL / llvmpipe (LLVM 19.1.7, 256 bits)",
+            "context": {
+              "renderer": "llvmpipe (LLVM 19.1.7, 256 bits)",
+              "vendor": "Mesa",
+              "version": "4.5 (Compatibility Profile) Mesa 25.0.7-2+deb13u1"
+            },
+            "uniform_updates": true,
+            "parts": 7444,
+            "output": "/tmp/briccraft-render-profile/island-egl.q0.baseline.png",
+            "channel_std": 60.483489642512446,
+            "warm_fixture_pixels": null,
+            "size": [
+              320,
+              200
+            ],
+            "quality": 0,
+            "variant": "analytic-fast",
+            "compile_ms": 3.134047000003193,
+            "draw_ms": [
+              122.91969500029154,
+              4.043844000079844,
+              3.72150299972418,
+              6.873565999740094,
+              7.603976000154944,
+              9.47604400016644,
+              4.30744200002664,
+              4.100218000075984,
+              3.5624259999167407,
+              3.7429750000228523,
+              4.988954999589623,
+              3.606361000038305
+            ],
+            "draw_cpu_ms": [
+              142.13761299999982,
+              22.381874000000135,
+              22.88621199999996,
+              35.55650300000002,
+              31.141788000000005,
+              35.375692999999984,
+              27.12713,
+              25.576955000000012,
+              21.95635699999987,
+              24.738068000000002,
+              28.425866000000077,
+              22.89345700000012
+            ],
+            "steady_draw_ms_median": 4.100218000075984,
+            "steady_draw_cpu_ms_median": 25.576955000000012,
+            "texture_bytes": 2809856,
+            "source_sha256": "c5ca48c45a1b2bda1cf81abd7557cd265554472a806e07f58ad35fc75fca582a",
+            "primary_iterations": {
+              "mean": 28.23946875,
+              "p95": 42.0,
+              "maximum": 384,
+              "limit_exhausted_pixels": 426
+            }
+          },
+          "current": {
+            "shader": "compiled",
+            "backend": "native Skia Ganesh OpenGL / llvmpipe (LLVM 19.1.7, 256 bits)",
+            "context": {
+              "renderer": "llvmpipe (LLVM 19.1.7, 256 bits)",
+              "vendor": "Mesa",
+              "version": "4.5 (Compatibility Profile) Mesa 25.0.7-2+deb13u1"
+            },
+            "uniform_updates": true,
+            "parts": 7444,
+            "output": "/tmp/briccraft-render-profile/island-egl.q0.current.png",
+            "channel_std": 60.583155166916924,
+            "warm_fixture_pixels": null,
+            "size": [
+              320,
+              200
+            ],
+            "quality": 0,
+            "variant": "analytic-fast",
+            "compile_ms": 2.3067619999892486,
+            "draw_ms": [
+              1237.8013309999005,
+              3.5173490000488528,
+              2.817725000113569,
+              3.4768179998536652,
+              2.8925560000061523,
+              3.0381130000023404,
+              3.1181430003925925,
+              2.578506999725505,
+              2.5384380001014506,
+              2.6459979999344796,
+              2.409746000012092,
+              2.5258390000999498
+            ],
+            "draw_cpu_ms": [
+              1257.5578759999999,
+              19.223805000000205,
+              15.014547999999905,
+              21.27213699999997,
+              18.24981399999981,
+              15.153514999999729,
+              14.253897000000126,
+              15.395874000000198,
+              16.985015999999575,
+              14.05139600000016,
+              16.635681999999985,
+              16.703370999999745
+            ],
+            "steady_draw_ms_median": 2.817725000113569,
+            "steady_draw_cpu_ms_median": 16.635681999999985,
+            "texture_bytes": 2809856,
+            "source_sha256": "1c1fe9a6b53da264d64808bcaf4e56ce1b6d3507705a44d3b4115e34bc0a5300",
+            "primary_iterations": {
+              "mean": 10.69775,
+              "p95": 24.0,
+              "maximum": 62,
+              "limit_exhausted_pixels": 0
+            }
+          },
+          "difference": {
+            "mean_absolute_channel": 0.42099479166666665,
+            "maximum_channel": 178,
+            "fraction_pixels_over_8": 0.004984375
+          }
+        },
+        {
+          "quality": 1,
+          "current": {
+            "shader": "compiled",
+            "backend": "native Skia Ganesh OpenGL / llvmpipe (LLVM 19.1.7, 256 bits)",
+            "context": {
+              "renderer": "llvmpipe (LLVM 19.1.7, 256 bits)",
+              "vendor": "Mesa",
+              "version": "4.5 (Compatibility Profile) Mesa 25.0.7-2+deb13u1"
+            },
+            "uniform_updates": true,
+            "parts": 7444,
+            "output": "/tmp/briccraft-render-profile/island-egl.q1.current.png",
+            "channel_std": 60.83142348934107,
+            "warm_fixture_pixels": null,
+            "size": [
+              320,
+              200
+            ],
+            "quality": 1,
+            "variant": "analytic-balanced",
+            "compile_ms": 3.4812349999810976,
+            "draw_ms": [
+              1316.2448660000337,
+              5.014075999952183,
+              4.178205999778584,
+              3.4768219998113636,
+              4.118826000194531,
+              3.94958399965617,
+              3.756517000056192,
+              3.8158640004439803,
+              3.8622140000370564,
+              3.9445410002372228,
+              4.281439000351384,
+              3.571350000129314
+            ],
+            "draw_cpu_ms": [
+              1348.5777990000001,
+              29.373745000000007,
+              27.913977000000756,
+              23.68458699999998,
+              25.314018000000438,
+              24.189353999999774,
+              21.33421999999996,
+              26.456961000000057,
+              22.1015229999999,
+              22.081495999999312,
+              30.058314000000586,
+              21.365615999999754
+            ],
+            "steady_draw_ms_median": 3.9445410002372228,
+            "steady_draw_cpu_ms_median": 24.189353999999774,
+            "texture_bytes": 2809856,
+            "source_sha256": "907aee625c6fbd23401e7d2fd30e2c7d83c78f9fb2e484b1aaebf89ade97349f",
+            "primary_iterations": {
+              "mean": 10.69775,
+              "p95": 24.0,
+              "maximum": 62,
+              "limit_exhausted_pixels": 0
+            }
+          },
+          "baseline": {
+            "shader": "compiled",
+            "backend": "native Skia Ganesh OpenGL / llvmpipe (LLVM 19.1.7, 256 bits)",
+            "context": {
+              "renderer": "llvmpipe (LLVM 19.1.7, 256 bits)",
+              "vendor": "Mesa",
+              "version": "4.5 (Compatibility Profile) Mesa 25.0.7-2+deb13u1"
+            },
+            "uniform_updates": true,
+            "parts": 7444,
+            "output": "/tmp/briccraft-render-profile/island-egl.q1.baseline.png",
+            "channel_std": 60.74042833625906,
+            "warm_fixture_pixels": null,
+            "size": [
+              320,
+              200
+            ],
+            "quality": 1,
+            "variant": "analytic-balanced",
+            "compile_ms": 3.172314000039478,
+            "draw_ms": [
+              35.12247499975274,
+              5.592967000211502,
+              4.953852999733499,
+              4.366933000255813,
+              4.430091999893193,
+              4.098667000107525,
+              4.883597999651101,
+              5.271736999929999,
+              4.226937999646907,
+              3.9898039999570756,
+              3.9622430003873887,
+              3.994471000169142
+            ],
+            "draw_cpu_ms": [
+              67.82619000000079,
+              43.7070309999994,
+              31.063005000000032,
+              27.414407000000196,
+              30.646391999999523,
+              31.6030989999998,
+              30.164412999999612,
+              31.4305629999998,
+              30.151320999999953,
+              29.927127999999747,
+              31.480906999999725,
+              31.379386999999426
+            ],
+            "steady_draw_ms_median": 4.366933000255813,
+            "steady_draw_cpu_ms_median": 31.063005000000032,
+            "texture_bytes": 2809856,
+            "source_sha256": "13adb7fa243751aebca5a1cde1f3a78b0a7d44fed3a219b53d851fa600b7a87f",
+            "primary_iterations": {
+              "mean": 28.23946875,
+              "p95": 42.0,
+              "maximum": 384,
+              "limit_exhausted_pixels": 426
+            }
+          },
+          "difference": {
+            "mean_absolute_channel": 0.41305729166666666,
+            "maximum_channel": 176,
+            "fraction_pixels_over_8": 0.005
+          }
+        },
+        {
+          "quality": 2,
+          "baseline": {
+            "shader": "compiled",
+            "backend": "native Skia Ganesh OpenGL / llvmpipe (LLVM 19.1.7, 256 bits)",
+            "context": {
+              "renderer": "llvmpipe (LLVM 19.1.7, 256 bits)",
+              "vendor": "Mesa",
+              "version": "4.5 (Compatibility Profile) Mesa 25.0.7-2+deb13u1"
+            },
+            "uniform_updates": true,
+            "parts": 7444,
+            "output": "/tmp/briccraft-render-profile/island-egl.q2.baseline.png",
+            "channel_std": 60.98376267712565,
+            "warm_fixture_pixels": null,
+            "size": [
+              320,
+              200
+            ],
+            "quality": 2,
+            "variant": "full-geometry",
+            "compile_ms": 2.689863999876252,
+            "draw_ms": [
+              44.83279699979903,
+              7.162840000091819,
+              5.775588999767933,
+              5.692170000202168,
+              5.884682000214525,
+              5.194136999762122,
+              4.869596999924397,
+              5.483302999891748,
+              5.31017499997688,
+              5.614994000097795,
+              5.942401999618596,
+              9.504486999958317
+            ],
+            "draw_cpu_ms": [
+              90.8368460000002,
+              46.53741200000017,
+              38.247060000000666,
+              37.441170000000135,
+              36.55582800000001,
+              38.95808100000053,
+              34.73567099999997,
+              35.00022600000019,
+              38.066521000000186,
+              40.47264500000036,
+              41.8341980000001,
+              43.621421000000105
+            ],
+            "steady_draw_ms_median": 5.692170000202168,
+            "steady_draw_cpu_ms_median": 38.247060000000666,
+            "texture_bytes": 2809856,
+            "source_sha256": "16c92d071c3756f3e1b91febc42b1c56176b5854d82987c4352660ed71ea92a6",
+            "primary_iterations": {
+              "mean": 28.234765625,
+              "p95": 42.0,
+              "maximum": 384,
+              "limit_exhausted_pixels": 426
+            }
+          },
+          "current": {
+            "shader": "compiled",
+            "backend": "native Skia Ganesh OpenGL / llvmpipe (LLVM 19.1.7, 256 bits)",
+            "context": {
+              "renderer": "llvmpipe (LLVM 19.1.7, 256 bits)",
+              "vendor": "Mesa",
+              "version": "4.5 (Compatibility Profile) Mesa 25.0.7-2+deb13u1"
+            },
+            "uniform_updates": true,
+            "parts": 7444,
+            "output": "/tmp/briccraft-render-profile/island-egl.q2.current.png",
+            "channel_std": 61.07324217512655,
+            "warm_fixture_pixels": null,
+            "size": [
+              320,
+              200
+            ],
+            "quality": 2,
+            "variant": "full-geometry",
+            "compile_ms": 2.859066999917559,
+            "draw_ms": [
+              2275.4648230002203,
+              5.613625000023603,
+              5.092838000109623,
+              4.03087399990909,
+              3.7919169999440783,
+              4.569169000205875,
+              3.8204399997994187,
+              3.8540099999408994,
+              4.648766000173055,
+              5.581656999765983,
+              4.2642129997148,
+              4.497960000207968
+            ],
+            "draw_cpu_ms": [
+              2311.152706,
+              38.28534099999992,
+              32.37289900000029,
+              24.578047000000325,
+              25.819820000000604,
+              24.617898999999,
+              26.4670469999988,
+              27.080642000001376,
+              26.112284999999957,
+              39.09300100000124,
+              27.007807000000383,
+              28.210565000000187
+            ],
+            "steady_draw_ms_median": 4.497960000207968,
+            "steady_draw_cpu_ms_median": 27.007807000000383,
+            "texture_bytes": 2809856,
+            "source_sha256": "38f12efc27d913d0cb96865903999fabe88f79241efd0093e32a682e3837db2b",
+            "primary_iterations": {
+              "mean": 10.69465625,
+              "p95": 24.0,
+              "maximum": 62,
+              "limit_exhausted_pixels": 0
+            }
+          },
+          "difference": {
+            "mean_absolute_channel": 0.41258854166666664,
+            "maximum_channel": 166,
+            "fraction_pixels_over_8": 0.005
+          }
+        }
+      ]
+    },
+    "island-raster": {
+      "baseline_ref": "03e25226",
+      "scene": "/tmp/briccraft-render-profile/generated.json",
+      "measurements": [
+        {
+          "quality": 0,
+          "baseline": {
+            "shader": "compiled",
+            "backend": "native Skia CPU raster",
+            "context": null,
+            "uniform_updates": true,
+            "parts": 7444,
+            "output": "/tmp/briccraft-render-profile/island-raster.q0.baseline.png",
+            "channel_std": 60.47976833344415,
+            "warm_fixture_pixels": null,
+            "size": [
+              320,
+              200
+            ],
+            "quality": 0,
+            "variant": "analytic-fast",
+            "compile_ms": 3.2328049996976915,
+            "draw_ms": [
+              346.02283200001693,
+              335.2516690001721,
+              331.6560120001668,
+              354.38313900021967,
+              381.4789410002959
+            ],
+            "draw_cpu_ms": [
+              345.982134,
+              335.18744499999985,
+              330.962252,
+              354.3314850000001,
+              365.59228499999995
+            ],
+            "steady_draw_ms_median": 344.8174040001959,
+            "steady_draw_cpu_ms_median": 344.759465,
+            "texture_bytes": 2809856,
+            "source_sha256": "c5ca48c45a1b2bda1cf81abd7557cd265554472a806e07f58ad35fc75fca582a"
+          },
+          "current": {
+            "shader": "compiled",
+            "backend": "native Skia CPU raster",
+            "context": null,
+            "uniform_updates": true,
+            "parts": 7444,
+            "output": "/tmp/briccraft-render-profile/island-raster.q0.current.png",
+            "channel_std": 60.57944275099296,
+            "warm_fixture_pixels": null,
+            "size": [
+              320,
+              200
+            ],
+            "quality": 0,
+            "variant": "analytic-fast",
+            "compile_ms": 2.5920879998011515,
+            "draw_ms": [
+              319.3547250002666,
+              270.46589199972004,
+              274.2117010002403,
+              300.84401600015553,
+              276.27731200027483
+            ],
+            "draw_cpu_ms": [
+              319.0868410000003,
+              269.7390610000001,
+              273.83856799999995,
+              300.60376899999983,
+              276.1057669999998
+            ],
+            "steady_draw_ms_median": 275.24450650025756,
+            "steady_draw_cpu_ms_median": 274.97216749999984,
+            "texture_bytes": 2809856,
+            "source_sha256": "1c1fe9a6b53da264d64808bcaf4e56ce1b6d3507705a44d3b4115e34bc0a5300"
+          },
+          "difference": {
+            "mean_absolute_channel": 0.420984375,
+            "maximum_channel": 177,
+            "fraction_pixels_over_8": 0.004984375
+          }
+        },
+        {
+          "quality": 1,
+          "current": {
+            "shader": "compiled",
+            "backend": "native Skia CPU raster",
+            "context": null,
+            "uniform_updates": true,
+            "parts": 7444,
+            "output": "/tmp/briccraft-render-profile/island-raster.q1.current.png",
+            "channel_std": 60.79959949118871,
+            "warm_fixture_pixels": null,
+            "size": [
+              320,
+              200
+            ],
+            "quality": 1,
+            "variant": "analytic-balanced",
+            "compile_ms": 2.39221899983022,
+            "draw_ms": [
+              431.8069569999352,
+              436.90548899985515,
+              383.19265300015104,
+              412.88324800007103,
+              413.9397609997104
+            ],
+            "draw_cpu_ms": [
+              424.1790019999998,
+              425.8047730000003,
+              381.65537999999975,
+              411.7360849999994,
+              412.1999330000001
+            ],
+            "steady_draw_ms_median": 413.4115044998907,
+            "steady_draw_cpu_ms_median": 411.9680089999997,
+            "texture_bytes": 2809856,
+            "source_sha256": "907aee625c6fbd23401e7d2fd30e2c7d83c78f9fb2e484b1aaebf89ade97349f"
+          },
+          "baseline": {
+            "shader": "compiled",
+            "backend": "native Skia CPU raster",
+            "context": null,
+            "uniform_updates": true,
+            "parts": 7444,
+            "output": "/tmp/briccraft-render-profile/island-raster.q1.baseline.png",
+            "channel_std": 60.701156413140524,
+            "warm_fixture_pixels": null,
+            "size": [
+              320,
+              200
+            ],
+            "quality": 1,
+            "variant": "analytic-balanced",
+            "compile_ms": 2.274093999858451,
+            "draw_ms": [
+              487.59489800022493,
+              463.8601420001578,
+              432.84681499972066,
+              434.0124939999441,
+              444.2831970000043
+            ],
+            "draw_cpu_ms": [
+              470.9758200000005,
+              458.8542059999998,
+              432.13437200000016,
+              433.98988000000037,
+              443.901953000001
+            ],
+            "steady_draw_ms_median": 439.1478454999742,
+            "steady_draw_cpu_ms_median": 438.9459165000007,
+            "texture_bytes": 2809856,
+            "source_sha256": "13adb7fa243751aebca5a1cde1f3a78b0a7d44fed3a219b53d851fa600b7a87f"
+          },
+          "difference": {
+            "mean_absolute_channel": 0.409078125,
+            "maximum_channel": 166,
+            "fraction_pixels_over_8": 0.004984375
+          }
+        },
+        {
+          "quality": 2,
+          "baseline": {
+            "shader": "compiled",
+            "backend": "native Skia CPU raster",
+            "context": null,
+            "uniform_updates": true,
+            "parts": 7444,
+            "output": "/tmp/briccraft-render-profile/island-raster.q2.baseline.png",
+            "channel_std": 60.944567848107674,
+            "warm_fixture_pixels": null,
+            "size": [
+              320,
+              200
+            ],
+            "quality": 2,
+            "variant": "full-geometry",
+            "compile_ms": 2.1311700002115685,
+            "draw_ms": [
+              659.7823449997122,
+              642.0197709999229,
+              627.9328910000004,
+              642.1816449997095,
+              636.8275019999601
+            ],
+            "draw_cpu_ms": [
+              645.1575960000007,
+              641.7832959999998,
+              627.7859599999989,
+              633.648117,
+              635.1623619999991
+            ],
+            "steady_draw_ms_median": 639.4236364999415,
+            "steady_draw_cpu_ms_median": 634.4052394999995,
+            "texture_bytes": 2809856,
+            "source_sha256": "16c92d071c3756f3e1b91febc42b1c56176b5854d82987c4352660ed71ea92a6"
+          },
+          "current": {
+            "shader": "compiled",
+            "backend": "native Skia CPU raster",
+            "context": null,
+            "uniform_updates": true,
+            "parts": 7444,
+            "output": "/tmp/briccraft-render-profile/island-raster.q2.current.png",
+            "channel_std": 61.04139631506897,
+            "warm_fixture_pixels": null,
+            "size": [
+              320,
+              200
+            ],
+            "quality": 2,
+            "variant": "full-geometry",
+            "compile_ms": 2.0426279997991514,
+            "draw_ms": [
+              540.1805510000486,
+              592.871584999557,
+              609.093455999755,
+              595.0624289998814,
+              564.4058299999415
+            ],
+            "draw_cpu_ms": [
+              539.8274119999993,
+              587.7561030000003,
+              597.5670040000001,
+              594.2371529999999,
+              564.3721380000013
+            ],
+            "steady_draw_ms_median": 593.9670069997192,
+            "steady_draw_cpu_ms_median": 590.9966280000001,
+            "texture_bytes": 2809856,
+            "source_sha256": "38f12efc27d913d0cb96865903999fabe88f79241efd0093e32a682e3837db2b"
+          },
+          "difference": {
+            "mean_absolute_channel": 0.40847916666666667,
+            "maximum_channel": 166,
+            "fraction_pixels_over_8": 0.004984375
+          }
+        }
+      ]
+    },
+    "mixed-egl": {
+      "baseline_ref": "03e25226",
+      "scene": "mixed fixture",
+      "measurements": [
+        {
+          "quality": 0,
+          "baseline": {
+            "shader": "compiled",
+            "backend": "native Skia Ganesh OpenGL / llvmpipe (LLVM 19.1.7, 256 bits)",
+            "context": {
+              "renderer": "llvmpipe (LLVM 19.1.7, 256 bits)",
+              "vendor": "Mesa",
+              "version": "4.5 (Compatibility Profile) Mesa 25.0.7-2+deb13u1"
+            },
+            "uniform_updates": true,
+            "parts": 250,
+            "output": "/tmp/briccraft-render-profile/mixed-egl.q0.baseline.png",
+            "channel_std": 49.04498639297922,
+            "warm_fixture_pixels": 1914,
+            "size": [
+              320,
+              200
+            ],
+            "quality": 0,
+            "variant": "analytic-fast",
+            "compile_ms": 3.2626570000502397,
+            "draw_ms": [
+              38.86262100013482,
+              2.2917589999451593,
+              2.1087669997541525,
+              2.1853799999007606,
+              2.1523410000554577,
+              2.5246760001209623,
+              2.081915999951889,
+              2.116848000241589,
+              1.8874360002882895,
+              1.8044220000774658,
+              1.954976999968494,
+              2.0053419998475874
+            ],
+            "draw_cpu_ms": [
+              50.437880999999905,
+              9.863555999999996,
+              10.354707999999935,
+              9.173828999999856,
+              9.63417500000019,
+              15.59827200000008,
+              10.445742000000147,
+              13.428908000000073,
+              9.71988300000004,
+              9.885737999999922,
+              8.270117000000132,
+              11.056308000000126
+            ],
+            "steady_draw_ms_median": 2.1087669997541525,
+            "steady_draw_cpu_ms_median": 9.885737999999922,
+            "texture_bytes": 2691072,
+            "source_sha256": "c5ca48c45a1b2bda1cf81abd7557cd265554472a806e07f58ad35fc75fca582a"
+          },
+          "current": {
+            "shader": "compiled",
+            "backend": "native Skia Ganesh OpenGL / llvmpipe (LLVM 19.1.7, 256 bits)",
+            "context": {
+              "renderer": "llvmpipe (LLVM 19.1.7, 256 bits)",
+              "vendor": "Mesa",
+              "version": "4.5 (Compatibility Profile) Mesa 25.0.7-2+deb13u1"
+            },
+            "uniform_updates": true,
+            "parts": 250,
+            "output": "/tmp/briccraft-render-profile/mixed-egl.q0.current.png",
+            "channel_std": 49.04498639297922,
+            "warm_fixture_pixels": 1914,
+            "size": [
+              320,
+              200
+            ],
+            "quality": 0,
+            "variant": "analytic-fast",
+            "compile_ms": 2.207764000104362,
+            "draw_ms": [
+              761.4019530001315,
+              2.4861199999577366,
+              2.3338119999607443,
+              2.498887999990984,
+              2.984792999995989,
+              2.3525399997197383,
+              2.1313299998837465,
+              1.9160689998898306,
+              2.1146150002095965,
+              2.1566880000136734,
+              1.9556520001060562,
+              2.167329000258178
+            ],
+            "draw_cpu_ms": [
+              772.3913769999999,
+              10.285754999999952,
+              10.485604000000315,
+              9.28771500000014,
+              11.555548000000027,
+              10.832310000000067,
+              8.534363999999961,
+              10.882985999999928,
+              8.626932999999948,
+              11.50698799999983,
+              8.865719000000105,
+              9.175833000000022
+            ],
+            "steady_draw_ms_median": 2.167329000258178,
+            "steady_draw_cpu_ms_median": 10.285754999999952,
+            "texture_bytes": 2691072,
+            "source_sha256": "1c1fe9a6b53da264d64808bcaf4e56ce1b6d3507705a44d3b4115e34bc0a5300"
+          },
+          "difference": {
+            "mean_absolute_channel": 0.0,
+            "maximum_channel": 0,
+            "fraction_pixels_over_8": 0.0
+          }
+        },
+        {
+          "quality": 1,
+          "current": {
+            "shader": "compiled",
+            "backend": "native Skia Ganesh OpenGL / llvmpipe (LLVM 19.1.7, 256 bits)",
+            "context": {
+              "renderer": "llvmpipe (LLVM 19.1.7, 256 bits)",
+              "vendor": "Mesa",
+              "version": "4.5 (Compatibility Profile) Mesa 25.0.7-2+deb13u1"
+            },
+            "uniform_updates": true,
+            "parts": 250,
+            "output": "/tmp/briccraft-render-profile/mixed-egl.q1.current.png",
+            "channel_std": 49.18184905330396,
+            "warm_fixture_pixels": 1923,
+            "size": [
+              320,
+              200
+            ],
+            "quality": 1,
+            "variant": "analytic-balanced",
+            "compile_ms": 2.742701999977726,
+            "draw_ms": [
+              1292.6343750000342,
+              3.3657819999461935,
+              3.3677040000839042,
+              4.118584999559971,
+              3.9832019997447787,
+              8.432421000179602,
+              8.386732999952073,
+              2.872484999898006,
+              2.909990999796719,
+              2.861298999960127,
+              2.848319999884552,
+              2.7573140000640706
+            ],
+            "draw_cpu_ms": [
+              1295.2324699999997,
+              14.637286999999777,
+              15.962955000000001,
+              17.805114000000177,
+              19.93307600000005,
+              20.902670999999984,
+              24.255333000000157,
+              14.721393999999943,
+              11.808258999999932,
+              12.526702999999806,
+              16.756431000000127,
+              14.030602000000059
+            ],
+            "steady_draw_ms_median": 3.3657819999461935,
+            "steady_draw_cpu_ms_median": 15.962955000000001,
+            "texture_bytes": 2691072,
+            "source_sha256": "907aee625c6fbd23401e7d2fd30e2c7d83c78f9fb2e484b1aaebf89ade97349f"
+          },
+          "baseline": {
+            "shader": "compiled",
+            "backend": "native Skia Ganesh OpenGL / llvmpipe (LLVM 19.1.7, 256 bits)",
+            "context": {
+              "renderer": "llvmpipe (LLVM 19.1.7, 256 bits)",
+              "vendor": "Mesa",
+              "version": "4.5 (Compatibility Profile) Mesa 25.0.7-2+deb13u1"
+            },
+            "uniform_updates": true,
+            "parts": 250,
+            "output": "/tmp/briccraft-render-profile/mixed-egl.q1.baseline.png",
+            "channel_std": 49.18184905330396,
+            "warm_fixture_pixels": 1923,
+            "size": [
+              320,
+              200
+            ],
+            "quality": 1,
+            "variant": "analytic-balanced",
+            "compile_ms": 3.042310000182624,
+            "draw_ms": [
+              32.79819699992004,
+              2.906336999785708,
+              3.131102000224928,
+              4.056973999922775,
+              2.9467019999174227,
+              2.4238920000243525,
+              2.3123109999687586,
+              2.4286200000460667,
+              2.3743179999655695,
+              2.8610189997380076,
+              2.92076999994606,
+              2.891676000217558
+            ],
+            "draw_cpu_ms": [
+              46.096538000000024,
+              12.870250999999833,
+              15.624698999999964,
+              16.05013700000013,
+              14.150740000000273,
+              10.959781999999585,
+              15.078753000000056,
+              15.274417000000096,
+              12.503040999999993,
+              13.052820999999604,
+              14.522246000000294,
+              12.056090000000186
+            ],
+            "steady_draw_ms_median": 2.891676000217558,
+            "steady_draw_cpu_ms_median": 14.150740000000273,
+            "texture_bytes": 2691072,
+            "source_sha256": "13adb7fa243751aebca5a1cde1f3a78b0a7d44fed3a219b53d851fa600b7a87f"
+          },
+          "difference": {
+            "mean_absolute_channel": 0.0,
+            "maximum_channel": 0,
+            "fraction_pixels_over_8": 0.0
+          }
+        },
+        {
+          "quality": 2,
+          "baseline": {
+            "shader": "compiled",
+            "backend": "native Skia Ganesh OpenGL / llvmpipe (LLVM 19.1.7, 256 bits)",
+            "context": {
+              "renderer": "llvmpipe (LLVM 19.1.7, 256 bits)",
+              "vendor": "Mesa",
+              "version": "4.5 (Compatibility Profile) Mesa 25.0.7-2+deb13u1"
+            },
+            "uniform_updates": true,
+            "parts": 250,
+            "output": "/tmp/briccraft-render-profile/mixed-egl.q2.baseline.png",
+            "channel_std": 49.25217369039394,
+            "warm_fixture_pixels": 1913,
+            "size": [
+              320,
+              200
+            ],
+            "quality": 2,
+            "variant": "full-geometry",
+            "compile_ms": 2.292120000220166,
+            "draw_ms": [
+              45.07530899991252,
+              3.2874459998311067,
+              2.960547999919072,
+              3.1254949999492965,
+              3.4213359999739623,
+              3.6186000002089713,
+              3.92133199966338,
+              3.7905969998064393,
+              3.4678550000535324,
+              4.238585000166495,
+              3.075490000355785,
+              3.6318050001682423
+            ],
+            "draw_cpu_ms": [
+              58.58915999999992,
+              15.558127999999893,
+              16.149533000000105,
+              13.027568000000045,
+              12.841116999999791,
+              16.944830999999994,
+              15.792819999999708,
+              16.5885500000007,
+              18.184591000000694,
+              23.58959599999988,
+              15.747997000000069,
+              15.06664099999977
+            ],
+            "steady_draw_ms_median": 3.4678550000535324,
+            "steady_draw_cpu_ms_median": 15.792819999999708,
+            "texture_bytes": 2691072,
+            "source_sha256": "16c92d071c3756f3e1b91febc42b1c56176b5854d82987c4352660ed71ea92a6"
+          },
+          "current": {
+            "shader": "compiled",
+            "backend": "native Skia Ganesh OpenGL / llvmpipe (LLVM 19.1.7, 256 bits)",
+            "context": {
+              "renderer": "llvmpipe (LLVM 19.1.7, 256 bits)",
+              "vendor": "Mesa",
+              "version": "4.5 (Compatibility Profile) Mesa 25.0.7-2+deb13u1"
+            },
+            "uniform_updates": true,
+            "parts": 250,
+            "output": "/tmp/briccraft-render-profile/mixed-egl.q2.current.png",
+            "channel_std": 49.25217369039394,
+            "warm_fixture_pixels": 1913,
+            "size": [
+              320,
+              200
+            ],
+            "quality": 2,
+            "variant": "full-geometry",
+            "compile_ms": 2.402374999746826,
+            "draw_ms": [
+              1970.9743460002755,
+              3.8455290000456444,
+              3.882844000145269,
+              3.4997729999304283,
+              3.3856929999274143,
+              3.5741639999287145,
+              3.3982509999077593,
+              3.702745000282448,
+              3.9393189999827882,
+              3.4785009997904126,
+              3.038614000161033,
+              3.6033180003869347
+            ],
+            "draw_cpu_ms": [
+              1995.424496,
+              18.943636000000375,
+              17.061233999999814,
+              16.300111000000506,
+              13.000417000000652,
+              16.363098000000242,
+              14.910444999999939,
+              17.38090999999997,
+              17.797987999999876,
+              16.40710899999931,
+              17.087250999999526,
+              15.561448999999783
+            ],
+            "steady_draw_ms_median": 3.5741639999287145,
+            "steady_draw_cpu_ms_median": 16.40710899999931,
+            "texture_bytes": 2691072,
+            "source_sha256": "38f12efc27d913d0cb96865903999fabe88f79241efd0093e32a682e3837db2b"
+          },
+          "difference": {
+            "mean_absolute_channel": 0.0,
+            "maximum_channel": 0,
+            "fraction_pixels_over_8": 0.0
+          }
+        }
+      ]
+    }
+  },
+  "current_atlas_packing": [
+    {
+      "benchmark": "generated_island",
+      "backend": "CPU atlas packing",
+      "samples": 20,
+      "median_ms": 0.283983,
+      "median_cpu_ms": 0.283744,
+      "minimum_ms": 0.27437,
+      "p95_ms": 0.338615,
+      "parts": 7444,
+      "occupied_cells": 66462,
+      "active_cells": 663552,
+      "atlas_bytes": 2809856
+    },
+    {
+      "benchmark": "dense_100k",
+      "backend": "CPU atlas packing",
+      "samples": 20,
+      "median_ms": 2.581678,
+      "median_cpu_ms": 2.581196,
+      "minimum_ms": 2.45953,
+      "p95_ms": 3.226215,
+      "parts": 100000,
+      "occupied_cells": 100000,
+      "active_cells": 663552,
+      "atlas_bytes": 4288512
+    }
+  ]
+}

@@ -2,6 +2,7 @@
 #![cfg_attr(target_os = "emscripten", no_main)]
 mod application;
 mod bridge;
+mod gestures;
 mod runtime;
 mod viewport;
 mod world_bridge;

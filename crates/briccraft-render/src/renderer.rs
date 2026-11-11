@@ -1,5 +1,5 @@
 use crate::camera::{normalize, rotation_axes};
-use crate::effect::{BalancedBrickWorldEffect, FastBrickWorldEffect, shader_variant_name};
+use crate::effect::{shader_variant_name, BalancedBrickWorldEffect, FastBrickWorldEffect};
 use crate::{AtlasStats, BrickWorldEffect, RenderFrame};
 use briccraft_render_data::{AtlasError, PixelAtlas, SceneAtlas};
 use briccraft_world::{Instance, World};
@@ -125,7 +125,7 @@ impl Renderer {
                     f32::from(atlas.static_min[1]) * 0.4,
                     f32::from(atlas.static_min[2]),
                 ],
-                0.0,
+                atlas.height_offset as f32,
             ),
             scene_bounds_max: vector4(
                 [
