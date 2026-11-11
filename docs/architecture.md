@@ -22,7 +22,7 @@ The renderer packs occupancy and part descriptors into immutable data textures. 
 
 An active vehicle has an independent local volume. Each camera ray is transformed into the vehicle's space, intersected there, and transformed back for lighting. Moving the vehicle therefore does not repeatedly rewrite terrain occupancy. Parking converts its current pose back to grid placements in one atomic transaction.
 
-The current FerroUI browser `Viewport3D` path falls back to a CPU rasterizer. BricCraft therefore uses `CustomEffect`, `EffectImage`, `ShaderEffectDescription::overlay` and `ImmutableCustomEffect` to run its world shader in the explicitly selected Skia backend. It does not install a second JavaScript/WebGL renderer. The framework also draws all UI and its shadows.
+The current FerroUI browser `Viewport3D` path falls back to a CPU rasterizer. BricCraft therefore uses `CustomEffect`, `EffectImage`, `ShaderEffectDescription::overlay` and `ImmutableCustomEffect` to run its world shader in the explicitly selected Skia backend. It does not install a second JavaScript/WebGL renderer. The framework also draws all UI and its shadows. The animated world effect is deliberately not wrapped in `BitmapCache`: the pinned framework does not invalidate cached visual contents for uniform-only effect changes, which would freeze camera and construction updates. Quality controls adjust shader work without caching the moving scene.
 
 ## Simulation and persistence
 

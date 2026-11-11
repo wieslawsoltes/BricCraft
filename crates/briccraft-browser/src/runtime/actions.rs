@@ -41,13 +41,7 @@ impl Runtime {
                 UiAction::Undo => game.undo(),
                 UiAction::Redo => game.redo(),
                 UiAction::SetDaylight(value) => game.daylight = value.clamp(0.0, 1.0) as f32,
-                UiAction::SetQuality(value) => {
-                    game.quality = value.min(2);
-                    // FerroUI forwards this property to the compositor and
-                    // invalidates/reallocates the cached layer automatically.
-                    self.world_cache
-                        .set_render_at_scale([0.5, 0.75, 1.0][game.quality as usize]);
-                }
+                UiAction::SetQuality(value) => game.quality = value.min(2),
                 UiAction::SetSound(value) => game.sound = value,
                 UiAction::SetGrid(value) => game.grid = value,
                 UiAction::SetPaused(value) => {

@@ -90,12 +90,6 @@ pub fn view(runtime: Rc<Runtime>) -> Element {
         .focusable(true)
         .node_ref(runtime.viewport)
         .effect(runtime.world_effect)
-        .cache_mode(Some(
-            runtime
-                .world_cache
-                .clone()
-                .upcast::<ferroui_base::media::CacheMode>(),
-        ))
         .on_pointer_pressed(move |event| {
             let Some(view) = pressed.viewport.get_untracked() else {
                 return;

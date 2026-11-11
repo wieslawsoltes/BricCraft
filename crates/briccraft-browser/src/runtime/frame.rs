@@ -13,10 +13,6 @@ impl Runtime {
         };
         self.state.compact.set_if_changed(width < 850.0);
         let mut game = self.session.borrow_mut();
-        let scale = [0.5, 0.75, 1.0][game.quality.min(2) as usize];
-        if (self.world_cache.render_at_scale() - scale).abs() > 0.01 {
-            self.world_cache.set_render_at_scale(scale);
-        }
         game.aspect = (width / height.max(1.0)) as f32;
         let modal = self.state.catalog_open.get_untracked()
             || self.state.blueprints_open.get_untracked()

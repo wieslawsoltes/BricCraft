@@ -150,13 +150,13 @@ pub fn settings(state: UiState, dispatch: Dispatch) -> Element {
             ]),
             controls::caption("Worlds stay in your browser. Export a file to keep a backup or move a world to another device."),
             stack_panel().spacing(12.0).children((
-            separator(), controls::label("TIME OF DAY"),
+            separator(), controls::label("DAYLIGHT"),
             slider().name("Daylight").minimum(0.0).maximum(1.0).value(state.daylight)
                 .on_value_changed(move |e| daylight(UiAction::SetDaylight(e.new_value()))),
             grid().column_definitions("*,*,*").children((
-                text_block().text("DAWN").font_size(9.0).foreground(theme::MUTED),
-                text_block().grid_column(1).text("NOON").font_size(9.0).foreground(theme::MUTED).horizontal_alignment(H::Center),
-                text_block().grid_column(2).text("NIGHT").font_size(9.0).foreground(theme::MUTED).horizontal_alignment(H::Right),
+                text_block().text("NIGHT").font_size(9.0).foreground(theme::MUTED),
+                text_block().grid_column(1).text("DAWN").font_size(9.0).foreground(theme::MUTED).horizontal_alignment(H::Center),
+                text_block().grid_column(2).text("DAY").font_size(9.0).foreground(theme::MUTED).horizontal_alignment(H::Right),
             )),
             )),
             stack_panel().spacing(12.0).children((
