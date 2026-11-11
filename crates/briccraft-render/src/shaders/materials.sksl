@@ -1,0 +1,119 @@
+// Inverse quarter turn for material coordinates, shared by analytic and SDF
+// geometry variants without depending on either variant's private helper names.
+float3 materialLocal(float3 p,float rotation) {
+    if(rotation<0.5) return p;
+    if(rotation<1.5) return float3(-p.z,p.y,p.x);
+    if(rotation<2.5) return float3(-p.x,p.y,-p.z);
+    return float3(p.z,p.y,-p.x);
+}
+
+// Molded edge normals and material parameters share the actual part frame.
+// Geometry, silhouettes, bores and occupancy are never changed by this filtering.
+float3 moldedNormal(Hit h,float3 width,out float variance) {
+    float3 normal=h.normal;
+    float curvature=0.0;
+    if(hasStuds(h.shape) && h.local.y>h.size.y-0.005) {
+        float2 radial=fract(h.local.xz)-float2(0.5);
+        float radius=length(radial);
+        float radialWidth=radialFootprint(radial,width.xz);
+        float cap=abs(h.local.y-h.size.y-STUD_HEIGHT);
+        float rim=intervalCoverage(radius,0.26,0.34,radialWidth)
+            *belowCoverage(cap,0.045,width.y);
+        float detail=1.0-smoothstep(0.04,0.24,max(radialWidth,width.y));
+        if(rim*detail>0.0001) {
+            float3 ring=normalize(float3(radial.x*5.0,1.0,radial.y*5.0));
+            normal=normalize(mix(normal,ring,rim*detail*0.70));
+        }
+        curvature=abs(h.normal.y)<0.9?3.333:rim*detail*5.0;
+    } else if(h.shape<2.5) {
+        float3 edge=min(h.local,h.size-h.local);
+        float3 side=sign(h.local-h.size*0.5);
+        float detail=1.0-smoothstep(0.035,0.20,max(max(width.x,width.y),width.z));
+        float3 bevel=(float3(1.0)-smoothstep(float3(0.015),float3(0.065),edge))*side*detail;
+        if(dot(bevel,bevel)>0.0001) normal=normalize(normal+bevel*0.30);
+        curvature=length(bevel-h.normal*dot(bevel,h.normal))*5.0;
+    } else if((h.shape>3.5 && h.shape<6.5) || abs(h.shape-13.0)<0.1) {
+        float3 size=mod(h.rotation,2.0)>0.5?h.size.zyx:h.size;
+        float3 axisNormal=materialLocal(h.normal,h.rotation);
+        bool axialWheel=h.shape>4.5 && h.shape<6.5;
+        float radius=max(0.15,(axialWheel?min(size.y,size.z):min(size.x,size.z))*0.5);
+        float side=1.0-abs(axialWheel?axisNormal.x:axisNormal.y);
+        curvature=max(side,0.0)/radius;
+    }
+    // A box footprint has variance width²/12. Widen only the normal-dependent
+    // specular lobe; keep the true geometric normal for visibility and contact.
+    variance=min(0.18,dot(width,width)*curvature*curvature/12.0);
+    return normal;
+}
+
+float3 partAlbedo(Hit hit,float3 width,out float roughness) {
+    float3 base=hit.albedo;
+    roughness=abs(hit.shape-2.0)<0.1?0.24:0.32;
+    if(hit.shape>4.5 && hit.shape<6.5) {
+        float3 q=materialLocal(hit.local-hit.size*0.5,hit.rotation);
+        float3 canonicalWidth=abs(materialLocal(width,hit.rotation));
+        float3 size=mod(hit.rotation,2.0)>0.5?hit.size.zyx:hit.size;
+        float angle=(dot(q.yz,q.yz)>0.00000001?atan(q.z,q.y):0.0)+hit.moving*vehicle_motion.x;
+        float angleWidth=angularFootprint(q.yz,canonicalWidth.yz);
+        if(hit.shape<5.5) {
+            float radius=max(min(size.y,size.z)*0.5,0.01);
+            float radial=length(q.yz)/radius;
+            float radialWidth=radialFootprint(q.yz,canonicalWidth.yz)/radius;
+            float rubber=smoothstep(0.46-radialWidth*0.5,0.60+radialWidth*0.5,radial);
+            base=mix(float3(0.64,0.68,0.71),float3(0.045,0.055,0.067),rubber);
+            float tread=0.955+0.045*filteredSine(angle*36.0,angleWidth*36.0);
+            base*=mix(1.0,tread,rubber);
+            roughness=mix(0.27,0.74,rubber);
+        } else {
+            roughness=0.35;
+            // Analytic variants retain the axial bore; the Full variant retains
+            // actual teeth. Material stripes vanish smoothly below pixel scale.
+            if(MATERIAL_DETAIL<2)
+                base*=0.93+0.07*filteredSine(angle*16.0,angleWidth*16.0);
+        }
+    }
+    return base;
+}
+
+float pow5(float value) {
+    float square=value*value;
+    return square*square*value;
+}
+
+// GGX normal distribution, height-correlated Smith visibility and Schlick
+// Fresnel. The footprint variance broadens subpixel highlights without adding
+// rays. Return the reflected direct-light contribution including N dot L.
+float dielectricSpecular(float3 normal,float3 view,float3 light,
+    float roughness,float variance,float reflectance) {
+    float nl=max(dot(normal,light),0.0);
+    float nv=max(dot(normal,view),0.001);
+    float3 halfVector=light+view;
+    float halfLength=dot(halfVector,halfVector);
+    if(nl<=0.0 || halfLength<0.000001) return 0.0;
+    halfVector*=inversesqrt(halfLength);
+    float nh=max(dot(normal,halfVector),0.0);
+    float vh=max(dot(view,halfVector),0.0);
+    float alpha=max(roughness*roughness,0.045);
+    float alpha2=min(1.0,alpha*alpha+variance);
+    float denominator=nh*nh*(alpha2-1.0)+1.0;
+    float distribution=alpha2/(PI*denominator*denominator);
+    float lambdaV=nl*sqrt(nv*nv*(1.0-alpha2)+alpha2);
+    float lambdaL=nv*sqrt(nl*nl*(1.0-alpha2)+alpha2);
+    float visibility=0.5/max(lambdaV+lambdaL,0.0001);
+    float fresnel=reflectance+(1.0-reflectance)*pow5(1.0-vh);
+    return distribution*visibility*fresnel*nl;
+}
+
+// Orthographic projection of a vertical stud is a capsule on its supporting
+// top face. Filter that exact footprint instead of switching a hard shadow bit.
+float studContactShadow(Hit hit,float3 localLight,float3 width) {
+    if(localLight.y<=0.04) return 1.0;
+    float2 shadow=-localLight.xz/localLight.y*STUD_HEIGHT;
+    float2 center=floor(hit.local.xz-shadow*0.5)+float2(0.5);
+    if(any(lessThanEqual(center,float2(0.0))) || any(greaterThanEqual(center,hit.size.xz))) return 1.0;
+    float2 q=hit.local.xz-center;
+    float along=clamp(dot(q,shadow)/max(dot(shadow,shadow),0.000001),0.0,1.0);
+    float distance=length(q-shadow*along)-0.30;
+    float coverage=belowCoverage(distance,0.0,length(width.xz));
+    return mix(1.0,0.43,coverage);
+}

@@ -1,14 +1,20 @@
 //! Native, declarative FerroUI interface for reusable brick-world simulations.
 //! No DOM widgets, generated markup, canvas-painted controls or imperative trees.
+mod blueprint_preview;
+mod blueprints;
 mod catalog;
 mod controls;
 mod credits;
+mod design_model;
+mod designs;
 mod dialogs;
 mod gameplay;
 mod gameplay_model;
 mod header;
+mod help;
 mod hotbar;
 mod hud;
+mod icons;
 mod import_area;
 mod import_model;
 mod import_progress;
@@ -17,11 +23,14 @@ mod layout;
 mod model;
 mod objectives;
 mod preview;
+mod settings;
 mod theme;
 mod touch;
 mod workshop;
+mod world_details;
 mod worlds;
 
+pub use design_model::{DesignLibraryView, SavedDesignCard};
 use ferroui_view::prelude::*;
 pub use gameplay_model::{BlueprintQuote, GameplayView, ObjectiveCard, WorkshopView};
 pub use layout::UiLayout;
@@ -66,6 +75,7 @@ pub fn view(
                     imports::panel(state, dispatch.clone()),
                     credits::panel(state, dispatch.clone()),
                     gameplay::panel(state, dispatch.clone()),
+                    world_details::panel(state),
                     import_progress::view(state, dispatch),
                 ])
                 .into(),

@@ -1,0 +1,14 @@
+[package]
+name = "briccraft-design"
+description = "Validated reusable construction designs with relative placement and bounded libraries"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+briccraft-parts.workspace = true
+briccraft-world.workspace = true
+serde = { workspace = true, features = ["derive"] }
+
+[dev-dependencies]
+serde_json.workspace = true

@@ -6,6 +6,8 @@ import { installImports } from './import-host.js';
 import { installAudio } from './audio-host.js';
 import { installGraphics } from './graphics-host.js';
 import { installCanvasSizing } from './canvas-size.js';
+import { installGraphicsPreferences } from './graphics-preferences.js';
+import { installDesignFiles } from './design-host.js';
 
 export let canvasSizing;
 
@@ -20,18 +22,28 @@ try {
         globalThis.briccraft = runtime;
         const storage = installStorage(runtime);
         installImports(runtime,storage);
+        installDesignFiles(runtime);
         installAudio();
         installInput(runtime, mount);
         installGraphics(mount);
         canvasSizing=installCanvasSizing(mount,WebRenderTarget);
+        const graphicsPreferences=installGraphicsPreferences(runtime);
         message.textContent = 'Snapping the last pieces into place…';
         runtime.runMain(location.search);
         storage.ready().finally(() => runtime.briccraftWorldReady());
         let frames = 0;
         let graphicsVerified = false;
         let readyAnnounced = false;
+        let preferencesRestored = false;
         const frame = time => {
             try {
+                if (!preferencesRestored) {
+                    const state=JSON.parse(runtime.briccraftState());
+                    if (typeof state.parts==='number') {
+                        graphicsPreferences.restore();
+                        preferencesRestored=true;
+                    }
+                }
                 // Read the first presented target before preparing another
                 // frame: CPU Skia cannot run this world's shader interactively.
                 if (!graphicsVerified) {

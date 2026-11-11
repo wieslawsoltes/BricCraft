@@ -1,4 +1,4 @@
-use crate::{controls, preview, theme, ColorSwatch, Dispatch, PartCard, UiAction, UiState};
+use crate::{icons, preview, theme, ColorSwatch, Dispatch, PartCard, UiAction, UiState};
 use ferroui_base::layout::{HorizontalAlignment as H, Orientation, VerticalAlignment as V};
 use ferroui_base::media::{FontWeight, TextTrimming};
 use ferroui_view::prelude::*;
@@ -23,7 +23,7 @@ pub fn hotbar(
         .background(theme::SURFACE)
         .border_brush(theme::EDGE)
         .border_thickness(1.0)
-        .corner_radius(14.0)
+        .corner_radius(18.0)
         .padding(move || {
             if state.compact.get() {
                 (10.0, 8.0)
@@ -61,7 +61,7 @@ pub fn hotbar(
                                     .font_size(10.0)
                                     .foreground(move || {
                                         if state.gameplay.get().selected_affordable {
-                                            "#AFE5BC"
+                                            theme::POSITIVE
                                         } else {
                                             "#FFBEA3"
                                         }
@@ -81,8 +81,8 @@ pub fn hotbar(
                                 button()
                                     .class("quiet")
                                     .content("Rotate  R")
-                                    .height(32.0)
-                                    .min_height(32.0)
+                                    .height(44.0)
+                                    .min_height(44.0)
                                     .padding((6.0, 2.0))
                                     .tool_tip_tip("Rotate selected part by 90° · R")
                                     .on_click(move |_| rotate(UiAction::Rotate)),
@@ -90,8 +90,8 @@ pub fn hotbar(
                                     .class("primary")
                                     .content("Place")
                                     .is_enabled(move || state.gameplay.get().selected_affordable)
-                                    .height(32.0)
-                                    .min_height(32.0)
+                                    .height(44.0)
+                                    .min_height(44.0)
                                     .padding((8.0, 2.0))
                                     .tool_tip_tip("Place on the targeted stud · left click")
                                     .on_click(move |_| place(UiAction::Place)),
@@ -104,7 +104,7 @@ pub fn hotbar(
                         .find(|c| c.id == state.selected_color.get())
                         .map_or(theme::ACCENT, |c| c.hex.as_str());
                     let count = state.layout.get().hotbar_slots();
-                    let tiles: Vec<Element> = crate::HOTBAR_PARTS
+                    let mut tiles: Vec<Element> = crate::HOTBAR_PARTS
                         .iter()
                         .take(count)
                         .filter_map(|id| parts.iter().find(|part| part.id == *id))
@@ -114,20 +114,25 @@ pub fn hotbar(
                             let dispatch = dispatch.clone();
                             button()
                                 .name(format!("HotbarPart{}", part.id))
-                                .width(if state.compact.get() { 54.0 } else { 67.0 })
+                                .width(if state.compact.get() { 52.0 } else { 67.0 })
                                 .height(if state.compact.get() { 52.0 } else { 60.0 })
                                 .padding(0.0)
                                 .background(if part.id == selected {
-                                    "#533A29"
+                                    theme::SELECTED
                                 } else {
-                                    "#1B2B34"
+                                    theme::INSET
                                 })
                                 .border_brush(if part.id == selected {
                                     theme::ACCENT
                                 } else {
-                                    "#324650"
+                                    theme::EDGE
                                 })
                                 .border_thickness(if part.id == selected { 2.0 } else { 1.0 })
+                                .automation_properties_name(Some(format!(
+                                    "{} · slot {}",
+                                    part.name,
+                                    slot + 1
+                                )))
                                 .tool_tip_tip(format!("{} · {}", part.name, slot + 1))
                                 .on_click(move |_| dispatch(UiAction::SelectPart(id)))
                                 .child(
@@ -158,27 +163,37 @@ pub fn hotbar(
                                 .into()
                         })
                         .collect();
+                    if !state.compact.get() || state.layout.get().width >= 350.0 {
+                        tiles.push(
+                            button()
+                                .name("AllHotbarParts")
+                                .width(if state.compact.get() { 44.0 } else { 52.0 })
+                                .height(if state.compact.get() { 52.0 } else { 60.0 })
+                                .padding(0.0)
+                                .background(theme::INSET)
+                                .border_brush(theme::EDGE)
+                                .automation_properties_name(Some("All parts and colors".into()))
+                                .tool_tip_tip("All parts and colors · B")
+                                .child(icons::glyph(icons::Icon::Plus, theme::ACCENT))
+                                .on_click(move |_| {
+                                    state.close_panels();
+                                    state.catalog_open.set(true);
+                                })
+                                .into(),
+                        );
+                    }
                     stack_panel()
                         .orientation(Orientation::Horizontal)
                         .spacing(6.0)
                         .children(tiles)
                         .into_element()
                 }),
-                stack_panel()
-                    .orientation(Orientation::Horizontal)
-                    .spacing(7.0)
+                text_block()
+                    .text("1–8  Select     R  Rotate     B  Library     Drag  Look")
+                    .font_size(10.0)
+                    .foreground(theme::MUTED)
                     .horizontal_alignment(H::Center)
-                    .is_visible(move || !state.compact.get())
-                    .children((
-                        controls::keycap("LMB"),
-                        controls::label("PLACE"),
-                        controls::keycap("RMB"),
-                        controls::label("REMOVE"),
-                        controls::keycap("DRAG"),
-                        controls::label("ORBIT"),
-                        controls::keycap("B"),
-                        controls::label("LIBRARY"),
-                    )),
+                    .is_visible(move || !state.compact.get()),
             )),
         )
         .into()

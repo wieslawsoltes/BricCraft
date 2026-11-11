@@ -1,0 +1,38 @@
+float hash21(float2 p) { return fract(sin(dot(p,float2(127.1,311.7)))*43758.5453); }
+
+float noise2(float2 p) {
+    float2 i=floor(p);float2 f=fract(p);f=f*f*(3.0-2.0*f);
+    return mix(mix(hash21(i),hash21(i+float2(1.0,0.0)),f.x),
+        mix(hash21(i+float2(0.0,1.0)),hash21(i+float2(1.0,1.0)),f.x),f.y);
+}
+
+// The smooth environment also supplies the rough plastic reflection. Keeping
+// sharp cloud noise out of that lobe prevents distant highlights from sparkling.
+float3 skyEnvironment(float3 ray) {
+    float daylight=camera_up.w;
+    float height=clamp(ray.y*0.75+0.20,0.0,1.0);
+    float3 horizon=mix(float3(0.08,0.13,0.22),float3(0.77,0.90,0.95),daylight);
+    float3 zenith=mix(float3(0.015,0.035,0.09),float3(0.26,0.62,0.84),daylight);
+    float3 color=mix(horizon,zenith,sqrt(height));
+    float sun=max(dot(ray,sun_direction.xyz),0.0);
+    return color+float3(1.0,0.81,0.47)*pow(sun,32.0)*0.15*daylight;
+}
+
+float3 skyColor(float3 ray) {
+    float daylight=camera_up.w;
+    float3 color=skyEnvironment(ray);
+    float sun=max(dot(ray,sun_direction.xyz),0.0);
+    color+=float3(1.0,0.96,0.82)*smoothstep(0.9985,0.9996,sun)*daylight;
+    if(MATERIAL_DETAIL>0 && ray.y>0.02) {
+        float2 uv=ray.xz/max(ray.y,0.08)*1.1+float2(camera_position.w*0.003,0.0);
+        float clouds=noise2(uv)*0.65+noise2(uv*2.07)*0.25+noise2(uv*4.0)*0.10;
+        float density=smoothstep(0.56,0.75,clouds)*smoothstep(0.02,0.25,ray.y);
+        color=mix(color,mix(float3(0.18,0.22,0.32),float3(1.0,0.98,0.91),daylight),density*0.76);
+    }
+    return color;
+}
+
+float windowBoundaryFog(float2 position) {
+    float2 edge=min(position,world_dimensions.xz-position);
+    return 1.0-smoothstep(0.0,camera_right.w,min(edge.x,edge.y));
+}

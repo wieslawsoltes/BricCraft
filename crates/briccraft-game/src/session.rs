@@ -9,6 +9,8 @@ pub struct Session {
     pub streaming: Option<StreamSession>,
     pub world_info: WorldInfo,
     pub gameplay: briccraft_play::Gameplay,
+    pub(crate) design_library: briccraft_design::DesignLibrary,
+    pub(crate) design_capture_cache: std::cell::RefCell<Option<crate::designs::CaptureCache>>,
     /// Changes whenever a complete World is replaced, even if its local revision number repeats.
     pub scene_generation: u64,
     pub camera: CameraRig,
@@ -45,6 +47,8 @@ impl Session {
             streaming: None,
             world_info: WorldInfo::classic(seed),
             gameplay: briccraft_play::Gameplay::default(),
+            design_library: briccraft_design::DesignLibrary::default(),
+            design_capture_cache: std::cell::RefCell::new(None),
             scene_generation: 0,
             camera: CameraRig::default(),
             input: Input::default(),

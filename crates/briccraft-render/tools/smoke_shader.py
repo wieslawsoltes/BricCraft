@@ -136,8 +136,10 @@ def images(pieces, dimensions, moving=()):
     }
 
 
-def render(output, scene=None, *, quality=1, width=800, height=500, frames=1, source=None,
+def render(output, scene=None, *, quality=1, samples=1, width=800, height=500, frames=1, source=None,
            backend='raster', animate_uniforms=False, validate=True):
+    if samples not in (1, 2, 4):
+        raise ValueError('samples must be 1, 2 or 4')
     if source is None:
         source = source_for_quality(quality)
     dimensions = [96, 72, 96]
@@ -178,11 +180,12 @@ def render(output, scene=None, *, quality=1, width=800, height=500, frames=1, so
         'scene_bounds_min': list(lower)+[float(atlas['height_offset'])], 'scene_bounds_max': list(upper)+[float(bool(pieces))],
         'cell_texture_size': [pixel_images[0].shape[1], pixel_images[0].shape[0]],
         'part_texture_size': [pixel_images[1].shape[1], pixel_images[1].shape[0]],
-        'camera_position': list(position)+[4.0],
+        'camera_position': list(position)+[content.get('time', 4.0)],
         'camera_forward': list(forward)+[math.tan(content.get('vertical_fov', math.radians(52.0))*0.5)],
-        'camera_right': list(right)+[content.get('window_fade', 0.0)], 'camera_up': list(up)+[1.0],
-        'sun_direction': list(sun)+[2.4 if scene else 1.2], 'preview_origin': [0.0]*4,
-        'preview_size': [0.0]*4, 'selection': 0, 'quality': quality, 'construction_grid': 0,
+        'camera_right': list(right)+[content.get('window_fade', 0.0)], 'camera_up': list(up)+[content.get('daylight', 1.0)],
+        'sun_direction': list(sun)+[content.get('water_level', 2.4 if scene else 1.2)], 'preview_origin': [0.0]*4,
+        'preview_size': [0.0]*4, 'selection': content.get('selection', 0), 'quality': quality, 'sample_count': samples,
+        'construction_grid': int(content.get('grid', False)),
         'vehicle_dimensions': [0.0]*4, 'vehicle_position': [0.0]*4,
         'vehicle_axis_x': [0.0]*4, 'vehicle_axis_y': [0.0]*4, 'vehicle_axis_z': [0.0]*4,
         'vehicle_motion': [0.0]*2,
@@ -218,7 +221,7 @@ def render(output, scene=None, *, quality=1, width=800, height=500, frames=1, so
     draw_cpu_ms = []
     for frame in range(frames):
         if animate_uniforms:
-            builder.setUniform('camera_position', list(position)+[4.0+frame/60.0])
+            builder.setUniform('camera_position', list(position)+[content.get('time', 4.0)+frame/60.0])
             paint = skia.Paint(Shader=builder.makeShader())
         started = time.perf_counter()
         cpu_started = time.process_time()
@@ -248,7 +251,8 @@ def render(output, scene=None, *, quality=1, width=800, height=500, frames=1, so
         'context': gpu.context_info if gpu else None, 'uniform_updates': animate_uniforms,
         'parts': len(pieces)+len(moving),
         'output': str(output), 'channel_std': float(rgb.std()), 'warm_fixture_pixels': warm_pixels, 'size': [width, height],
-        'quality': quality, 'variant': ('analytic-fast', 'analytic-balanced', 'full-geometry')[quality], 'compile_ms': compile_ms, 'draw_ms': draw_ms,
+        'quality': quality, 'samples': samples if 'sample_count' in uniforms else 1,
+        'requested_samples': samples, 'variant': ('analytic-fast', 'analytic-balanced', 'full-geometry')[quality], 'compile_ms': compile_ms, 'draw_ms': draw_ms,
         'draw_cpu_ms': draw_cpu_ms,
         'steady_draw_ms_median': statistics.median(draw_ms[1:]) if frames > 1 else None,
         'steady_draw_cpu_ms_median': statistics.median(draw_cpu_ms[1:]) if frames > 1 else None,
@@ -264,6 +268,7 @@ if __name__ == '__main__':
     parser.add_argument('--width', type=int, default=800)
     parser.add_argument('--height', type=int, default=500)
     parser.add_argument('--quality', type=int, choices=(0, 1, 2), default=1)
+    parser.add_argument('--samples', type=int, choices=(1, 2, 4), default=1)
     parser.add_argument('--frames', type=int, default=1)
     parser.add_argument('--backend', choices=('raster', 'egl'), default='raster',
                         help='Native CPU raster or synchronized Ganesh OpenGL (requires PyOpenGL/EGL)')
@@ -280,7 +285,7 @@ if __name__ == '__main__':
         output = Path(args.output)
         if args.all_qualities:
             output = output.with_name(f"{output.stem}.{('fast', 'balanced', 'full')[quality]}{output.suffix}")
-        settings = dict(quality=quality, width=args.width, height=args.height, frames=args.frames,
+        settings = dict(quality=quality, samples=args.samples, width=args.width, height=args.height, frames=args.frames,
                         backend=args.backend, animate_uniforms=args.animate_uniforms)
         result, rgb = render(output, args.scene, source=args.source.read_text() if args.source else None, **settings)
         if args.compare_source:

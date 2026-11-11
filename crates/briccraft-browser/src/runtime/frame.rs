@@ -50,16 +50,22 @@ impl Runtime {
         });
         let presented = ferroui_browser::rendering::RenderStatistics::current().frames;
         let requested_quality = self.session.borrow().quality;
+        let measure_scene = !self.state.modal_untracked() && !self.session.borrow().paused;
         let resolution = self.world_resolution.borrow_mut().update(
             elapsed,
             presented,
             [bounds.width, bounds.height],
             top_level.render_scaling(),
             requested_quality,
+            measure_scene,
         );
         if self.world_cache.render_at_scale() != resolution.render_scale {
             self.world_cache
                 .set_render_at_scale(resolution.render_scale);
+            self.renderer.borrow_mut().invalidate_effect();
+            // Effects compare structurally in the compositor. Explicitly dirty
+            // the child inside the cache even when its paused uniforms match.
+            view.invalidate_visual();
         }
         let modal = self.state.modal_untracked();
         let was_modal = self.modal_active.replace(modal);
@@ -75,8 +81,12 @@ impl Runtime {
         game.aspect = (bounds.width / bounds.height) as f32;
         if modal {
             game.input.clear();
+            // Menus suspend inertia, walking gravity and follow-camera motion.
+            // Incremental world/import work must still be allowed to finish.
+            game.advance_streaming();
+        } else {
+            game.tick(elapsed as f32);
         }
-        game.tick(elapsed as f32);
         let import_progress = game.import_progress();
         let import_result = game.take_import_result();
         if self.scene_generation.replace(game.scene_generation) != game.scene_generation {
@@ -91,6 +101,12 @@ impl Runtime {
                 valid: game.world.can_place(&p).is_ok() && game.selected_part_quote().affordable,
             })
         };
+        let visual_time = if modal || game.paused {
+            self.visual_time.get()
+        } else {
+            self.visual_time.set(game.time);
+            game.time
+        };
         let camera = &game.camera;
         let frame = RenderFrame {
             camera: Camera {
@@ -99,12 +115,13 @@ impl Runtime {
                 pitch: camera.pitch,
                 vertical_fov: camera.vertical_fov,
             },
-            time: game.time,
+            time: visual_time,
             daylight: game.daylight,
             water_level: 2.4,
             selected_id: game.hit.as_ref().filter(|_| !modal).map(|h| h.id),
             preview,
             quality: resolution.effective_quality,
+            samples: resolution.samples,
             grid: game.grid,
             window_fade: if game.is_streamed() { 16.0 } else { 0.0 },
             vehicle: game.active_vehicle.as_ref().map(|a| VehicleRender {
@@ -120,7 +137,16 @@ impl Runtime {
             }),
         };
         match self.renderer.borrow_mut().effect(&game.world, &frame) {
-            Ok(effect) => self.world_effect.set(Some(effect)),
+            Ok(effect) => {
+                let changed = self
+                    .world_effect
+                    .get_untracked()
+                    .as_ref()
+                    .is_none_or(|previous| !Rc::ptr_eq(previous, &effect));
+                if changed {
+                    self.world_effect.set(Some(effect));
+                }
+            }
             Err(error) => game.status = format!("Rendering error: {error}"),
         }
         drop(game);

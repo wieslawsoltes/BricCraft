@@ -20,7 +20,7 @@ fn card(goal: ObjectiveCard) -> Element {
             theme::EDGE
         })
         .border_thickness(1.0)
-        .corner_radius(10.0)
+        .corner_radius(14.0)
         .padding(13.0)
         .child(
             stack_panel().spacing(9.0).children((
@@ -38,11 +38,11 @@ fn card(goal: ObjectiveCard) -> Element {
                         } else {
                             "IN PROGRESS"
                         })
-                        .font_size(8.0)
+                        .font_size(9.0)
                         .font_weight(FontWeight::SemiBold)
                         .vertical_alignment(V::Center)
                         .foreground(if goal.completed {
-                            "#AFE5BC"
+                            theme::POSITIVE
                         } else {
                             theme::MUTED
                         }),
@@ -53,8 +53,11 @@ fn card(goal: ObjectiveCard) -> Element {
                     .maximum(100.0)
                     .value(percent)
                     .height(5.0)
+                    .min_height(5.0)
+                    .max_height(5.0)
+                    .background("#30465B")
                     .foreground(if goal.completed {
-                        "#8CC89F"
+                        theme::POSITIVE
                     } else {
                         theme::ACCENT
                     }),
@@ -72,7 +75,11 @@ fn card(goal: ObjectiveCard) -> Element {
                             goal.reward
                         ))
                         .font_size(11.0)
-                        .foreground(if goal.completed { "#AFE5BC" } else { "#F2BD7B" }),
+                        .foreground(if goal.completed {
+                            theme::POSITIVE
+                        } else {
+                            theme::ACCENT
+                        }),
                 )),
             )),
         )

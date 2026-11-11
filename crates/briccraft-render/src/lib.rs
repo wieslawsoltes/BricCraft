@@ -7,6 +7,7 @@
 
 mod camera;
 mod effect;
+mod effect_cache;
 mod frame;
 mod renderer;
 

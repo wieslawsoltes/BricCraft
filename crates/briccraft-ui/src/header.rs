@@ -1,7 +1,12 @@
-//! A wide toolbar and a two-row phone toolbar share the same native commands.
-use crate::{preview, theme, Dispatch, PartCard, UiAction, UiState};
+//! Floating native navigation leaves the scene visible between focused control groups.
+use crate::{
+    controls,
+    icons::{self, Icon},
+    theme, Dispatch, UiAction, UiState,
+};
 use ferroui_base::layout::{HorizontalAlignment as H, Orientation, VerticalAlignment as V};
 use ferroui_base::media::FontWeight;
+use ferroui_controls::{Border, Button};
 use ferroui_view::prelude::*;
 
 fn toggle(state: UiState, panel: Signal<bool>) {
@@ -10,230 +15,287 @@ fn toggle(state: UiState, panel: Signal<bool>) {
     panel.set(open);
 }
 
-pub fn view(state: UiState, dispatch: Dispatch) -> Element {
+fn pod(content: Element) -> El<Border> {
+    border()
+        .background(theme::HUD)
+        .border_brush("#53647786")
+        .border_thickness(1.0)
+        .corner_radius(16.0)
+        .padding(7.0)
+        .effect(theme::shadow())
+        .child(content)
+}
+
+fn navigation(
+    name: &str,
+    title: &str,
+    hint: &str,
+    icon: Icon,
+    activate: impl Fn() + 'static,
+) -> El<Button> {
+    button()
+        .name(name)
+        .class("quiet")
+        .height(44.0)
+        .padding((9.0, 7.0))
+        .automation_properties_name(Some(hint.to_string()))
+        .tool_tip_tip(hint)
+        .child(icons::label(icon, title, theme::TEXT))
+        .on_click(move |_| activate())
+}
+
+fn phone_action(name: &str, title: &str, icon: Icon, activate: impl Fn() + 'static) -> El<Button> {
+    button()
+        .name(name)
+        .height(48.0)
+        .padding((2.0, 3.0))
+        .margin((2.0, 0.0))
+        .background(theme::HUD)
+        .border_brush("#53647786")
+        .automation_properties_name(Some(title.to_string()))
+        .tool_tip_tip(title)
+        .child(
+            stack_panel()
+                .spacing(0.0)
+                .is_hit_test_visible(false)
+                .children((
+                    icons::glyph(icon, theme::TEXT),
+                    text_block()
+                        .text(title)
+                        .font_size(10.0)
+                        .horizontal_alignment(H::Center),
+                )),
+        )
+        .on_click(move |_| activate())
+}
+
+fn brand(state: UiState) -> Element {
+    stack_panel()
+        .orientation(Orientation::Horizontal)
+        .spacing(9.0)
+        .vertical_alignment(V::Center)
+        .margin((5.0, 0.0))
+        .children((
+            border()
+                .width(36.0)
+                .height(36.0)
+                .corner_radius(10.0)
+                .background(theme::ACCENT)
+                .is_visible(move || !state.compact.get() || state.layout.get().landscape)
+                .child(icons::glyph(Icon::Bricks, theme::ACCENT_DARK)),
+            stack_panel()
+                .spacing(0.0)
+                .vertical_alignment(V::Center)
+                .children((
+                    text_block()
+                        .text("BricCraft")
+                        .font_size(move || if state.compact.get() { 18.0 } else { 21.0 })
+                        .font_weight(FontWeight::Bold),
+                    text_block()
+                        .text(move || format!("{} MODE", state.mode.get()))
+                        .font_size(8.0)
+                        .foreground(theme::POSITIVE),
+                )),
+        ))
+        .into()
+}
+
+fn desktop_navigation(state: UiState, dispatch: Dispatch) -> Element {
+    let worlds = dispatch.clone();
+    let explore = dispatch;
+    stack_panel()
+        .orientation(Orientation::Horizontal)
+        .spacing(2.0)
+        .children((
+            navigation(
+                "OpenWorlds",
+                "Worlds",
+                "Your worlds · G",
+                Icon::World,
+                move || worlds(UiAction::ShowWorlds),
+            ),
+            navigation(
+                "OpenPlaces",
+                "Places",
+                "Build a real place",
+                Icon::Places,
+                move || toggle(state, state.imports_open),
+            ),
+            navigation(
+                "ExploreWorld",
+                "Explore",
+                "Cycle Build, Fly and Walk · Tab",
+                Icon::Explore,
+                move || explore(UiAction::ToggleExplore),
+            ),
+            navigation(
+                "OpenPlans",
+                "Plans",
+                "Starter plans and your saved designs",
+                Icon::Plans,
+                move || toggle(state, state.blueprints_open),
+            ),
+        ))
+        .into()
+}
+
+fn landscape_navigation(state: UiState, dispatch: Dispatch) -> Element {
+    let worlds = dispatch.clone();
+    let explore = dispatch;
+    stack_panel()
+        .orientation(Orientation::Horizontal)
+        .spacing(2.0)
+        .children((
+            controls::tool_button("LandscapeWorlds", "Your worlds", Icon::World, move || {
+                worlds(UiAction::ShowWorlds)
+            }),
+            controls::tool_button(
+                "LandscapeExplore",
+                "Change camera mode",
+                Icon::Explore,
+                move || explore(UiAction::ToggleExplore),
+            ),
+            controls::tool_button(
+                "LandscapePlans",
+                "Construction plans",
+                Icon::Plans,
+                move || toggle(state, state.blueprints_open),
+            ),
+            controls::tool_button(
+                "LandscapeGoals",
+                "Play and objectives",
+                Icon::Goals,
+                move || crate::gameplay::toggle(state),
+            ),
+        ))
+        .into()
+}
+
+fn phone_navigation(state: UiState, dispatch: Dispatch) -> Element {
     let worlds = dispatch.clone();
     let explore = dispatch.clone();
-    let vehicle = dispatch.clone();
-    let mobile_worlds = dispatch.clone();
-    let mobile_explore = dispatch.clone();
-    let mobile_vehicle = dispatch.clone();
-    let save = dispatch;
-    border()
+    let drive = dispatch;
+    grid()
+        .name("CompactActions")
+        .column_definitions("*,*,*,*")
+        .children((
+            phone_action("PhoneWorlds", "Worlds", Icon::World, move || {
+                worlds(UiAction::ShowWorlds)
+            }),
+            phone_action("PhoneExplore", "Explore", Icon::Explore, move || {
+                explore(UiAction::ToggleExplore)
+            })
+            .grid_column(1),
+            phone_action("PhonePlans", "Plans", Icon::Plans, move || {
+                toggle(state, state.blueprints_open)
+            })
+            .grid_column(2),
+            button()
+                .name("PhoneDrive")
+                .grid_column(3)
+                .height(48.0)
+                .padding((2.0, 3.0))
+                .margin((2.0, 0.0))
+                .background(theme::HUD)
+                .border_brush("#53647786")
+                .tool_tip_tip("Drive a construction, or park the active vehicle")
+                .child(rerender(move || {
+                    let driving = state.mode.get() == "DRIVE";
+                    stack_panel()
+                        .spacing(0.0)
+                        .is_hit_test_visible(false)
+                        .children((
+                            icons::glyph(
+                                if driving { Icon::Park } else { Icon::Drive },
+                                theme::TEXT,
+                            ),
+                            text_block()
+                                .text(if driving { "Park" } else { "Drive" })
+                                .font_size(10.0)
+                                .horizontal_alignment(H::Center),
+                        ))
+                        .into_element()
+                }))
+                .on_click(move |_| {
+                    drive(if state.mode.get_untracked() == "DRIVE" {
+                        UiAction::ExitVehicle
+                    } else {
+                        UiAction::ActivateVehicle("auto".into())
+                    })
+                }),
+        ))
+        .into()
+}
+
+pub fn view(state: UiState, dispatch: Dispatch) -> Element {
+    let save = dispatch.clone();
+    grid()
         .name("Header")
         .vertical_alignment(V::Top)
         .margin(move || {
             if state.compact.get() {
                 (12.0, 8.0, 12.0, 0.0)
             } else {
-                (20.0, 18.0, 20.0, 0.0)
+                (20.0, 16.0, 20.0, 0.0)
             }
         })
         .is_visible(move || !state.layout.get().keyboard)
-        .background(theme::SURFACE)
-        .border_brush(theme::EDGE)
-        .border_thickness(1.0)
-        .corner_radius(14.0)
-        .padding(move || {
-            if state.compact.get() {
-                (10.0, 8.0)
-            } else {
-                (14.0, 10.0)
-            }
-        })
-        .effect(theme::shadow())
-        .child(
-            grid().row_definitions("Auto,Auto").children((
-                grid().column_definitions("Auto,*,Auto").children((
-                    stack_panel()
-                        .orientation(Orientation::Horizontal)
-                        .spacing(10.0)
-                        .vertical_alignment(V::Center)
-                        .children((
-                            border().is_visible(move || !state.compact.get()).child(
-                                preview::brick(
-                                    &PartCard {
-                                        id: 0,
-                                        name: "Brick".into(),
-                                        category: String::new(),
-                                        size: [2, 3, 2],
-                                    },
-                                    theme::ACCENT,
-                                    0.8,
-                                ),
-                            ),
-                            stack_panel()
-                                .spacing(1.0)
-                                .vertical_alignment(V::Center)
-                                .children((
-                                    text_block()
-                                        .text("BricCraft")
-                                        .font_size(
-                                            move || if state.compact.get() { 20.0 } else { 24.0 },
-                                        )
-                                        .font_weight(FontWeight::Bold),
-                                    text_block()
-                                        .text("A WORLD OF POSSIBILITIES")
-                                        .font_size(8.0)
-                                        .foreground(theme::MUTED)
-                                        .is_visible(move || !state.compact.get()),
-                                )),
-                        )),
-                    stack_panel()
-                        .grid_column(1)
-                        .orientation(Orientation::Horizontal)
-                        .spacing(4.0)
-                        .horizontal_alignment(H::Center)
-                        .vertical_alignment(V::Center)
-                        .is_visible(move || !state.compact.get() || state.layout.get().landscape)
-                        .children((
-                            border()
-                                .background("#293C35")
-                                .corner_radius(6.0)
-                                .padding((10.0, 7.0))
-                                .is_visible(move || !state.compact.get())
-                                .child(
-                                    text_block()
-                                        .text(state.mode)
-                                        .font_size(10.0)
-                                        .foreground("#AFE5BC")
-                                        .font_weight(FontWeight::SemiBold),
-                                ),
-                            button()
-                                .name("OpenWorlds")
-                                .class("quiet")
-                                .content("Worlds")
-                                .padding((9.0, 8.0))
-                                .on_click(move |_| worlds(UiAction::ShowWorlds)),
-                            button()
-                                .class("quiet")
-                                .content("Real places")
-                                .is_visible(move || !state.compact.get())
-                                .padding((9.0, 8.0))
-                                .on_click(move |_| toggle(state, state.imports_open)),
-                            button()
-                                .class("quiet")
-                                .content("Explore")
-                                .padding((9.0, 8.0))
-                                .on_click(move |_| explore(UiAction::ToggleExplore)),
-                            button()
-                                .class("quiet")
-                                .content(move || {
-                                    if state.compact.get() {
-                                        "Plans"
-                                    } else {
-                                        "Blueprints"
-                                    }
-                                })
-                                .padding((9.0, 8.0))
-                                .on_click(move |_| toggle(state, state.blueprints_open)),
-                            button()
-                                .class("quiet")
-                                .is_visible(move || state.layout.get().landscape)
-                                .content(move || {
-                                    if state.mode.get() == "DRIVE" {
-                                        "Park"
-                                    } else {
-                                        "Drive"
-                                    }
-                                })
-                                .padding((9.0, 8.0))
-                                .on_click(move |_| {
-                                    vehicle(if state.mode.get_untracked() == "DRIVE" {
-                                        UiAction::ExitVehicle
-                                    } else {
-                                        UiAction::ActivateVehicle("auto".into())
-                                    })
-                                }),
-                        )),
-                    stack_panel()
-                        .grid_column(2)
-                        .orientation(Orientation::Horizontal)
-                        .spacing(4.0)
-                        .vertical_alignment(V::Center)
-                        .children((
-                            button()
-                                .class("quiet")
-                                .content("Save")
-                                .is_visible(move || state.layout.get().width > 1120.0)
-                                .on_click(move |_| save(UiAction::Save)),
-                            button()
-                                .name("OpenSettings")
-                                .class("quiet")
-                                .content(move || {
-                                    if state.compact.get() {
-                                        "Menu"
-                                    } else {
-                                        "Settings"
-                                    }
-                                })
-                                .padding((9.0, 8.0))
-                                .on_click(move |_| toggle(state, state.settings_open)),
-                            button()
-                                .name("OpenBricks")
-                                .class("primary")
-                                .content(move || {
+        .row_definitions("Auto,Auto")
+        .children((
+            grid().column_definitions("Auto,*,Auto").children((
+                pod(brand(state)),
+                pod(desktop_navigation(state, dispatch.clone()))
+                    .grid_column(1)
+                    .horizontal_alignment(H::Center)
+                    .is_visible(move || !state.compact.get()),
+                pod(landscape_navigation(state, dispatch.clone()))
+                    .grid_column(1)
+                    .horizontal_alignment(H::Center)
+                    .is_visible(move || state.layout.get().landscape),
+                pod(stack_panel()
+                    .orientation(Orientation::Horizontal)
+                    .spacing(4.0)
+                    .children((
+                        controls::tool_button(
+                            "QuickSave",
+                            "Save this world · Ctrl+S",
+                            Icon::Save,
+                            move || save(UiAction::Save),
+                        )
+                        .is_visible(move || state.layout.get().width > 1120.0),
+                        controls::tool_button(
+                            "OpenSettings",
+                            "Game menu and display settings",
+                            Icon::Settings,
+                            move || toggle(state, state.settings_open),
+                        ),
+                        button()
+                            .name("OpenBricks")
+                            .class("primary")
+                            .height(44.0)
+                            .padding((12.0, 7.0))
+                            .tool_tip_tip("Choose a brick and color · B")
+                            .child(rerender(move || {
+                                icons::label(
+                                    Icon::Bricks,
                                     if state.compact.get() {
                                         "Bricks"
                                     } else {
-                                        "Brick library  B"
-                                    }
-                                })
-                                .padding((10.0, 8.0))
-                                .on_click(move |_| toggle(state, state.catalog_open)),
-                        )),
-                )),
-                grid()
-                    .name("CompactActions")
-                    .grid_row(1)
-                    .column_definitions("*,*,*,*")
-                    .margin((0.0, 6.0, 0.0, 0.0))
-                    .is_visible(move || state.compact.get() && !state.layout.get().landscape)
-                    .children((
-                        button()
-                            .content("Worlds")
-                            .font_size(11.0)
-                            .height(44.0)
-                            .padding((4.0, 0.0))
-                            .margin((0.0, 0.0, 3.0, 0.0))
-                            .on_click(move |_| mobile_worlds(UiAction::ShowWorlds)),
-                        button()
-                            .grid_column(1)
-                            .content("Explore")
-                            .font_size(11.0)
-                            .height(44.0)
-                            .padding((4.0, 0.0))
-                            .margin((2.0, 0.0, 2.0, 0.0))
-                            .on_click(move |_| mobile_explore(UiAction::ToggleExplore)),
-                        button()
-                            .grid_column(2)
-                            .content("Plans")
-                            .font_size(11.0)
-                            .height(44.0)
-                            .padding((4.0, 0.0))
-                            .margin((2.0, 0.0, 2.0, 0.0))
-                            .on_click(move |_| toggle(state, state.blueprints_open)),
-                        button()
-                            .grid_column(3)
-                            .font_size(11.0)
-                            .height(44.0)
-                            .padding((4.0, 0.0))
-                            .margin((3.0, 0.0, 0.0, 0.0))
-                            .content(move || {
-                                if state.mode.get() == "DRIVE" {
-                                    "Park"
-                                } else {
-                                    "Drive"
-                                }
-                            })
-                            .on_click(move |_| {
-                                mobile_vehicle(if state.mode.get_untracked() == "DRIVE" {
-                                    UiAction::ExitVehicle
-                                } else {
-                                    UiAction::ActivateVehicle("auto".into())
-                                })
-                            }),
-                    )),
+                                        "Brick library"
+                                    },
+                                    theme::ACCENT_DARK,
+                                )
+                            }))
+                            .on_click(move |_| toggle(state, state.catalog_open)),
+                    ))
+                    .into())
+                .grid_column(2),
             )),
-        )
+            border()
+                .grid_row(1)
+                .margin((0.0, 6.0, 0.0, 0.0))
+                .is_visible(move || state.compact.get() && !state.layout.get().landscape)
+                .child(phone_navigation(state, dispatch)),
+        ))
         .into()
 }

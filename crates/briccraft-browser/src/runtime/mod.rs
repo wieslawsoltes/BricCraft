@@ -24,6 +24,7 @@ pub struct Runtime {
     modal_active: Cell<bool>,
     pub owner: Owner,
     last_frame: Cell<f64>,
+    visual_time: Cell<f32>,
     last_hud: Cell<f64>,
     fps: Cell<f64>,
     fps_elapsed: Cell<f64>,
@@ -41,8 +42,8 @@ impl Runtime {
         state.world_busy.set(true);
         let world_cache = BitmapCache::new();
         // No world effect is published until frame() knows the laid-out bounds
-        // and display scale. Even the initial background uses a small layer.
-        world_cache.set_render_at_scale(0.125);
+        // and display scale. The default scene begins at native density.
+        world_cache.set_render_at_scale(1.0);
         Self {
             session: RefCell::new(session),
             renderer: RefCell::new(Renderer::new()),
@@ -57,6 +58,7 @@ impl Runtime {
             modal_active: Cell::new(false),
             owner,
             last_frame: Cell::new(0.0),
+            visual_time: Cell::new(0.0),
             last_hud: Cell::new(0.0),
             fps: Cell::new(0.0),
             fps_elapsed: Cell::new(0.0),
@@ -106,8 +108,10 @@ impl Runtime {
 }
 
 mod actions;
+pub(crate) mod designs;
 mod frame;
 pub(crate) mod gameplay;
+mod graphics;
 mod hud;
 mod layout;
 mod resolution;

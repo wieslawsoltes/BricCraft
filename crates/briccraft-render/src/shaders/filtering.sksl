@@ -1,0 +1,88 @@
+// Analytic footprint filtering: no GPU derivatives, temporal history, or extra
+// volume fetches. The same functions run in Skia's raster regression backend.
+float sampleScale() {
+    return inversesqrt(float(sample_count>=4?4:(sample_count>=2?2:1)));
+}
+
+float pixelSpread() {
+    return 2.0*camera_forward.w/max(layer_size.y,1.0);
+}
+
+float3 cameraRay(float2 coord) {
+    float2 uv=coord/max(layer_size,float2(1.0))*2.0-1.0;
+    float aspect=layer_size.x/max(layer_size.y,1.0);
+    float3 direction=camera_forward.xyz
+        +camera_right.xyz*uv.x*aspect*camera_forward.w
+        -camera_up.xyz*uv.y*camera_forward.w;
+    float lengthSquared=dot(direction,direction);
+    return lengthSquared>0.00000001?direction*inversesqrt(lengthSquared):float3(0.0,0.0,1.0);
+}
+
+// Differential of the pinhole ray, projected onto the actual hit tangent plane.
+// The axis-aligned width bounds the local differential away from grazing.
+// At extreme grazing angles, deliberately bound it to avoid division by zero
+// or spreading a tiny feature over an unbounded portion of the world.
+float3 surfaceFootprint(float distance,float3 ray,float3 normal,float moving) {
+    float3 right=camera_right.xyz,up=camera_up.xyz;
+    float cone=pixelSpread()*sampleScale()*max(dot(ray,camera_forward.xyz),0.05)*distance;
+    if(moving>0.5) {
+        ray=vehicleDirection(ray);
+        right=vehicleDirection(right);
+        up=vehicleDirection(up);
+    }
+    float incidence=dot(normal,ray);
+    incidence=(incidence<0.0?-1.0:1.0)*max(abs(incidence),0.08);
+    float3 dx=(right-ray*dot(ray,right))*cone;
+    float3 dy=(up-ray*dot(ray,up))*cone;
+    dx-=ray*(dot(normal,dx)/incidence);
+    dy-=ray*(dot(normal,dy)/incidence);
+    return min(abs(dx)+abs(dy),float3(16.0));
+}
+
+float belowCoverage(float value,float edge,float width) {
+    return clamp(0.5+(edge-value)/max(width,0.00001),0.0,1.0);
+}
+
+// Exact integral of a finite interval under a one-dimensional box footprint.
+float intervalCoverage(float value,float lo,float hi,float width) {
+    width=max(width,0.00001);
+    float left=max(value-width*0.5,lo);
+    float right=min(value+width*0.5,hi);
+    return clamp((right-left)/width,0.0,1.0);
+}
+
+float pulseIntegral(float value,float duty) {
+    float whole=floor(value);
+    return whole*duty+min(value-whole,duty);
+}
+
+// A periodic line retains its area as its width becomes subpixel. Unlike
+// widening a smoothstep, a far grid converges to its actual average coverage.
+float periodicLine(float value,float spacing,float halfWidth,float width) {
+    float duty=clamp(2.0*halfWidth/spacing,0.0,1.0);
+    float center=(value+halfWidth)/spacing;
+    float span=max(width/spacing,0.00001);
+    return clamp((pulseIntegral(center+span*0.5,duty)
+        -pulseIntegral(center-span*0.5,duty))/span,0.0,1.0);
+}
+
+float filteredSine(float phase,float width) {
+    float halfWidth=abs(width)*0.5;
+    float attenuation=halfWidth<0.001?1.0:sin(halfWidth)/halfWidth;
+    return sin(phase)*attenuation;
+}
+
+float radialFootprint(float2 radial,float2 width) {
+    float radius=length(radial);
+    return radius>0.00001?dot(abs(radial)/radius,width):length(width);
+}
+
+float angularFootprint(float2 radial,float2 width) {
+    return dot(abs(radial.yx),width)/max(dot(radial,radial),0.0001);
+}
+
+float cornerCoverage(float3 edge,float3 width,float thickness) {
+    float3 coverage=float3(belowCoverage(edge.x,thickness,width.x),
+        belowCoverage(edge.y,thickness,width.y),belowCoverage(edge.z,thickness,width.z));
+    return max(max(coverage.x*coverage.y,coverage.y*coverage.z),coverage.z*coverage.x);
+}

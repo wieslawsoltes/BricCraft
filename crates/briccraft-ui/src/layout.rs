@@ -65,8 +65,10 @@ impl UiLayout {
         let available = (self.width - 24.0).max(1.0);
         if self.compact && !self.landscape {
             available.min(440.0)
+        } else if self.landscape {
+            available.min(460.0)
         } else {
-            available.min(420.0)
+            available.min(480.0)
         }
     }
 

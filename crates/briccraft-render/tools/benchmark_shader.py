@@ -42,10 +42,24 @@ def traversal_counts(source, scene, quality, width, height, output):
     position = trace.rindex('return best;')
     trace = trace[:position] + 'best.id=float(count);' + trace[position:]
     source = source[:start] + trace + source[end:]
-    # Retain production camera and opaque-water distance limits. Only the
-    # display of the hit is replaced with an exact two-byte iteration count.
-    source = source[:source.index('    bool solid=hit.t<waterT')]
-    source += '    return half4(mod(hit.id,256.0)/255.0,floor(hit.id/256.0)/255.0,0.0,1.0);\n}\n'
+    # Count the center ray independently of the sampling/display resolve.
+    # The camera basis and opaque-water limit match both production revisions.
+    source = source[:source.index('half4 main(')] + '''
+half4 main(float2 coord) {
+    float2 uv=coord/layer_size*2.0-1.0;
+    float aspect=layer_size.x/max(layer_size.y,1.0);
+    float3 ray=normalize(camera_forward.xyz+camera_right.xyz*uv.x*aspect*camera_forward.w
+        -camera_up.xyz*uv.y*camera_forward.w);
+    float3 origin=camera_position.xyz;
+    float waterT=FAR;
+    if(abs(ray.y)>0.000001) {
+        float candidate=(sun_direction.w-origin.y)/ray.y;
+        if(candidate>0.0) waterT=candidate;
+    }
+    Hit hit=traceScene(origin,ray,min(360.0,waterT+8.0));
+    return half4(mod(hit.id,256.0)/255.0,floor(hit.id/256.0)/255.0,0.0,1.0);
+}
+'''
     _, pixels = render(output, scene, quality=quality, width=width, height=height,
         source=source, validate=False)
     count = pixels[..., 0].astype(np.uint16) + pixels[..., 1].astype(np.uint16) * 256
@@ -60,6 +74,7 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--backend', choices=('raster', 'egl'), default='raster')
     parser.add_argument('--frames', type=int, default=12)
+    parser.add_argument('--samples', type=int, choices=(1, 2, 4), default=1)
     parser.add_argument('--width', type=int, default=320)
     parser.add_argument('--height', type=int, default=200)
     parser.add_argument('--qualities', type=int, choices=(0, 1, 2), nargs='+', default=[0, 1, 2])
@@ -77,7 +92,7 @@ def main():
         for name in (('baseline', 'current') if quality % 2 == 0 else ('current', 'baseline')):
             image = args.output.with_name(f'{args.output.stem}.q{quality}.{name}.png')
             samples[name], images[name] = render(image, args.scene, quality=quality,
-                width=args.width, height=args.height, frames=args.frames, source=sources[name],
+                width=args.width, height=args.height, frames=args.frames, samples=args.samples, source=sources[name],
                 backend=args.backend, animate_uniforms=True)
             samples[name]['source_sha256'] = hashlib.sha256(sources[name].encode()).hexdigest()
             if args.count_traversal:
@@ -89,7 +104,7 @@ def main():
             'maximum_channel': int(difference.max()),
             'fraction_pixels_over_8': float((difference.max(axis=2) > 8).mean())}})
     report = {'baseline_ref': args.baseline_ref, 'scene': str(args.scene) if args.scene else 'mixed fixture',
-        'measurements': results}
+        'samples': args.samples, 'measurements': results}
     args.output.write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report))
 

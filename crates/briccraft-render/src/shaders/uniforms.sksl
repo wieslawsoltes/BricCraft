@@ -14,6 +14,7 @@ uniform float4 preview_origin;
 uniform float4 preview_size;
 uniform int selection;
 uniform int quality;
+uniform int sample_count;
 uniform int construction_grid;
 uniform float4 vehicle_dimensions;
 uniform float4 vehicle_position;
@@ -43,6 +44,7 @@ struct Hit {
     float3 albedo;
     float id;
     float shape;
+    float rotation;
     float moving;
     float3 local;
     float3 size;
@@ -85,7 +87,7 @@ float cellId(float3 cell, float3 dimensions, float offset) {
 Hit miss() {
     Hit h;
     h.t = FAR; h.normal = float3(0.0, 1.0, 0.0); h.albedo = float3(0.0);
-    h.id = 0.0; h.shape = 0.0; h.moving = 0.0; h.local = float3(0.0); h.size = float3(1.0);
+    h.id = 0.0; h.shape = 0.0; h.rotation = 0.0; h.moving = 0.0; h.local = float3(0.0); h.size = float3(1.0);
     return h;
 }
 

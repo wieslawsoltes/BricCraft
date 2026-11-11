@@ -31,7 +31,12 @@ for (let attempt = 1; attempt <= 12; attempt++) {
     assert.equal(metrics.terrain?.parts, 12820, "Complete-area browser evidence is missing");
     assert.ok(metrics.mobile, "Mobile browser evidence is missing");
     assert.ok(metrics.gameplay?.saveRoundTrip, "Expedition persistence evidence is missing");
-    for (const name of ["brandenburg", "telegraph-hill", "expedition", "mobile-expedition", "mobile-terrain", "mobile-studio", "mobile-landscape"]) {
+    assert.equal(metrics.imageQuality?.desktop?.world?.samples, 4, "Native AA evidence is missing");
+    assert.equal(metrics.imageQuality?.desktop?.world?.effectWidth, 1280, "Full-density desktop evidence is missing");
+    assert.equal(metrics.imageQuality?.mobile?.world?.effectWidth, 390, "Full-density phone evidence is missing");
+    assert.equal(metrics.imageQuality?.frozenMenu?.newEffects, 0, "Paused-world reuse evidence is missing");
+    assert.ok(metrics.designs?.saveRoundTrip, "Saved-design persistence evidence is missing");
+    for (const name of ["brandenburg", "telegraph-hill", "expedition", "mobile-expedition", "mobile-terrain", "mobile-studio", "mobile-landscape", "quality-desktop", "quality-mobile", "settings", "mobile-settings", "design-library", "mobile-designs"]) {
       const preview = await resource(`previews/${name}.png`);
       assert.match(preview.headers.get("content-type") ?? "", /^image\/png\b/i);
       assert.ok((await preview.arrayBuffer()).byteLength > 1_024, `${name} preview is empty`);

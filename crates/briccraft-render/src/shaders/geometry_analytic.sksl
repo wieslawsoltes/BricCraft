@@ -353,7 +353,7 @@ float studHit(float3 ro,float3 rd,PartData part,float3 cell,out float3 normal) {
 
 Hit partSurface(float3 ro,float3 rd,float id,PartData part,float t,float3 normal) {
     Hit hit=miss();
-    hit.t=t;hit.normal=normal;hit.id=id;hit.shape=part.shape;
+    hit.t=t;hit.normal=normal;hit.id=id;hit.shape=part.shape;hit.rotation=part.rotation;
     // Descriptor colors are needed only for an accepted hit, never while
     // searching empty portions of a shaped part or a stud's bounding cell.
     hit.albedo=record(id,2.0)/255.0;

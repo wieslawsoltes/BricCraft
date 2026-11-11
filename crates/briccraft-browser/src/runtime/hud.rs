@@ -2,8 +2,20 @@ use super::*;
 
 impl Runtime {
     pub fn sync_hud(&self) {
+        self.sync_graphics();
         let game = self.session.borrow();
         let gameplay = gameplay::project(&game);
+        let designs = designs::project(&game);
+        let vehicle_kind = game
+            .active_vehicle
+            .as_ref()
+            .map_or("", |active| match active.vehicle.kind {
+                briccraft_mechanics::VehicleKind::Car => "car",
+                briccraft_mechanics::VehicleKind::Plane => "plane",
+                briccraft_mechanics::VehicleKind::Train => "train",
+                briccraft_mechanics::VehicleKind::Boat => "boat",
+            })
+            .to_owned();
         let state = self.state;
         let selected_part = game.selected_part;
         let selected_color = game.color;
@@ -110,6 +122,8 @@ impl Runtime {
             state.daylight.set_if_changed(daylight);
             state.mechanics.set_if_changed(mechanics);
             state.gameplay.set_if_changed(gameplay);
+            state.designs.set_if_changed(designs);
+            state.vehicle_kind.set_if_changed(vehicle_kind);
         });
     }
 }

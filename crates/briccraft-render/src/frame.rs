@@ -43,6 +43,10 @@ pub struct RenderFrame {
     pub preview: Option<PlacementPreview>,
     /// 0 = fast, 1 = balanced, 2 = full shadows.
     pub quality: u8,
+    /// Deterministic spatial samples per physical world pixel: 1, 2 or 4.
+    /// Prefer adequate physical resolution before increasing this budget.
+    /// Other values round down to the nearest supported count, minimum 1.
+    pub samples: u8,
     /// Width in studs of the streamed-window atmospheric boundary. Zero keeps
     /// the classic island unchanged; moving constructions remain visible.
     pub window_fade: f32,
@@ -60,9 +64,18 @@ impl Default for RenderFrame {
             selected_id: None,
             preview: None,
             quality: 1,
+            samples: 1,
             window_fade: 0.0,
             grid: false,
             vehicle: None,
         }
+    }
+}
+
+pub(crate) const fn sample_count(requested: u8) -> u8 {
+    match requested {
+        0 | 1 => 1,
+        2 | 3 => 2,
+        _ => 4,
     }
 }

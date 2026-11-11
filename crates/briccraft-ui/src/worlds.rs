@@ -112,7 +112,7 @@ pub fn panel(state: UiState, dispatch: Dispatch) -> Element {
                     let id = world.id.clone();
                     let archive_id = world.id.clone();
                     let active = id == current;
-                    border().padding(12.0).corner_radius(10.0).background(theme::INSET)
+                    border().padding(12.0).corner_radius(14.0).background(theme::INSET)
                         .border_brush(if active { theme::ACCENT } else { theme::EDGE }).border_thickness(1.0)
                         .child(stack_panel().spacing(7.0).children((
                             text_block().text(format!("{}{}",world.name,if active { " · current" } else { "" }))

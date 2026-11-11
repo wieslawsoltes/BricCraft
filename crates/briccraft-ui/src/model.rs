@@ -44,6 +44,15 @@ pub enum UiAction {
     ToggleExplore,
     ResetCamera,
     SpawnBlueprint(String),
+    CaptureDesign(String),
+    PlaceDesign(u32),
+    RenameDesign {
+        id: u32,
+        name: String,
+    },
+    DeleteDesign(u32),
+    ExportDesign(u32),
+    ImportDesign,
     ActivateVehicle(String),
     ExitVehicle,
     NewWorld(u64),
@@ -92,6 +101,10 @@ pub enum UiAction {
     SetDaylight(f64),
     SetSound(bool),
     SetQuality(u8),
+    /// Resolution policy: 0 = Auto, 1 = Quality, 2 = Performance.
+    SetResolutionMode(u8),
+    /// Requested pixel samples: 1, 2 or 4. Quality honors the selected count.
+    SetAntialiasing(u8),
     SetGrid(bool),
     SetPaused(bool),
     /// Switch the ruleset while keeping this world's balance and objective history.
@@ -125,6 +138,8 @@ pub struct UiState {
     pub selected_name: Signal<String>,
     pub selected_size: Signal<String>,
     pub mode: Signal<String>,
+    /// Active transport: car, plane, train, boat, or empty while building.
+    pub vehicle_kind: Signal<String>,
     pub status: Signal<String>,
     pub stats: Signal<String>,
     pub world_name: Signal<String>,
@@ -141,14 +156,18 @@ pub struct UiState {
     pub import_progress: Signal<f64>,
     pub mechanics: Signal<String>,
     pub gameplay: Signal<crate::gameplay_model::GameplayView>,
+    pub designs: Signal<crate::design_model::DesignLibraryView>,
     pub catalog_open: Signal<bool>,
     pub blueprints_open: Signal<bool>,
+    /// 0 = starter plans, 1 = this world's saved designs.
+    pub blueprint_section: Signal<u8>,
     pub help_open: Signal<bool>,
     pub settings_open: Signal<bool>,
     pub worlds_open: Signal<bool>,
     pub imports_open: Signal<bool>,
     pub credits_open: Signal<bool>,
     pub gameplay_open: Signal<bool>,
+    pub world_details_open: Signal<bool>,
     pub sound: Signal<bool>,
     pub grid: Signal<bool>,
     pub compact: Signal<bool>,
@@ -159,6 +178,11 @@ pub struct UiState {
     pub daylight: Signal<f64>,
     /// 0 = performance, 1 = balanced, 2 = cinematic.
     pub quality: Signal<u8>,
+    pub resolution_mode: Signal<u8>,
+    pub antialiasing: Signal<u8>,
+    pub render_status: Signal<String>,
+    /// A local presentation preference; diagnostics stay out of the normal HUD.
+    pub show_metrics: Signal<bool>,
     pub seed: Signal<u64>,
 }
 
@@ -171,6 +195,7 @@ impl UiState {
             selected_name: signal("Brick 2 × 4".into()),
             selected_size: signal("2 × 4 studs · 3 plates".into()),
             mode: signal("BUILD".into()),
+            vehicle_kind: signal(String::new()),
             status: signal("Choose a brick. Make something extraordinary.".into()),
             stats: signal(String::new()),
             world_name: signal("Sunlit archipelago".into()),
@@ -189,14 +214,17 @@ impl UiState {
                 "Connect a chassis, motor, axles and wheels to bring your build to life.".into(),
             ),
             gameplay: signal(crate::gameplay_model::GameplayView::default()),
+            designs: signal(crate::design_model::DesignLibraryView::default()),
             catalog_open: signal(false),
             blueprints_open: signal(false),
+            blueprint_section: signal(0),
             help_open: signal(false),
             settings_open: signal(false),
             worlds_open: signal(false),
             imports_open: signal(false),
             credits_open: signal(false),
             gameplay_open: signal(false),
+            world_details_open: signal(false),
             sound: signal(true),
             grid: signal(false),
             compact: signal(false),
@@ -206,6 +234,10 @@ impl UiState {
             fps: signal(0.0),
             daylight: signal(0.35),
             quality: signal(1),
+            resolution_mode: signal(0),
+            antialiasing: signal(2),
+            render_status: signal("Preparing the world display…".into()),
+            show_metrics: signal(false),
             seed: signal(42),
         }
     }
@@ -220,6 +252,7 @@ impl UiState {
             self.imports_open.set(false);
             self.credits_open.set(false);
             self.gameplay_open.set(false);
+            self.world_details_open.set(false);
         });
     }
 
@@ -232,6 +265,7 @@ impl UiState {
             || self.imports_open.get()
             || self.credits_open.get()
             || self.gameplay_open.get()
+            || self.world_details_open.get()
             || self.import_busy.get()
             || self.world_busy.get()
     }
@@ -245,6 +279,7 @@ impl UiState {
             || self.imports_open.get_untracked()
             || self.credits_open.get_untracked()
             || self.gameplay_open.get_untracked()
+            || self.world_details_open.get_untracked()
             || self.import_busy.get_untracked()
             || self.world_busy.get_untracked()
     }

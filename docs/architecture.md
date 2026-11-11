@@ -15,6 +15,7 @@ BricCraft is a Rust workspace with a pinned FerroUI submodule. All visible game 
 | `briccraft-mechanics` | Gear constraints, shafts, transmission, differential, steering, springs, rails and vehicle dynamics | None |
 | `briccraft-character` | Generic voxel collision interface, swept character movement, wall sliding, stepping, gravity and grounded jumps | None |
 | `briccraft-play` | Catalog costs, resource permits, Creative/Expedition rules, movement objectives and one-time rewards | None |
+| `briccraft-design` | Bounded relative construction recipes, metadata, transforms, library and portable-file validation | None |
 | `briccraft-game` | Input state, cameras, construction/vehicle session and session persistence | None |
 | `briccraft-render-data` | Bounded occupancy/descriptor atlases, independent body namespaces and packing metrics | None |
 | `briccraft-render` | GPU ray traversal, procedural part surfaces, lighting, water and animated assemblies | FerroUI Base effects and bitmaps |
@@ -126,14 +127,44 @@ The current FerroUI browser `Viewport3D` path falls back to a CPU rasterizer. Br
 
 The world effect belongs to a child visual inside a separate parent `BitmapCache`. This distinction matters in the pinned framework: an effect change on the cache root does not dirty its own cached image, while the changing child contributes its dirty bounds to the parent's cache collector. The parent renders its subtree into a smaller GPU surface and composites it below the full-resolution HUD. Camera, water and vehicle changes keep invalidating that world surface; the browser gate checks actual camera-driven pixel changes and unchanged atlas publication counts.
 
-An adaptive controller uses actual presented frames and elapsed time to adjust the world's physical pixel budget. It starts with a bounded 65,536-pixel world surface, accounts for browser device scale, reduces work promptly on slow devices, and raises detail only after sustained headroom. The user's quality selection is an upper bound. Fast and Balanced use analytic part intersections; Cinematic retains the detailed signed-distance part shapes. Their shader programs are separate effect types, so the fast program excludes the expensive secondary traversal instead of only hiding it behind a uniform branch. Diagnostics expose requested/effective quality, world surface dimensions, scale and measured presentation rate. None of these changes lowers native UI resolution.
+The allocation controller separates image density, shader detail and spatial sample
+count. Auto starts at native density, capped at 4,194,304 physical pixels and 4,096
+pixels per axis; its floor is 0.75 world pixels per CSS pixel per axis within those
+limits. Four presented warmup frames exclude cold shader stalls. Under sustained
+pressure, AA samples drop first, then detail, then density. Recovery needs three
+seconds of headroom and restores density before detail and samples. Paused/modal
+frames do not drive adaptation. Quality fixes native density within an 8,294,400-pixel
+cap and honors requested detail/samples. Explicit Performance mode starts at Fast,
+one sample and 0.4 CSS density, recovering toward at most 0.75 density. The controller
+is framework-independent and tested for resize, device scale, startup, quality
+floors, sample order and idle periods. Preferences live in browser storage rather
+than saved-world state. Settings exposes actual dimensions/detail/samples.
+
+Fast and Balanced use analytic part intersections; Cinematic retains detailed
+signed-distance part shapes. Their separate effect types exclude secondary traversal
+from Fast instead of hiding it behind a uniform branch. All support deterministic
+1/2/4 subpixel sampling, resolved before the display curve. Analytic pinhole
+differentials project onto hit surfaces to filter seams, stud rings, molded normals,
+grid lines and moving-body materials without shader derivatives. Grazing footprints
+are clamped; GGX highlights include curved-surface variance and material roughness.
+Native coverage/error probes and measured CPU costs are recorded in
+`crates/briccraft-render/ANTIALIASING.md`.
+
+The renderer retains an exact immutable effect snapshot and returns its existing
+`Rc<dyn IEffect>` only when every uniform and atlas-image identity matches. Visual
+time stops while paused or modal, so an unchanged world can keep its bitmap while
+the native UI remains interactive. Scene changes invalidate both snapshot and atlases;
+resolution changes clear only the snapshot and explicitly invalidate the child
+visual, because FerroUI compares equal effects structurally. This also repaints a
+paused world after a density change. Publication and reuse counters remain separate
+from actual presented-frame statistics.
 
 The browser adapter also skips repeated `WebRenderTarget.setSize` calls when its
 owned WebGL canvas already has exactly the requested backing dimensions. Real size
 changes and all foreign, software, and worker targets retain the framework's
 behavior. This avoids redundant width/height assignments without changing the
 submodule or DOM prototypes. The browser gate records a same-page A/B/A comparison
-of actual presented frames, size calls, world resolution, and shader quality;
+of actual presented frames, size calls, world resolution, shader quality and AA samples;
 different adaptive configurations are explicitly marked as incomparable.
 
 A conservative hierarchy stores maximum occupied heights for 4-, 16- and 64-stud
@@ -159,9 +190,40 @@ use the same game commands as desktop input. Modal panels own a full backdrop, a
 world rejects pointer/wheel gestures while a modal is open. Source credits expand into a
 native scrollable panel rather than occupying the world with a long attribution string.
 
+The persistent HUD uses compact world/objective chips and a floating grouped tool
+bar. Detailed world status and performance diagnostics are opt-in panels/settings.
+Drive/Park and touch vertical controls reflect the active vehicle kind; ground
+vehicles do not advertise inert rise/descend controls. Shared vector icons, panel
+headers and cards are native `ferroui-view` builders. Settings, help, blueprint
+previews, saved designs and world details are separate modules.
+
+### Reusable construction recipes
+
+`briccraft-design` validates bounded relative placements independently of UI, browser
+storage and session history. It preserves catalog identity, color and quarter-turn
+rotation, and checks envelope, overlap, connected components, names, IDs and source
+metadata. Each world carries an optional/defaulted library of up to 32 recipes, with
+256 parts and a 32 × 72 × 32-cell envelope per recipe. Invalid libraries reject the
+candidate save before replacing the current session; legacy saves start empty.
+
+Session capture selects a bounded connected assembly or the last complete grouped
+construction. Scene/revision/hit/group keys cache the capture assessment. Terrain and
+potentially truncated boundary assemblies are rejected. Source metadata keeps exact
+64-bit global coordinates. Placement transforms the relative recipe into the current
+anchor/rotation and delegates to the existing atomic construction transaction,
+economy, streaming edits and grouped history. A blocked target fails without a search
+for a different placement; copies keep ordinary workshop/activation behavior.
+
+Portable versioned `.bricdesign` files are limited to 256 KiB. Import validates the
+entire recipe, allocates a local ID and resolves duplicate names, preserving source
+metadata. Importing a recipe changes neither geometry, money nor objectives. Browser
+file handling is a host service; capture, rename, build, import/export and inline
+delete confirmation remain native declarative controls. The file callback rejects
+an intervening world switch before importing into a different library.
+
 ## Simulation and persistence
 
-The session samples held input at 60 Hz. Vehicle integration subdivides to 120 Hz; display frame spikes are bounded. Input is cleared on focus loss, panel interaction and pause. Picking and placement share the same world coordinate conventions as rendering.
+The session samples held input at 60 Hz. Vehicle integration subdivides to 120 Hz; display frame spikes are bounded. Input is cleared on focus loss, panel interaction and pause. Open modal panels suspend simulation, including inertia, gravity and the follow camera, while incremental streaming/import work can continue. Picking and placement share the same world coordinate conventions as rendering.
 
 Walking uses a reusable upright cylindrical controller over the occupancy grid. Its
 0.32-stud radius, 2.5-unit body and 2.2-unit eye height are explicit configuration.

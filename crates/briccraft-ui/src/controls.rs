@@ -1,6 +1,7 @@
-use crate::{theme, Dispatch, UiAction, UiState};
+use crate::{icons, theme, UiState};
 use ferroui_base::layout::{HorizontalAlignment as H, VerticalAlignment as V};
 use ferroui_base::media::{FontWeight, TextWrapping};
+use ferroui_controls::Button;
 use ferroui_view::prelude::*;
 
 pub fn label(value: impl Into<String>) -> Element {
@@ -21,26 +22,36 @@ pub fn caption(value: impl Into<String>) -> Element {
         .into()
 }
 
-pub fn action_button(title: &str, hint: &str, action: UiAction, dispatch: Dispatch) -> Element {
+pub fn tool_button(
+    name: &str,
+    hint: &str,
+    icon: icons::Icon,
+    activate: impl Fn() + 'static,
+) -> El<Button> {
     button()
-        .content(title)
+        .name(name)
+        .class("quiet")
+        .width(44.0)
+        .height(44.0)
+        .padding(0.0)
+        .automation_properties_name(Some(hint.to_string()))
         .tool_tip_tip(hint)
-        .on_click(move |_| dispatch(action.clone()))
-        .into()
+        .child(icons::glyph(icon, theme::TEXT))
+        .on_click(move |_| activate())
 }
 
 pub fn keycap(text: &str) -> Element {
     border()
-        .background("#283840")
-        .border_brush("#455962")
+        .background("#263A4E")
+        .border_brush("#536C81")
         .border_thickness((1.0, 1.0, 1.0, 2.0))
-        .corner_radius(4.0)
+        .corner_radius(5.0)
         .padding((6.0, 2.0))
         .child(
             text_block()
                 .text(text)
                 .font_size(10.0)
-                .foreground("#D7E3E7"),
+                .foreground("#D9E8F3"),
         )
         .into()
 }
@@ -59,16 +70,16 @@ pub fn panel(
         .vertical_alignment(V::Stretch)
         .margin(move || state.layout.get().panel_margin())
         .background(theme::SURFACE)
-        .border_brush(theme::EDGE)
+        .border_brush("#53697F")
         .border_thickness(1.0)
-        .corner_radius(16.0)
+        .corner_radius(20.0)
         .padding(move || {
             if state.layout.get().landscape {
-                12.0
+                14.0
             } else if state.compact.get() {
                 16.0
             } else {
-                22.0
+                24.0
             }
         })
         .effect(theme::shadow())
@@ -82,32 +93,40 @@ pub fn panel(
                             0.0,
                             0.0,
                             if state.layout.get().landscape {
-                                8.0
+                                10.0
                             } else {
-                                14.0
+                                18.0
                             },
                         )
                     })
                     .children((
-                        stack_panel().spacing(5.0).children((
-                            border()
-                                .is_visible(move || !state.layout.get().landscape)
-                                .child(label(eyebrow)),
-                            text_block()
-                                .text(title)
-                                .font_size(move || if state.compact.get() { 22.0 } else { 24.0 })
-                                .font_weight(FontWeight::SemiBold),
-                        )),
-                        button()
+                        stack_panel()
+                            .spacing(6.0)
+                            .margin((0.0, 0.0, 8.0, 0.0))
+                            .children((
+                                border()
+                                    .height(3.0)
+                                    .width(30.0)
+                                    .corner_radius(2.0)
+                                    .background(theme::ACCENT)
+                                    .horizontal_alignment(H::Left)
+                                    .is_visible(move || !state.layout.get().landscape),
+                                border()
+                                    .is_visible(move || !state.layout.get().landscape)
+                                    .child(label(eyebrow)),
+                                text_block()
+                                    .text(title)
+                                    .font_size(
+                                        move || if state.compact.get() { 22.0 } else { 25.0 },
+                                    )
+                                    .font_weight(FontWeight::SemiBold)
+                                    .text_wrapping(TextWrapping::Wrap),
+                            )),
+                        tool_button("ClosePanel", "Close panel · Esc", icons::Icon::Close, close)
                             .grid_column(1)
-                            .class("quiet")
-                            .content("Close")
-                            .font_size(11.0)
-                            .width(52.0)
-                            .height(44.0)
-                            .padding(0.0)
-                            .tool_tip_tip("Close panel · Esc")
-                            .on_click(move |_| close()),
+                            .vertical_alignment(V::Top)
+                            .background("#23364A")
+                            .border_brush("#40586E"),
                     )),
                 border().grid_row(1).child(content),
             )),
@@ -115,11 +134,11 @@ pub fn panel(
         .into()
 }
 
-/// A panel consumes outside taps before the world can interpret them as edits.
+/// A native backdrop owns outside taps before the world can interpret them as edits.
 pub fn modal_backdrop(state: UiState) -> Element {
     border()
         .name("PanelBackdrop")
-        .background("#66071118")
+        .background("#8006101C")
         .is_visible(move || state.modal())
         .on_pointer_pressed(move |event| {
             if !state.import_busy.get_untracked() && !state.world_busy.get_untracked() {

@@ -1,5 +1,5 @@
 //! Thumb controls are real native buttons, with independent held axes.
-use crate::{theme, Dispatch, UiAction, UiState};
+use crate::{icons, theme, Dispatch, UiAction, UiState};
 use ferroui_base::layout::{HorizontalAlignment as H, VerticalAlignment as V};
 use ferroui_base::media::Geometry;
 use ferroui_controls::Button;
@@ -20,6 +20,7 @@ fn held_button(
         .content(title)
         .width(48.0)
         .height(48.0)
+        .corner_radius(14.0)
         .margin(2.0)
         .padding(0.0)
         .font_size(11.0)
@@ -28,16 +29,16 @@ fn held_button(
         .tool_tip_tip(hint)
         .background(move || {
             if held.get()[index] {
-                "#725237"
+                "#55472F"
             } else {
-                "#273B46"
+                theme::HUD
             }
         })
         .border_brush(move || {
             if held.get()[index] {
                 theme::ACCENT
             } else {
-                "#58707B"
+                "#71899C"
             }
         })
         .on_changed(Button::is_pressed_property(), move |pressed| {
@@ -84,8 +85,10 @@ pub fn controls(state: UiState, dispatch: Dispatch) -> Element {
                 .vertical_alignment(V::Bottom)
                 .margin(move || (12.0, 0.0, 0.0, state.layout.get().controls_bottom()))
                 .padding(5.0)
-                .background("#B811222D")
-                .corner_radius(16.0)
+                .background("#A8101D2B")
+                .corner_radius(18.0)
+                .border_brush("#64728BA0")
+                .border_thickness(1.0)
                 .child(
                     grid()
                         .column_definitions("Auto,Auto,Auto")
@@ -99,7 +102,12 @@ pub fn controls(state: UiState, dispatch: Dispatch) -> Element {
                                 false,
                                 held,
                                 dispatch.clone(),
-                            ),
+                            )
+                            .is_visible(move || {
+                                state.mode.get() != "WALK"
+                                    && (state.mode.get() != "DRIVE"
+                                        || state.vehicle_kind.get() == "plane")
+                            }),
                             held_button(
                                 "TouchForward",
                                 "",
@@ -120,7 +128,17 @@ pub fn controls(state: UiState, dispatch: Dispatch) -> Element {
                                 held,
                                 dispatch.clone(),
                             )
-                            .grid_column(2),
+                            .grid_column(2)
+                            .content(move || {
+                                if state.mode.get() == "WALK" {
+                                    "Jump"
+                                } else {
+                                    "Rise"
+                                }
+                            })
+                            .is_visible(move || {
+                                state.mode.get() != "DRIVE" || state.vehicle_kind.get() == "plane"
+                            }),
                             held_button(
                                 "TouchLeft",
                                 "",
@@ -164,8 +182,10 @@ pub fn controls(state: UiState, dispatch: Dispatch) -> Element {
                 .vertical_alignment(V::Bottom)
                 .margin(move || (0.0, 0.0, 12.0, state.layout.get().controls_bottom()))
                 .padding(5.0)
-                .background("#B811222D")
-                .corner_radius(16.0)
+                .background("#A8101D2B")
+                .corner_radius(18.0)
+                .border_brush("#64728BA0")
+                .border_thickness(1.0)
                 .child(
                     grid().children((
                         grid()
@@ -196,7 +216,9 @@ pub fn controls(state: UiState, dispatch: Dispatch) -> Element {
                                 button()
                                     .name("TouchRotate")
                                     .grid_row(1)
-                                    .content("Rotate")
+                                    .automation_properties_name(Some("Rotate selected part".into()))
+                                    .tool_tip_tip("Rotate the selected part")
+                                    .child(icons::glyph(icons::Icon::Rotate, theme::TEXT))
                                     .width(52.0)
                                     .height(48.0)
                                     .margin(2.0)
@@ -208,7 +230,9 @@ pub fn controls(state: UiState, dispatch: Dispatch) -> Element {
                                     .name("TouchRemove")
                                     .grid_row(1)
                                     .grid_column(1)
-                                    .content("Remove")
+                                    .automation_properties_name(Some("Remove targeted part".into()))
+                                    .tool_tip_tip("Remove or recycle the targeted part")
+                                    .child(icons::glyph(icons::Icon::Remove, theme::TEXT))
                                     .width(52.0)
                                     .height(48.0)
                                     .margin(2.0)

@@ -1,21 +1,18 @@
-half4 main(float2 coord) {
-    float2 uv=(coord/layer_size)*2.0-1.0;
-    float aspect=layer_size.x/max(layer_size.y,1.0);
-    float3 ray=normalize(camera_forward.xyz+camera_right.xyz*uv.x*aspect*camera_forward.w-camera_up.xyz*uv.y*camera_forward.w);
+// One shared scene evaluation preserves geometry, shallow transmission and
+// moving-body boundary behavior for every sample. Its single shadeBrick call
+// prevents separate solid/water branches from duplicating the shadow call graph.
+float3 shadeScene(float3 ray) {
     float3 origin=camera_position.xyz;
     float waterT=FAR;
     if(abs(ray.y)>0.000001) {
         float candidate=(sun_direction.w-origin.y)/ray.y;
         if(candidate>0.0) waterT=candidate;
     }
-    // Water only transmits the first eight world units. Do not trace geometry
-    // beyond a surface that the material will make fully opaque.
+    // Water only transmits the first eight world units.
     Hit hit=traceScene(origin,ray,min(360.0,waterT+8.0));
     bool solid=hit.t<waterT && hit.t<FAR;
     bool submerged=waterT<FAR && hit.t<FAR && hit.t-waterT<8.0;
     float3 brickColor=float3(0.0);
-    // One call site keeps the shadow/DDA path from being duplicated when a
-    // driver inlines the shader's functions. Mutually exclusive surfaces share it.
     if(solid || submerged) brickColor=shadeBrick(hit,origin+ray*hit.t,ray);
     float3 color;
     float surfaceT=min(hit.t,waterT);
@@ -29,43 +26,73 @@ half4 main(float2 coord) {
             color=mix(color,brickColor*float3(0.72,0.91,0.96),transmission);
         }
         if(camera_right.w>0.0) {
-            // The bounded terrain and its background share one atmospheric edge.
-            // Otherwise the infinite water plane draws a false square coastline.
             float3 haze=skyColor(ray);
-            // Detached constructions remain visible when crossing the window,
-            // including the transmitted part of a hull below the water surface.
             haze=mix(haze,brickColor*float3(0.72,0.91,0.96),transmission*hit.moving);
             color=mix(color,haze,windowBoundaryFog(waterPosition.xz));
         }
-    }
-    else color=skyColor(ray);
-    if(construction_grid>0 && hit.t<waterT && hit.t<FAR && hit.moving<0.5 && hit.normal.y>0.7) {
-        float2 p=(origin+ray*hit.t).xz;
-        float2 edge=min(fract(p),1.0-fract(p));
-        float width=clamp(hit.t*0.0005,0.015,0.08);
-        float lines=1.0-smoothstep(width,width*1.7,min(edge.x,edge.y));
-        float2 major=min(mod(p,8.0),8.0-mod(p,8.0));
-        float bold=1.0-smoothstep(width*1.4,width*2.3,min(major.x,major.y));
-        color=mix(color,float3(0.32,0.94,0.85),lines*0.18+bold*0.20);
+    } else color=skyColor(ray);
+    if(construction_grid>0 && solid && hit.moving<0.5 && hit.normal.y>0.7) {
+        float2 position=(origin+ray*hit.t).xz;
+        float2 width=surfaceFootprint(hit.t,ray,hit.normal,0.0).xz;
+        float minorX=periodicLine(position.x,1.0,0.018,width.x);
+        float minorZ=periodicLine(position.y,1.0,0.018,width.y);
+        float majorX=periodicLine(position.x,8.0,0.035,width.x);
+        float majorZ=periodicLine(position.y,8.0,0.035,width.y);
+        float minor=minorX+minorZ-minorX*minorZ;
+        float major=majorX+majorZ-majorX*majorZ;
+        color=mix(color,float3(0.32,0.94,0.85),minor*0.18+major*0.20);
     }
     if(preview_origin.w>0.5) {
         float3 normal;
-        float ghost=boxHit(origin,ray,preview_origin.xyz+float3(0.012),preview_origin.xyz+preview_size.xyz-float3(0.012),normal);
+        float ghost=boxHit(origin,ray,preview_origin.xyz+float3(0.012),
+            preview_origin.xyz+preview_size.xyz-float3(0.012),normal);
         if(ghost<FAR && ghost<surfaceT+0.08) {
             float3 p=origin+ray*ghost-preview_origin.xyz;
+            float3 width=surfaceFootprint(ghost,ray,normal,0.0);
             float3 edge=min(p,preview_size.xyz-p);
-            float width=max(0.04,ghost*0.0008)*max(1.0,layer_scale*0.6);
-            float count=(edge.x<width?1.0:0.0)+(edge.y<width?1.0:0.0)+(edge.z<width?1.0:0.0);
+            float thickness=max(0.04,pixelSpread()*ghost*0.80);
+            float outline=cornerCoverage(edge,width,thickness);
+            float gridX=periodicLine(p.x,1.0,0.04,width.x);
+            float gridZ=periodicLine(p.z,1.0,0.04,width.z);
+            float grid=gridX+gridZ-gridX*gridZ;
             float3 tint=preview_size.w>0.5?float3(0.25,1.0,0.73):float3(1.0,0.30,0.24);
-            float grid=(abs(fract(p.x)-0.5)>0.46 || abs(fract(p.z)-0.5)>0.46)?0.12:0.0;
-            color=mix(color,tint,count>1.5?0.95:0.24+grid);
+            color=mix(color,tint,mix(0.24+grid*0.12,0.95,outline));
         }
     }
-    // A gentle filmic shoulder and vignette preserve rich molded colors without
-    // blowing out white parts under the sun. The HUD is outside this effect.
+    return color;
+}
+
+float3 displayColor(float3 color,float2 uv) {
+    // Resolve scene lighting before the nonlinear display shoulder. The native
+    // HUD is a sibling of this effect, so it keeps its own display resolution.
     color=color/(color*0.28+0.82);
     color=pow(max(color,float3(0.0)),float3(0.91));
-    float vignette=1.0-(quality==0?0.06:0.08)*dot(uv*float2(0.65,0.8),uv*float2(0.65,0.8));
-    color*=vignette;
-    return half4(half3(clamp(color,float3(0.0),float3(1.0))),1.0);
+    float2 vignettePosition=uv*float2(0.65,0.8);
+    color*=1.0-(quality==0?0.06:0.08)*dot(vignettePosition,vignettePosition);
+    return clamp(color,float3(0.0),float3(1.0));
+}
+
+float2 sampleOffset(int index,int count) {
+    if(count==1) return float2(0.0);
+    if(count==2) return index==0?float2(-0.25,-0.25):float2(0.25,0.25);
+    // Rotated four-sample grid: four distinct horizontal/vertical phases,
+    // symmetric about the pixel center. No temporal jitter or history.
+    if(index==0) return float2(-0.375,-0.125);
+    if(index==1) return float2(0.125,-0.375);
+    if(index==2) return float2(0.375,0.125);
+    return float2(-0.125,0.375);
+}
+
+half4 main(float2 coord) {
+    int count=sample_count>=4?4:(sample_count>=2?2:1);
+    float3 color=float3(0.0);
+    // A single scene call site bounds work to at most four primary samples
+    // without copying the traversal/shadow function body into source branches.
+    for(int index=0;index<4;++index) {
+        if(index>=count) break;
+        color+=shadeScene(cameraRay(coord+sampleOffset(index,count)));
+    }
+    color/=float(count);
+    float2 uv=coord/max(layer_size,float2(1.0))*2.0-1.0;
+    return half4(half3(displayColor(color,uv)),1.0);
 }

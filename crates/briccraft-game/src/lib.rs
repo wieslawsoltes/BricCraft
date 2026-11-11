@@ -3,6 +3,7 @@
 mod blueprints;
 pub mod camera;
 mod construction;
+mod designs;
 mod gameplay;
 mod importing;
 pub mod input;
@@ -11,16 +12,18 @@ pub mod session;
 mod streaming;
 pub mod vehicle;
 mod world_info;
+pub use briccraft_design::{CaptureKind, ConstructionDesign, DesignMetadata};
+pub use briccraft_play::{BuildQuote, GameMode, Gameplay, ObjectiveView};
 pub use briccraft_stream::{
     BiomePreset, GlobalPlacement, GlobalPos, ImportProgress, StreamError, StreamStats, WindowOrigin,
 };
 pub use camera::{CameraMode, CameraRig};
+pub use designs::DesignCaptureStatus;
 pub use input::Input;
 pub use session::Session;
 pub use streaming::StreamSession;
-pub use world_info::{GameAttribution, WorldInfo};
-pub use briccraft_play::{BuildQuote, GameMode, Gameplay, ObjectiveView};
 pub use vehicle::WorkshopStatus;
+pub use world_info::{GameAttribution, WorldInfo};
 
 #[cfg(test)]
 mod import_tests;

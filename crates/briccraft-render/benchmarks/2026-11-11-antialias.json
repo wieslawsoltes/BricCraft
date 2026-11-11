@@ -1,0 +1,472 @@
+{
+  "date": "2026-11-11",
+  "environment": {
+    "backend": "native Skia CPU raster",
+    "skia_python": "144.1",
+    "python": "3.12.14",
+    "numpy": "2.3.5",
+    "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+    "cpu": "AMD EPYC 9V45 96-Core Processor",
+    "note": "Shared execution host. Native raster results do not estimate browser/GPU FPS."
+  },
+  "coverage_and_filters": {
+    "backend": "native Skia CPU raster",
+    "material_filters": {
+      "probes": 16,
+      "maximum_error": 0.0019607843137254832,
+      "comparison": "65536-tap independent midpoint quadrature; RGBA8 output"
+    },
+    "surface_differentials": [
+      {
+        "samples": 1,
+        "probes": 8,
+        "maximum_error": 0.0019353716875344373
+      },
+      {
+        "samples": 2,
+        "probes": 8,
+        "maximum_error": 0.0019062172323880966
+      },
+      {
+        "samples": 4,
+        "probes": 8,
+        "maximum_error": 0.0018847048918115283
+      }
+    ],
+    "coverage": [
+      {
+        "quality": 0,
+        "size": [
+          72,
+          48
+        ],
+        "reference_factor": 8,
+        "edge_pixels": 277,
+        "measurements": [
+          {
+            "samples": 1,
+            "mean_absolute_coverage_error": 0.016248914930555556,
+            "edge_mean_absolute_error": 0.20273014440433212,
+            "draw_ms": [
+              6.572994000180188
+            ],
+            "compile_ms": 2.32456200001252
+          },
+          {
+            "samples": 2,
+            "mean_absolute_coverage_error": 0.010921933154048656,
+            "edge_mean_absolute_error": 0.13626787357542297,
+            "draw_ms": [
+              11.0281969996322
+            ],
+            "compile_ms": 2.146764999906736
+          },
+          {
+            "samples": 4,
+            "mean_absolute_coverage_error": 0.0061829810049019605,
+            "edge_mean_absolute_error": 0.07714217455935442,
+            "draw_ms": [
+              18.861379000099987
+            ],
+            "compile_ms": 2.1044220002295333
+          }
+        ]
+      },
+      {
+        "quality": 1,
+        "size": [
+          72,
+          48
+        ],
+        "reference_factor": 8,
+        "edge_pixels": 277,
+        "measurements": [
+          {
+            "samples": 1,
+            "mean_absolute_coverage_error": 0.016248914930555556,
+            "edge_mean_absolute_error": 0.20273014440433212,
+            "draw_ms": [
+              6.456160000197997
+            ],
+            "compile_ms": 2.3995839997041912
+          },
+          {
+            "samples": 2,
+            "mean_absolute_coverage_error": 0.010921933154048656,
+            "edge_mean_absolute_error": 0.13626787357542297,
+            "draw_ms": [
+              10.636990999955742
+            ],
+            "compile_ms": 2.2750970001652604
+          },
+          {
+            "samples": 4,
+            "mean_absolute_coverage_error": 0.0061829810049019605,
+            "edge_mean_absolute_error": 0.07714217455935442,
+            "draw_ms": [
+              18.645575999926223
+            ],
+            "compile_ms": 2.341026000067359
+          }
+        ]
+      },
+      {
+        "quality": 2,
+        "size": [
+          72,
+          48
+        ],
+        "reference_factor": 8,
+        "edge_pixels": 279,
+        "measurements": [
+          {
+            "samples": 1,
+            "mean_absolute_coverage_error": 0.01625343605324074,
+            "edge_mean_absolute_error": 0.2013328853046595,
+            "draw_ms": [
+              8.570086999952764
+            ],
+            "compile_ms": 2.2807059999649937
+          },
+          {
+            "samples": 2,
+            "mean_absolute_coverage_error": 0.01084393935525599,
+            "edge_mean_absolute_error": 0.13432492620704195,
+            "draw_ms": [
+              14.129326999864134
+            ],
+            "compile_ms": 1.9915240000045742
+          },
+          {
+            "samples": 4,
+            "mean_absolute_coverage_error": 0.006492669043890704,
+            "edge_mean_absolute_error": 0.08042531976948485,
+            "draw_ms": [
+              39.94030300009399
+            ],
+            "compile_ms": 2.004623000175343
+          }
+        ]
+      }
+    ]
+  },
+  "one_sample_cost": {
+    "baseline_ref": "91728add6e07bddb9478cba87cfef291e03d2f8a",
+    "scene": "mixed fixture",
+    "samples": 1,
+    "measurements": [
+      {
+        "quality": 0,
+        "baseline": {
+          "shader": "compiled",
+          "backend": "native Skia CPU raster",
+          "context": null,
+          "uniform_updates": true,
+          "parts": 250,
+          "channel_std": 48.9716938547157,
+          "warm_fixture_pixels": 475,
+          "size": [
+            160,
+            100
+          ],
+          "quality": 0,
+          "samples": 1,
+          "requested_samples": 1,
+          "variant": "analytic-fast",
+          "compile_ms": 3.0844610000713146,
+          "draw_ms": [
+            62.77022699987356,
+            86.54231900027298,
+            68.93879300014305,
+            41.4919690001625,
+            40.99897600008262,
+            38.61801299990475,
+            39.24624999990556,
+            37.617435000356636
+          ],
+          "draw_cpu_ms": [
+            62.75895299999989,
+            86.52921800000013,
+            68.93127199999994,
+            41.43589699999994,
+            40.9909690000001,
+            38.612007000000006,
+            39.24019799999989,
+            37.60775999999999
+          ],
+          "steady_draw_ms_median": 40.99897600008262,
+          "steady_draw_cpu_ms_median": 40.9909690000001,
+          "texture_bytes": 2691072,
+          "source_sha256": "1c1fe9a6b53da264d64808bcaf4e56ce1b6d3507705a44d3b4115e34bc0a5300",
+          "primary_iterations": {
+            "mean": 6.072125,
+            "p95": 25,
+            "maximum": 47,
+            "limit_exhausted_pixels": 0
+          }
+        },
+        "current": {
+          "shader": "compiled",
+          "backend": "native Skia CPU raster",
+          "context": null,
+          "uniform_updates": true,
+          "parts": 250,
+          "channel_std": 48.65455844863457,
+          "warm_fixture_pixels": 507,
+          "size": [
+            160,
+            100
+          ],
+          "quality": 0,
+          "samples": 1,
+          "requested_samples": 1,
+          "variant": "analytic-fast",
+          "compile_ms": 3.176919999987149,
+          "draw_ms": [
+            68.53892900016945,
+            51.15514599992821,
+            47.53333999997267,
+            74.3071100000634,
+            108.81229300002815,
+            59.316592999948625,
+            45.185472999946796,
+            45.681686000079935
+          ],
+          "draw_cpu_ms": [
+            68.52770500000017,
+            51.14654799999996,
+            47.517224999999996,
+            74.2783600000001,
+            96.33784800000012,
+            59.30848799999988,
+            45.17916900000007,
+            45.67483800000005
+          ],
+          "steady_draw_ms_median": 51.15514599992821,
+          "steady_draw_cpu_ms_median": 51.14654799999996,
+          "texture_bytes": 2691072,
+          "source_sha256": "f59af76456ea0ec11b7397506eda6c567803641094ef3a7787c8e4a51e8c0bbf",
+          "primary_iterations": {
+            "mean": 6.072125,
+            "p95": 25,
+            "maximum": 47,
+            "limit_exhausted_pixels": 0
+          }
+        },
+        "difference": {
+          "mean_absolute_channel": 5.647083333333334,
+          "maximum_channel": 71,
+          "fraction_pixels_over_8": 0.272375
+        }
+      },
+      {
+        "quality": 1,
+        "current": {
+          "shader": "compiled",
+          "backend": "native Skia CPU raster",
+          "context": null,
+          "uniform_updates": true,
+          "parts": 250,
+          "channel_std": 49.23677409888803,
+          "warm_fixture_pixels": 507,
+          "size": [
+            160,
+            100
+          ],
+          "quality": 1,
+          "samples": 1,
+          "requested_samples": 1,
+          "variant": "analytic-balanced",
+          "compile_ms": 2.9202549999354233,
+          "draw_ms": [
+            92.2868570000901,
+            67.10124400024142,
+            64.97688299987203,
+            75.92939000005572,
+            70.85052100001121,
+            60.2828609999051,
+            62.589966999894386,
+            60.16801699979624
+          ],
+          "draw_cpu_ms": [
+            92.25827200000003,
+            67.09548900000017,
+            64.97061199999976,
+            75.92455499999984,
+            70.84377900000005,
+            60.277312000000194,
+            62.58301100000008,
+            60.163844000000296
+          ],
+          "steady_draw_ms_median": 64.97688299987203,
+          "steady_draw_cpu_ms_median": 64.97061199999976,
+          "texture_bytes": 2691072,
+          "source_sha256": "bdff7351b1ded5785118842fca9fd1526a9d556561db61e1fb8a60b063fb1352",
+          "primary_iterations": {
+            "mean": 6.072125,
+            "p95": 25,
+            "maximum": 47,
+            "limit_exhausted_pixels": 0
+          }
+        },
+        "baseline": {
+          "shader": "compiled",
+          "backend": "native Skia CPU raster",
+          "context": null,
+          "uniform_updates": true,
+          "parts": 250,
+          "channel_std": 48.8284424535236,
+          "warm_fixture_pixels": 482,
+          "size": [
+            160,
+            100
+          ],
+          "quality": 1,
+          "samples": 1,
+          "requested_samples": 1,
+          "variant": "analytic-balanced",
+          "compile_ms": 3.4978099997715617,
+          "draw_ms": [
+            69.41794499971365,
+            61.406583999996656,
+            73.65355599995382,
+            61.541546000171365,
+            59.65397399995709,
+            60.451573000136705,
+            55.39346499972453,
+            57.946208999965165
+          ],
+          "draw_cpu_ms": [
+            69.24908200000024,
+            61.39904499999993,
+            73.63082999999992,
+            61.53477799999996,
+            59.645787000000006,
+            60.444442000000095,
+            55.38244400000014,
+            57.94019800000028
+          ],
+          "steady_draw_ms_median": 60.451573000136705,
+          "steady_draw_cpu_ms_median": 60.444442000000095,
+          "texture_bytes": 2691072,
+          "source_sha256": "907aee625c6fbd23401e7d2fd30e2c7d83c78f9fb2e484b1aaebf89ade97349f",
+          "primary_iterations": {
+            "mean": 6.072125,
+            "p95": 25,
+            "maximum": 47,
+            "limit_exhausted_pixels": 0
+          }
+        },
+        "difference": {
+          "mean_absolute_channel": 6.0833125,
+          "maximum_channel": 70,
+          "fraction_pixels_over_8": 0.38825
+        }
+      },
+      {
+        "quality": 2,
+        "baseline": {
+          "shader": "compiled",
+          "backend": "native Skia CPU raster",
+          "context": null,
+          "uniform_updates": true,
+          "parts": 250,
+          "channel_std": 48.87970985369605,
+          "warm_fixture_pixels": 477,
+          "size": [
+            160,
+            100
+          ],
+          "quality": 2,
+          "samples": 1,
+          "requested_samples": 1,
+          "variant": "full-geometry",
+          "compile_ms": 2.0549589999063755,
+          "draw_ms": [
+            88.62234099979105,
+            97.56884800026455,
+            78.41250999990734,
+            75.83067299992763,
+            81.22043599996687,
+            79.58205300019472,
+            72.734495000077,
+            108.04950000010649
+          ],
+          "draw_cpu_ms": [
+            88.61215000000033,
+            97.4648450000002,
+            78.39228500000006,
+            75.76796200000003,
+            81.21171800000005,
+            79.56768900000012,
+            72.72739799999961,
+            99.66544900000018
+          ],
+          "steady_draw_ms_median": 79.58205300019472,
+          "steady_draw_cpu_ms_median": 79.56768900000012,
+          "texture_bytes": 2691072,
+          "source_sha256": "38f12efc27d913d0cb96865903999fabe88f79241efd0093e32a682e3837db2b",
+          "primary_iterations": {
+            "mean": 6.07325,
+            "p95": 25,
+            "maximum": 47,
+            "limit_exhausted_pixels": 0
+          }
+        },
+        "current": {
+          "shader": "compiled",
+          "backend": "native Skia CPU raster",
+          "context": null,
+          "uniform_updates": true,
+          "parts": 250,
+          "channel_std": 49.287675141602584,
+          "warm_fixture_pixels": 500,
+          "size": [
+            160,
+            100
+          ],
+          "quality": 2,
+          "samples": 1,
+          "requested_samples": 1,
+          "variant": "full-geometry",
+          "compile_ms": 2.6233600001432933,
+          "draw_ms": [
+            82.03903399999035,
+            83.13580699996237,
+            77.76006299991423,
+            77.90183499992054,
+            80.44342300036078,
+            81.44280999977127,
+            100.95811599967419,
+            86.29631099984181
+          ],
+          "draw_cpu_ms": [
+            82.02920800000024,
+            83.12872800000015,
+            77.73147999999975,
+            77.88639100000071,
+            80.42936299999948,
+            81.43602399999938,
+            100.95091300000014,
+            86.28933100000057
+          ],
+          "steady_draw_ms_median": 81.44280999977127,
+          "steady_draw_cpu_ms_median": 81.43602399999938,
+          "texture_bytes": 2691072,
+          "source_sha256": "b7850c1f7c6516c0330dc273fc22424553793a8d18da669c05464b6b1333ca0f",
+          "primary_iterations": {
+            "mean": 6.07325,
+            "p95": 25,
+            "maximum": 47,
+            "limit_exhausted_pixels": 0
+          }
+        },
+        "difference": {
+          "mean_absolute_channel": 6.092958333333334,
+          "maximum_channel": 70,
+          "fraction_pixels_over_8": 0.3850625
+        }
+      }
+    ]
+  }
+}

@@ -101,10 +101,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "briccraft-design"
+version = "0.1.0"
+dependencies = [
+ "briccraft-parts",
+ "briccraft-world",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "briccraft-game"
 version = "0.1.0"
 dependencies = [
  "briccraft-character",
+ "briccraft-design",
  "briccraft-import",
  "briccraft-mechanics",
  "briccraft-parts",

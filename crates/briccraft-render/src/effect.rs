@@ -11,7 +11,11 @@ pub const WORLD_SKSL: &str = concat!(
     include_str!("shaders/height_hierarchy.sksl"),
     include_str!("shaders/trace_primary.sksl"),
     include_str!("shaders/shadows_full.sksl"),
+    include_str!("shaders/filtering.sksl"),
+    include_str!("shaders/atmosphere.sksl"),
+    include_str!("shaders/materials.sksl"),
     include_str!("shaders/lighting.sksl"),
+    include_str!("shaders/water.sksl"),
     include_str!("shaders/main.sksl"),
 );
 
@@ -24,7 +28,11 @@ pub const FAST_WORLD_SKSL: &str = concat!(
     include_str!("shaders/height_hierarchy.sksl"),
     include_str!("shaders/trace_primary.sksl"),
     include_str!("shaders/shadows_fast.sksl"),
-    include_str!("shaders/lighting_efficient.sksl"),
+    include_str!("shaders/filtering.sksl"),
+    include_str!("shaders/atmosphere.sksl"),
+    include_str!("shaders/materials.sksl"),
+    include_str!("shaders/lighting.sksl"),
+    include_str!("shaders/water.sksl"),
     include_str!("shaders/main.sksl"),
 );
 
@@ -34,7 +42,11 @@ pub const BALANCED_WORLD_SKSL: &str = concat!(
     include_str!("shaders/height_hierarchy.sksl"),
     include_str!("shaders/trace_primary.sksl"),
     include_str!("shaders/shadows_balanced.sksl"),
-    include_str!("shaders/lighting_efficient.sksl"),
+    include_str!("shaders/filtering.sksl"),
+    include_str!("shaders/atmosphere.sksl"),
+    include_str!("shaders/materials.sksl"),
+    include_str!("shaders/lighting.sksl"),
+    include_str!("shaders/water.sksl"),
     include_str!("shaders/main.sksl"),
 );
 
@@ -64,6 +76,7 @@ pub struct BrickWorldEffect {
     pub preview_size: Rect,
     pub selection: i32,
     pub quality: i32,
+    pub sample_count: i32,
     pub construction_grid: i32,
     pub vehicle_dimensions: Rect,
     pub vehicle_position: Rect,
@@ -86,7 +99,7 @@ impl CustomEffect for BrickWorldEffect {
         parameters!(self, f;
             world_dimensions, scene_bounds_min, scene_bounds_max, cell_texture_size, part_texture_size,
             camera_position, camera_forward, camera_right, camera_up, sun_direction,
-            preview_origin, preview_size, selection, quality, construction_grid, vehicle_dimensions,
+            preview_origin, preview_size, selection, quality, sample_count, construction_grid, vehicle_dimensions,
             vehicle_position, vehicle_axis_x, vehicle_axis_y, vehicle_axis_z, vehicle_motion, cells, parts
         );
     }
@@ -118,6 +131,7 @@ impl CustomEffect for BrickWorldEffect {
             "preview_size" => rect!(preview_size),
             "selection" => value.as_int().map(|v| self.selection = v).is_some(),
             "quality" => value.as_int().map(|v| self.quality = v).is_some(),
+            "sample_count" => value.as_int().map(|v| self.sample_count = v).is_some(),
             "construction_grid" => value.as_int().map(|v| self.construction_grid = v).is_some(),
             "vehicle_dimensions" => rect!(vehicle_dimensions),
             "vehicle_position" => rect!(vehicle_position),

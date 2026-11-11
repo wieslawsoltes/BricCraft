@@ -2,6 +2,10 @@
 #![cfg_attr(target_os = "emscripten", no_main)]
 mod application;
 mod bridge;
+mod commands;
+mod design_bridge;
+mod design_host;
+mod diagnostics;
 mod gestures;
 mod runtime;
 mod viewport;

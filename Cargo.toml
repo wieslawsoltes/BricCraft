@@ -284,6 +284,7 @@ briccraft-parts = { path = "crates/briccraft-parts" }
 briccraft-world = { path = "crates/briccraft-world" }
 briccraft-terrain = { path = "crates/briccraft-terrain" }
 briccraft-character = { path = "crates/briccraft-character" }
+briccraft-design = { path = "crates/briccraft-design" }
 briccraft-play = { path = "crates/briccraft-play" }
 briccraft-mechanics = { path = "crates/briccraft-mechanics" }
 briccraft-render = { path = "crates/briccraft-render" }

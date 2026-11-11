@@ -26,7 +26,7 @@ pub fn badge(state: UiState) -> Element {
         })
         .max_width(move || (state.layout.get().width - 24.0).clamp(1.0, 420.0))
         .padding((10.0, 6.0))
-        .background("#DA101E26")
+        .background(theme::HUD)
         .is_visible(move || !state.attribution.get().is_empty() && !state.layout.get().keyboard)
         .tool_tip_tip("View all data sources, credits and licenses")
         .child(
@@ -56,7 +56,7 @@ pub fn panel(state: UiState, dispatch: Dispatch) -> Element {
                 let credits: Vec<Element> = state.credits.get().into_iter().map(|source| {
                     let open = sources.clone();
                     let url = source.url.clone();
-                    border().padding(14.0).corner_radius(10.0).background(theme::INSET)
+                    border().padding(14.0).corner_radius(14.0).background(theme::INSET)
                         .child(stack_panel().spacing(10.0).children((
                             text_block().text(source.label).font_size(13.0).font_weight(FontWeight::SemiBold)
                                 .text_wrapping(TextWrapping::Wrap),

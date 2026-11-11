@@ -19,6 +19,6 @@ export async function checkCanvasPresentation(page,presentedSample) {
         }
     } finally { await set(true); }
     const configs=samples.flatMap(s=>[s.presentation.worldStart,s.presentation.worldEnd])
-        .map(s=>JSON.stringify([s.effectWidth,s.effectHeight,s.effectiveQuality]));
+        .map(s=>JSON.stringify([s.effectWidth,s.effectHeight,s.effectiveQuality,s.samples,s.resolutionMode]));
     return {samples,comparable:configs.every(s=>s===configs[0]),final:await read()};
 }

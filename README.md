@@ -15,13 +15,14 @@ Create a collection of editable brick worlds: open meadows, alpine landscapes, d
 - **Real 3D models:** GLB, embedded glTF and OBJ conversion in a background Web Worker. Scene transforms, vertex/material colors and embedded PNG/JPEG base-color textures are sampled into bricks. Open a model world or add a model to an existing mapped world using its meters-per-stud scale.
 - **161 procedural parts and 32 colors:** bricks, plates, tiles, slopes, rounded pieces, arches, windows, doors, furniture, plants, liftarms, gears, axles, wheels, power components and transport pieces.
 - **Eight construction blueprints:** trail rover, island hopper, coastal locomotive, lagoon sailboat, harbor cottage, lighthouse, windmill and bridge.
+- **Your own design library:** capture a connected build or the last complete construction group, name it, and place reusable copies. Transfer validated `.bricdesign` files between worlds; custom designs share the same prices, grouped undo, collision checks and vehicle activation as other constructions.
 - **Construction tools:** face picking, placement preview with collision feedback, quarter-turn rotation, color selection, eyedropper, grouped undo/redo and a construction grid.
 - **Working vehicles:** activate connected constructions, drive or fly with the keyboard, then park them back onto the construction grid. Cars, aircraft, trains and boats have distinct simulation models.
 - **Reusable mechanical systems:** connected assembly assessment, motor/power checks, gear speed and torque ratios, locked-loop detection, transmission, differential, steering, spring/damper joints and a sampled rail path.
 - **Three cameras:** orbit/pan/zoom for building, free flight, and collision-aware walking with wall sliding, gravity, grounded jumping, ceiling clearance and steps over low terrain.
-- **Native declarative UI:** responsive HUD, hotbar, searchable/filterable parts library, palette, blueprint chooser, touch controls, settings and source credits. Phone layouts account for safe areas, the software keyboard and short landscape screens; world gestures aim and navigate while explicit buttons place and remove parts.
+- **Native declarative UI:** compact world and objective chips, a floating construction toolbar, contextual Drive/Park controls, a searchable parts library, palette, design library and dedicated world details. Phone layouts account for safe areas, the software keyboard and short landscape screens; world gestures aim and navigate while explicit buttons place and remove parts. Performance diagnostics are optional in Settings.
 - **Persistence:** transactional IndexedDB saves and versioned `.briccraft` file export/import with validation before replacement.
-- **Adaptive Skia rendering:** molded surfaces, real stud silhouettes, part seams, mechanical shapes, lighting, water, atmosphere and animated vehicle assemblies. A separate GPU world layer adapts resolution and shader detail while native controls remain sharp.
+- **Antialiased Skia rendering:** 1/2/4 spatial samples, filtered molded details and highlights, real stud silhouettes, part seams, mechanical shapes, water, atmosphere and animated vehicle assemblies. Auto starts at native density with a display-relative sharpness floor; Quality locks the selected density/detail/samples, and Performance offers an explicit lower-cost mode. Native controls always retain display resolution.
 
 ## Real-world studio
 
@@ -75,6 +76,56 @@ be recycled. This is a local sandbox ruleset, not a competitive anti-cheat bound
 New mapped/model worlds start in Creative; switch that world to Expedition when ready.
 Appending imported geometry to an existing world requires Creative.
 
+## Save a construction as a design
+
+Open **Plans → My designs** after selecting a connected construction or completing a
+blueprint/model placement. The capture card explains what will be saved and reports
+the part count. Name the design, then save it. The library retains part IDs, colors,
+quarter-turn rotations and relative positions; the original source world and global
+anchor are preserved as metadata.
+
+Use **Place design** to place a complete copy at the current construction target. Every part
+is validated before one atomic transaction, so a collision or insufficient balance
+leaves the world unchanged. In Expedition, the card displays the exact total Stud cost.
+Undo and redo operate on the complete copy. Functional vehicle copies can be activated
+through the same Workshop and Drive controls.
+
+Use **Export** and **Import** to move a `.bricdesign` recipe between worlds. Importing a
+recipe creates a library entry; building it is a separate action. Rename and delete
+operate on the saved recipe, and deleting a recipe leaves its existing world copies
+in place. Each world stores up to 32 designs, with at most 256 parts and a
+32 × 72 × 32-cell envelope per design. Portable files are limited to 256 KiB and
+validated before being accepted. Capturing rejects terrain and incomplete assemblies
+at a streamed window boundary; active vehicles must be parked first.
+
+## Image quality
+
+Open **Settings → Display**. Density and antialiasing choices are retained by the
+browser independently of the selected world; surface detail remains part of a world's
+saved settings.
+
+| Setting | Behavior |
+| --- | --- |
+| Auto, the default | Starts at native display density, with two AA samples. Sustained slow presentation reduces samples, then shader detail, then density. Density stays at or above 0.75 world pixels per CSS pixel on each axis, subject to allocation limits. |
+| Quality | Uses native display density within an 8,294,400-pixel / 4,096-pixel-per-axis allocation limit, and honors the selected detail and AA sample count. It does not silently lower them to reach a frame-rate target. |
+| Performance | Starts with Fast detail, one sample and 0.4 world pixels per CSS pixel on each axis. It can recover toward 0.75 density when presentation has sustained headroom. |
+| Antialiasing | One, two or four subpixel ray samples. In Auto/Performance this is the requested ceiling; in Quality it is the actual count. |
+| Detail | Fast and Balanced use analytic intersections; Cinematic uses the detailed signed-distance shapes. All share filtered materials and real geometry. |
+
+At a 1280 × 800 desktop viewport, Auto starts with a 1280 × 800 world and retains a
+roughly 960 × 600 density floor. Auto also limits allocations to 4,194,304 physical pixels
+and 4,096 pixels per axis. The UI remains native resolution in every mode. Settings
+reports the actual world dimensions, active sample count and effective detail.
+Cold shader compilation and idle menus are excluded from adaptive measurements.
+
+Filtering integrates subpixel seams, stud rings and surface patterns over their
+projected footprint; narrow molded highlights broaden at distance. Four samples
+reduced geometry coverage error by approximately 60% in the committed native fixture.
+Higher density and more samples cost rendering work. Reusing the exact world effect
+while paused or in an unchanged menu avoids rerendering that world layer. See the
+[AA measurements and methodology](crates/briccraft-render/ANTIALIASING.md) for the
+reference images, CPU costs and limits; these are not hardware GPU frame-rate claims.
+
 ## Controls
 
 | Action | Control |
@@ -96,7 +147,7 @@ Appending imported geometry to an existing world requires Creative.
 | Ascend / descend in flight | E / Q |
 | Jump when walking | Space |
 | Faster movement | Shift |
-| Activate vehicle | F / V or Drive in the world panel |
+| Activate vehicle | F / V or the contextual Drive control |
 | Throttle / steer | W S / A D |
 | Aircraft lift / vehicle brake | E Q / B |
 | Park vehicle / close panel | Escape |
@@ -110,7 +161,7 @@ git clone --recurse-submodules https://github.com/wieslawsoltes/BricCraft.git
 cd BricCraft
 ```
 
-The current framework is pinned at `1c51d201a74fb835c065ab43d1bf091429f92392`, version `0.5.0-preview.1`. The browser toolchain is pinned by that submodule: Rust 1.99.0, Emscripten 6.0.10 and wasm-bindgen 0.2.129.
+The current framework is pinned at `8281ef991022abb139c092bae75d4e652361a315`, version `0.5.0-preview.1`. The browser toolchain is pinned by that submodule: Rust 1.99.0, Emscripten 6.0.10 and wasm-bindgen 0.2.129.
 
 ```sh
 # Install the exact browser tools once.
@@ -127,18 +178,20 @@ Open `http://localhost:8080`. The wrapper also builds the separate `wasm32-unkno
 ```sh
 cargo test --locked -p briccraft-parts -p briccraft-world -p briccraft-mechanics \
   -p briccraft-game -p briccraft-stream -p briccraft-terrain -p briccraft-import \
-  -p briccraft-import-worker -p briccraft-render-data -p briccraft-play -p briccraft-character
+  -p briccraft-import-worker -p briccraft-render-data -p briccraft-play -p briccraft-character \
+  -p briccraft-design
+cargo test --locked -p briccraft-render --lib
 cargo check --locked -p briccraft-browser
 python3 FerroUI/scripts/apps/sync-workspace.py --check .
 ```
 
 `briccraft-render-data` supplies independent atlas tests and a reproducible packing benchmark. `briccraft-render` includes camera tests and a Skia shader smoke tool. The application calls FerroUI's `CustomEffect`, `EffectImage` and immutable effect APIs; all game UI uses `ferroui-view` builders and signals. The JavaScript host supplies browser services only.
 
-Interactive rendering uses **Skia WebGL2**. The pinned framework requests rejection of WebGL contexts with a major performance caveat, which can select CPU Skia even when the browser permits a software WebGL driver. A small browser adapter scopes the game's context preference to its own canvas and permits that browser-approved WebGL2 path. Other canvases and context types keep their original options; the framework submodule is unchanged. When WebGL2 is unavailable, startup explains the graphics requirement. The CI game gate verifies the actual presented target and OpenGL ES version, and the FPS display counts FerroUI's presented frames over elapsed wall time. The world begins with a bounded GPU surface and adjusts its resolution and shader detail to observed presentation performance. Fast, Balanced and Cinematic set the maximum detail; UI stays at the browser's full device resolution. CI compiles and renders all three production shader variants and tests camera repainting and real vehicle movement.
+Interactive rendering uses **Skia WebGL2**. The pinned framework requests rejection of WebGL contexts with a major performance caveat, which can select CPU Skia even when the browser permits a software WebGL driver. A small browser adapter scopes the game's context preference to its own canvas and permits that browser-approved WebGL2 path. Other canvases and context types keep their original options; the framework submodule is unchanged. When WebGL2 is unavailable, startup explains the graphics requirement. The CI game gate verifies the actual presented target and OpenGL ES version; optional FPS diagnostics count FerroUI's presented frames over elapsed wall time. The long functional journey explicitly selects Performance for CI's software GPU, while a separate gate verifies native-density Auto/Quality, actual four-sample world pixels, paused-world reuse and desktop/phone screenshots. CI also compiles all three production shader variants and checks geometry coverage, material filtering, camera repainting and vehicle movement.
 
 ## Workspace
 
-Fourteen reusable crates separate the part library, local world, streaming, elevation and terrain, map/model conversion, worker bindings, mechanics, character motion, expedition rules, game state, atlas packing, renderer, UI and browser lifecycle. The framework-independent [terrain crate](crates/briccraft-terrain/README.md) exposes geographic grids, Terrarium/HGT decoding, sampling, vertical fitting and solid-ground packing. [Character motion](crates/briccraft-character/README.md) and [expedition rules](crates/briccraft-play/README.md) are also independent of the UI and renderer. See [the architecture and current boundaries](docs/architecture.md) for interfaces and implementation details.
+Fifteen reusable crates separate the part library, local world, streaming, elevation and terrain, map/model conversion, worker bindings, mechanics, character motion, expedition rules, saved designs, game state, atlas packing, renderer, UI and browser lifecycle. The framework-independent [terrain crate](crates/briccraft-terrain/README.md) exposes geographic grids, Terrarium/HGT decoding, sampling, vertical fitting and solid-ground packing. [Character motion](crates/briccraft-character/README.md), [expedition rules](crates/briccraft-play/README.md) and [saved designs](crates/briccraft-design/README.md) are also independent of the UI and renderer. See [the architecture and current boundaries](docs/architecture.md) for interfaces and implementation details.
 
 This is a creative construction sandbox. Horizontal worlds stream beyond the visible region; the current GPU working window is 96×72×96 occupancy cells, with one plate equal to 0.4 stud. Model imports retain uniform proportions. Mapped areas can explicitly fit their vertical scale while preserving horizontal georeferencing; every adjustment is reported. Elevation comes from a separate DEM source, whose resolution and survey age vary. OSM footprints and height tags do not supply facade scans, and a finite imported area is not a continuously streamed planet service.
 

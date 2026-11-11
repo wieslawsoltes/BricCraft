@@ -51,6 +51,17 @@ FerroUI exposes immutable images, so this is reuse of unchanged complete images;
 it does not claim subrectangle GPU uploads. Camera, lighting, animation,
 selection, and vehicle motion change uniform values only.
 
+The renderer also retains the latest complete `BrickWorldEffect` and its
+`Rc<dyn IEffect>`. After checking revisions, assembly membership and every
+uniform, an identical request returns that same Rc. The comparison includes
+atlas image identity, camera, animation time, daylight, selection, preview,
+quality, sample count and vehicle pose/motion. A frozen modal or paused world
+can therefore keep its existing world image while the native HUD changes.
+This does not pause animation by itself: the host must hold visual time fixed.
+`invalidate_effect()` drops only that snapshot; `invalidate()` also requests an
+atlas revision check after a World replacement. Neither discards unchanged
+atlas images or resets upload counters.
+
 An assembly has a separate local volume and packed ID namespace. The shader
 transforms rays into this volume and compares its intersection with the static
 world. `VehicleRender.parts: Option<Rc<[Instance]>>` can retain a body after its
@@ -72,15 +83,64 @@ the live custom effect, so descendant effect updates invalidate that parent.
 The effect must not be placed on the cached parent itself: changes to an effect
 on the cache root do not invalidate its own image in the pinned framework.
 Resolution changes do not alter logical layout, input coordinates, or the world
-camera. The adaptive controller measures actual presented-frame intervals and
-caps effective shader quality at the user's requested setting.
+camera. The host chooses physical resolution, shader detail and spatial samples
+independently. Resolution policy belongs to the application, not this renderer;
+there is no hidden low-resolution cap in the effect.
 
-## Materials
+## Spatial antialiasing and materials
 
-The shader includes directional shadows, local contact shading, individual stud
-shadows, rounded-edge highlight normals, plastic specular and Fresnel lighting,
-sky gradients/clouds, animated ocean, distance haze, and a placement preview.
-Sky and water are procedural; there are no external art or texture downloads.
+`RenderFrame.samples` selects **1, 2 or 4 samples per physical world pixel**,
+independently of geometry/shadow quality. The default is 1. Unsupported counts
+round down to the nearest supported value, with 0 treated as 1. A center ray,
+a symmetric diagonal pair, or a rotated four-sample grid evaluates the same
+production scene function. The shader averages their lighting before applying
+the display shoulder and vignette. It uses no temporal history, random jitter,
+motion reprojection, or extra scene textures.
+
+Sampling resolves actual silhouette coverage, including stud cylinders, bores,
+slopes, rails and moving constructions. Geometry is never inflated to make a
+part appear antialiased. Work is explicitly bounded at four scene evaluations;
+it can approach four times the ray/shading cost. Prefer enough physical world
+pixels before spending more rays on each pixel. Spatial sampling cannot recover
+detail lost by displaying a very small world image at a much larger size.
+Skia's antialiasing of the viewport rectangle does not cover the silhouettes
+computed inside that rectangle's runtime shader.
+
+Fine surface details use an independent analytic filter at every sample count:
+
+- Pinhole ray differentials are projected onto the actual hit tangent plane,
+  then transformed into assembly coordinates when needed. This gives a local
+  footprint without GPU derivatives or neighboring volume fetches. The grazing
+  denominator and maximum footprint are bounded.
+- Part seams, stud-cap rings, construction grids and preview lines integrate
+  coverage over that footprint. Periodic grids approach their average area at a
+  distance instead of oscillating between solid and missing lines.
+- Tire treads, analytic gear stripes and ocean waves use a box-filtered sinusoid.
+  Quarter-turned wheels use the same canonical axis convention as their geometry.
+- Molded-edge normal detail fades when unresolved. A bounded footprint variance
+  broadens narrow specular highlights on curved surfaces. Flat face interiors
+  retain their normal and roughness.
+- Plastic, smooth tiles and rubber have separate roughness values. Direct
+  highlights use a GGX distribution, height-correlated Smith visibility and
+  Schlick Fresnel. Rough environment reflections use a smooth sky lobe, so
+  high-frequency cloud noise does not sparkle in distant plastic.
+- A stud's projected shadow is a filtered capsule on its supporting top face.
+  The actual stud geometry and the existing scene shadow queries are preserved.
+
+`filtering.sksl`, `atmosphere.sksl`, `materials.sksl`,
+`lighting.sksl`, and `water.sksl` are shared by all three geometry qualities.
+The existing palette, artistic ambient lighting and display curve remain;
+the renderer does not claim a fully calibrated photometric color pipeline.
+Sky, water and surface details are procedural, with no external art downloads.
+
+References: [Skia runtime-effect composition and coordinates](https://docs.skia.org/docs/user/sksl/),
+[Filament's microfacet BRDF derivation](https://google.github.io/filament/main/filament.html),
+and [specular antialiasing and roughness filtering](https://google.github.io/filament/main/materials.html).
+The footprint here is an analytic ray differential, not Filament's
+screen-derivative implementation.
+
+Native verification, measured coverage error and equal-resolution cost are
+recorded in [the antialiasing report](ANTIALIASING.md).
 
 ## Compiled quality variants
 
@@ -107,8 +167,10 @@ connectivity, collision geometry, construction data, or vehicle mechanics.
 
 `Renderer::stats()` reports atlas payload/storage, active cells, coarse occupancy,
 part/texture budgets, rebuilds, per-image publications, bytes published, and
-uniform-only effect snapshots. `shader_quality` and `shader_variant` identify the
-actual program selected for the most recent frame. `height_columns` reports the
+uniform-only effect snapshots. Reused requests do not increment those snapshot
+counts. `Renderer::reused_effects()` reports such requests; `Renderer::samples()`
+reports the normalized sample count. `shader_quality` and `shader_variant`
+identify the actual program selected for the most recent frame. `height_columns` reports the
 bounded column working set. These counters do not estimate presented FPS or
 GPU transfer time. See [the shader measurements](BENCHMARKS.md) and
 [the atlas measurements](../briccraft-render-data/BENCHMARKS.md).
@@ -126,9 +188,10 @@ not another implementation of the game. To inspect the real generated world:
 
 ```sh
 cargo run --release -p briccraft-render-data --example export_scene -- /tmp/briccraft-scene.json
-python3 -m pip install skia-python
+python3 -m pip install skia-python==144.1
 python3 crates/briccraft-render/tools/smoke_shader.py /tmp/briccraft-world.png /tmp/briccraft-scene.json --all-qualities --width 160 --height 100
 python3 crates/briccraft-render/tools/test_shader_rays.py
+python3 crates/briccraft-render/tools/test_antialias.py --output /tmp/briccraft-aa
 ```
 
 The tool reads the exact `include_str!` sequence from each production Rust source
@@ -136,14 +199,29 @@ constant; it does not maintain a separate shader composition. `--all-qualities`
 compiles and renders all three programs into separately named PNGs. The default
 fixture also checks for visible warm-colored bricks/roof pixels, so an image of
 sky and water alone cannot pass. It also
-supports `--quality`, `--width`, `--height`, `--frames`, and
+supports `--quality`, `--samples 1|2|4`, `--width`, `--height`, `--frames`, and
 `--compare-source` for equal-resolution comparisons with an older concatenated
 SkSL source. CPU raster is the default. `--backend egl` selects synchronized
 native Ganesh OpenGL, requires PyOpenGL/EGL, and reports the actual driver.
 `--animate-uniforms` verifies repeated draws with changing effect snapshots.
 `tools/benchmark_shader.py` compares each production source against its matching
-variant in a Git revision at identical settings. Browser GPU throughput must
-still be measured in the running application.
+variant in a Git revision at identical settings. Use `--samples 1` when comparing
+with an older source that has no sampling uniform; reports distinguish the
+requested count from the count actually supported by that source. Browser GPU
+throughput must still be measured in the running application.
+
+`tools/test_antialias.py` keeps the actual sample pattern, resolve, primary
+traversal, geometry and moving assembly transforms. Its silhouette adapter
+replaces only surface/background colors and the display curve, then compares
+1/2/4 samples against an 8× denser reference. It also compares periodic/interval
+filters against 65,536-tap numerical integration and analytic surface
+differentials against independent finite-difference ray/plane intersections,
+including transformed assemblies. It writes a JSON error report and PNG
+fixtures. These are correctness measurements, not a browser FPS estimate.
+Existing tiny-negative-direction, boundary and hierarchy ray probes remain
+unchanged. `effect_cache.rs` has native unit tests for paused snapshot identity,
+visible uniform changes and explicit invalidation.
+
 
 The historical CPU benchmark report predates these specialized shader programs.
 It is not evidence of current browser GPU throughput. Browser performance gates

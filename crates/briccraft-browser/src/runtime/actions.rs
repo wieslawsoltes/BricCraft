@@ -3,6 +3,9 @@ use ferroui_controls::{TextBox, TopLevel};
 
 impl Runtime {
     pub fn dispatch(&self, action: UiAction) {
+        if self.dispatch_graphics(&action) {
+            return;
+        }
         if self.state.world_busy.get_untracked() {
             return;
         }
@@ -12,6 +15,9 @@ impl Runtime {
             return;
         }
         if self.dispatch_world(&action) {
+            return;
+        }
+        if self.dispatch_design(&action) {
             return;
         }
         let mut sound = None;
@@ -122,7 +128,7 @@ impl Runtime {
 
     /// Camera and vehicle buttons hand keyboard input back to the world. A host
     /// command issued while a native editor is active must preserve that editor.
-    fn focus_world_unless_editing(&self) {
+    pub(super) fn focus_world_unless_editing(&self) {
         let Some(view) = self.viewport.get_untracked() else {
             return;
         };

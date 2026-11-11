@@ -24,6 +24,8 @@ jobs:
         node tests/import-host.mjs
         node tests/elevation-host.mjs
         node tests/canvas-size.mjs
+        node tests/graphics-preferences.mjs
+        node tests/design-host.mjs
         bash scripts/build-import-worker.sh "$SITE"
         node tests/import-engine.mjs "$SITE"
         rustc --edition=2021 --test crates/briccraft-browser/src/runtime/resolution.rs -o "$RUNNER_TEMP/resolution-tests"
@@ -33,9 +35,9 @@ jobs:
         rustc --edition=2021 --test crates/briccraft-browser/src/gestures.rs -o "$RUNNER_TEMP/gesture-tests"
         "$RUNNER_TEMP/gesture-tests"
         timeout 2m node tests/storage.mjs
-        timeout 20m node tests/browser.mjs "$SITE" "$RUNNER_TEMP/smoke"
+        timeout 30m node tests/browser.mjs "$SITE" "$RUNNER_TEMP/smoke"
         mkdir -p "$SITE/previews"
-        for name in island rover world-library brandenburg telegraph-hill expedition mobile-expedition compact-world-library mobile-terrain mobile-studio mobile-landscape; do
+        for name in island rover world-library brandenburg telegraph-hill expedition mobile-expedition compact-world-library mobile-terrain mobile-studio mobile-landscape quality-desktop quality-mobile settings mobile-settings design-library mobile-designs; do
           cp "$RUNNER_TEMP/smoke/$name.png" "$SITE/previews/$name.png"
         done
         cp "$RUNNER_TEMP/smoke/browser-metrics.json" "$SITE/previews/metrics.json"
@@ -72,7 +74,7 @@ jobs:
           -p briccraft-parts -p briccraft-world -p briccraft-mechanics
           -p briccraft-game -p briccraft-stream -p briccraft-import
           -p briccraft-import-worker -p briccraft-render-data -p briccraft-terrain
-          -p briccraft-play -p briccraft-character
+          -p briccraft-play -p briccraft-character -p briccraft-design
       - name: Native SDK and Python capabilities
         run: |
           xcrun --find clang
@@ -83,6 +85,9 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/skia-check"
           "$RUNNER_TEMP/skia-check/bin/pip" install --quiet --disable-pip-version-check --only-binary=:all: skia-python==144.1
           BRICCRAFT_SKIA_PYTHON="$RUNNER_TEMP/skia-check/bin/python" bash scripts/check-shaders.sh "$RUNNER_TEMP/shader-checks"
+          "$RUNNER_TEMP/skia-check/bin/python" crates/briccraft-render/tools/test_antialias.py --output "$RUNNER_TEMP/shader-checks/antialias"
+      - name: Retained world effect tests
+        run: cargo test --locked -p briccraft-render --lib
       - name: Compile the native UI
         run: cargo check --locked -p briccraft-browser
       - name: Upload shader validation images

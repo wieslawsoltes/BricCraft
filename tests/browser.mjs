@@ -7,8 +7,14 @@ import {checkTerrainArea} from './terrain-browser.mjs';
 import {checkMobile} from './mobile.mjs';
 import {checkCanvasPresentation} from './graphics-browser.mjs';
 import {checkGameplay} from './gameplay-browser.mjs';
+import {checkImageQuality} from './quality-browser.mjs';
+import {checkDesigns} from './designs-browser.mjs';
 const site=process.argv[2],out=process.argv[3] || 'target/browser-checks';
-const page=await open(site,{width:1280,height:800,network:true});
+// SwiftShader is a software GPU. Keep the long input/import journey in the
+// player's explicit Performance mode; checkImageQuality separately verifies
+// native Auto/Quality surfaces and 4x AA, with actual presented screenshots.
+const page=await open(site,{width:1280,height:800,network:true,
+    initScript:"localStorage.setItem('briccraft.graphics.v1',JSON.stringify({version:1,mode:2,samples:1}));"});
 const state=async()=>JSON.parse(await page.evaluate('briccraft.briccraftState()'));
 const command=async(name,value='')=>page.evaluate(`briccraft.briccraftCommand(${JSON.stringify(name)},${JSON.stringify(value)})`);
 const wait=async expression=>page.waitFor(`globalThis.briccraft && (${expression})`,90000);
@@ -94,6 +100,17 @@ try {
     const driven=(await state()).vehicle;
     assert(Math.hypot(driven[0]-vehicle[0],driven[2]-vehicle[2])>0.1,'Vehicle controls must change its real pose');
     await page.screenshot(path.join(out,'rover.png'));
+    await command('settings');
+    const menuVehicle=await state();
+    await wait(`${current}.renderer.effectReuses > ${menuVehicle.renderer.effectReuses}+3`);
+    const menuRetained=await state();
+    assert(JSON.stringify(menuRetained.vehicle)===JSON.stringify(menuVehicle.vehicle),
+        'A menu must suspend vehicle inertia as well as held input');
+    assert(JSON.stringify(menuRetained.camera)===JSON.stringify(menuVehicle.camera),
+        'A menu must suspend follow-camera motion');
+    measurements.menuPause={vehicleUnchanged:true,cameraUnchanged:true,
+        effectReuses:menuRetained.renderer.effectReuses-menuVehicle.renderer.effectReuses};
+    await command('settings','false');
     await command('park');
     assert(!(await state()).vehicle,'A flat-world rover must park');
 
@@ -140,6 +157,12 @@ try {
 
     stage('Playing a funded expedition with persistent objectives');
     measurements.gameplay=await checkGameplay({page,state,command,wait,current,out});
+
+    stage('Verifying native-resolution AA and retained paused-world rendering');
+    measurements.imageQuality=await checkImageQuality({page,state,command,wait,current,out});
+
+    stage('Capturing, transferring, building, and driving a saved design');
+    measurements.designs=await checkDesigns({page,state,command,wait,current,out});
 
     stage('Checking the compact native world library');
     await page.resize(390,844); await sleep(350); await page.press('g'); await sleep(200);

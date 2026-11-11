@@ -44,7 +44,7 @@ pub fn catalog(
                             .margin((0.0, 0.0, 5.0, 0.0))
                             .corner_radius(6.0)
                             .background(if *name == selected {
-                                "#533A29"
+                                theme::SELECTED
                             } else {
                                 theme::INSET
                             })
@@ -188,6 +188,7 @@ pub fn catalog(
                                         "#334F616A"
                                     })
                                     .border_thickness(if selected == id { 2.0 } else { 1.0 })
+                                    .automation_properties_name(Some(color.name.clone()))
                                     .tool_tip_tip(color.name.clone())
                                     .on_click(move |_| dispatch(UiAction::SelectColor(id)))
                                     .into()
@@ -241,11 +242,16 @@ fn part_card(
         .horizontal_alignment(H::Stretch)
         .height(112.0)
         .padding(7.0)
-        .corner_radius(10.0)
+        .corner_radius(13.0)
         .horizontal_content_alignment(H::Stretch)
-        .background(if selected { "#523D2F" } else { "#1C2D37" })
-        .border_brush(if selected { theme::ACCENT } else { "#354954" })
+        .background(if selected {
+            theme::SELECTED
+        } else {
+            theme::INSET
+        })
+        .border_brush(if selected { theme::ACCENT } else { theme::EDGE })
         .border_thickness(if selected { 2.0 } else { 1.0 })
+        .automation_properties_name(Some(part.name.clone()))
         .tool_tip_tip(format!(
             "{} · {} × {} studs · {} plates",
             part.name, part.size[0], part.size[2], part.size[1]
@@ -262,7 +268,7 @@ fn part_card(
                     .font_size(11.0)
                     .font_weight(FontWeight::SemiBold)
                     .horizontal_alignment(H::Center)
-                    .max_width(if compact { 102.0 } else { 130.0 })
+                    .max_width(if compact { 136.0 } else { 178.0 })
                     .text_wrapping(TextWrapping::Wrap),
                 text_block()
                     .text(format!(

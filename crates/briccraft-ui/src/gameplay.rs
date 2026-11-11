@@ -1,6 +1,6 @@
 //! Native ruleset selection, resource ledger, objectives and workshop guidance.
 use crate::{controls, objectives, theme, workshop, Dispatch, UiAction, UiState};
-use ferroui_base::layout::{HorizontalAlignment as H, VerticalAlignment as V};
+use ferroui_base::layout::HorizontalAlignment as H;
 use ferroui_base::media::{FontWeight, TextWrapping};
 use ferroui_controls::primitives::ScrollBarVisibility;
 use ferroui_view::prelude::*;
@@ -9,53 +9,6 @@ pub fn toggle(state: UiState) {
     let open = !state.gameplay_open.get_untracked();
     state.close_panels();
     state.gameplay_open.set(open);
-}
-
-/// A single compact native button opens the same ledger on desktop and phone.
-pub fn summary(state: UiState) -> Element {
-    button()
-        .name("GameplaySummary")
-        .horizontal_content_alignment(H::Stretch)
-        .background("#203A35")
-        .border_brush("#42685C")
-        .padding((11.0, 9.0))
-        .tool_tip_tip("Gameplay, objectives and construction readiness · O")
-        .on_click(move |_| toggle(state))
-        .child(
-            stack_panel().spacing(5.0).children((
-                grid().column_definitions("*,Auto").children((
-                    text_block()
-                        .text(move || state.gameplay.get().mode_label())
-                        .font_size(12.0)
-                        .font_weight(FontWeight::SemiBold)
-                        .foreground("#C7E8D2"),
-                    text_block()
-                        .grid_column(1)
-                        .text("Goals  O")
-                        .font_size(9.0)
-                        .foreground("#A9C4B9")
-                        .vertical_alignment(V::Center),
-                )),
-                text_block()
-                    .text(move || {
-                        let play = state.gameplay.get();
-                        if play.expedition {
-                            format!(
-                                "{} Studs · {} / {} goals",
-                                play.studs,
-                                play.completed(),
-                                play.objectives.len()
-                            )
-                        } else {
-                            "Unlimited bricks · play your way".into()
-                        }
-                    })
-                    .font_size(11.0)
-                    .foreground("#DFEAE4")
-                    .text_wrapping(TextWrapping::Wrap),
-            )),
-        )
-        .into()
 }
 
 fn modes(state: UiState, dispatch: Dispatch) -> Element {
@@ -102,7 +55,7 @@ fn modes(state: UiState, dispatch: Dispatch) -> Element {
                 .is_enabled(move || state.mode.get() != "DRIVE")
                 .background(move || {
                     if state.gameplay.get().expedition {
-                        "#533A29"
+                        theme::SELECTED
                     } else {
                         theme::INSET
                     }
@@ -139,13 +92,13 @@ fn modes(state: UiState, dispatch: Dispatch) -> Element {
 }
 
 fn ledger(state: UiState) -> Element {
-    border().background("#203A35").corner_radius(10.0).padding(16.0)
+    border().background("#173C3B").corner_radius(14.0).padding(16.0)
         .child(stack_panel().spacing(9.0).children((
             controls::label("YOUR STUD BALANCE"),
             text_block().name("StudBalance").text(move || {
                 let play = state.gameplay.get();
                 if play.started { play.studs.to_string() } else { "Ready to start".into() }
-            }).font_size(28.0).font_weight(FontWeight::Bold).foreground("#CAE9CD"),
+            }).font_size(28.0).font_weight(FontWeight::Bold).foreground(theme::POSITIVE),
             text_block().text(move || if state.gameplay.get().expedition {
                 "Build and recycle with Studs. Objective rewards arrive automatically."
             } else {
@@ -162,7 +115,7 @@ fn ledger(state: UiState) -> Element {
 fn selection(state: UiState) -> Element {
     border()
         .background(theme::INSET)
-        .corner_radius(10.0)
+        .corner_radius(14.0)
         .padding(14.0)
         .child(
             stack_panel().spacing(9.0).children((
@@ -225,11 +178,11 @@ pub fn panel(state: UiState, dispatch: Dispatch) -> Element {
             ledger(state),
             grid().column_definitions("*,*").children((
                 button().name("ObjectivesTab").content("Objectives").margin((0.0, 0.0, 4.0, 0.0))
-                    .background(move || if section.get() == 0 { "#533A29" } else { theme::INSET })
+                    .background(move || if section.get() == 0 { theme::SELECTED } else { theme::INSET })
                     .border_brush(move || if section.get() == 0 { theme::ACCENT } else { theme::EDGE })
                     .on_click(move |_| section.set(0)),
                 button().name("WorkshopTab").grid_column(1).content("Workshop").margin((4.0, 0.0, 0.0, 0.0))
-                    .background(move || if section.get() == 1 { "#533A29" } else { theme::INSET })
+                    .background(move || if section.get() == 1 { theme::SELECTED } else { theme::INSET })
                     .border_brush(move || if section.get() == 1 { theme::ACCENT } else { theme::EDGE })
                     .on_click(move |_| section.set(1)),
             )),
@@ -237,7 +190,7 @@ pub fn panel(state: UiState, dispatch: Dispatch) -> Element {
             stack_panel().spacing(12.0).is_visible(move || section.get() == 1).children((
                 selection(state),
                 workshop::view(state, dispatch),
-                border().background("#263D49").corner_radius(10.0).padding(14.0)
+                border().background("#263D49").corner_radius(14.0).padding(14.0)
                     .child(text_block().name("GameplayGuidance").text(move || state.gameplay.get().guidance)
                         .font_size(12.0).foreground("#D9E8EF").text_wrapping(TextWrapping::Wrap)),
             )),

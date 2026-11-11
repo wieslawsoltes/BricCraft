@@ -1,9 +1,11 @@
 use crate::camera::{normalize, rotation_axes};
-use crate::effect::{shader_variant_name, BalancedBrickWorldEffect, FastBrickWorldEffect};
+use crate::effect::shader_variant_name;
+use crate::effect_cache::EffectCache;
+use crate::frame::sample_count;
 use crate::{AtlasStats, BrickWorldEffect, RenderFrame};
 use briccraft_render_data::{AtlasError, PixelAtlas, SceneAtlas};
 use briccraft_world::{Instance, World};
-use ferroui_base::media::effects::{EffectImage, IEffect, ImmutableCustomEffect};
+use ferroui_base::media::effects::{EffectImage, IEffect};
 use ferroui_base::media::imaging::Bitmap;
 use ferroui_base::platform::{AlphaFormat, PixelFormat};
 use ferroui_base::{PixelSize, Rect, Size, Vector};
@@ -28,11 +30,23 @@ pub struct Renderer {
     last_time: Option<f32>,
     rotor_angle: f32,
     effective_quality: u8,
+    effective_samples: u8,
+    effects: EffectCache,
 }
 
 impl Renderer {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Physical-pixel sample count in the most recent effect snapshot.
+    pub fn samples(&self) -> u8 {
+        self.effective_samples.max(1)
+    }
+
+    /// Calls that reused the exact immutable effect and did not publish a frame.
+    pub fn reused_effects(&self) -> u64 {
+        self.effects.reused()
     }
 
     pub fn stats(&self) -> AtlasStats {
@@ -155,6 +169,7 @@ impl Renderer {
                 .copied()
                 .unwrap_or(0) as i32,
             quality: i32::from(frame.quality.min(2)),
+            sample_count: i32::from(sample_count(frame.samples)),
             construction_grid: i32::from(frame.grid),
             cells: self.cells.clone(),
             parts: self.parts.clone(),
@@ -202,14 +217,20 @@ impl Renderer {
                 f64::from(self.rotor_angle),
             );
         }
-        self.effect_frames += 1;
-        self.uniform_only_frames += u64::from(self.last_uploaded_bytes == 0);
         self.effective_quality = frame.quality.min(2);
-        Ok(match self.effective_quality {
-            0 => ImmutableCustomEffect::new(FastBrickWorldEffect(effect)).into(),
-            1 => ImmutableCustomEffect::new(BalancedBrickWorldEffect(effect)).into(),
-            _ => ImmutableCustomEffect::new(effect).into(),
-        })
+        self.effective_samples = sample_count(frame.samples);
+        let (effect, published) = self.effects.resolve(effect);
+        if published {
+            self.effect_frames += 1;
+            self.uniform_only_frames += u64::from(self.last_uploaded_bytes == 0);
+        }
+        Ok(effect)
+    }
+
+    /// Drops only the retained effect snapshot, preserving atlas images and
+    /// upload counters. Use when the world layer's presentation target changes.
+    pub fn invalidate_effect(&mut self) {
+        self.effects.invalidate();
     }
 
     /// Rebuilds when replacing a World with the same revision. Identical images
@@ -217,6 +238,7 @@ impl Renderer {
     pub fn invalidate(&mut self) {
         self.revision = None;
         self.last_time = None;
+        self.invalidate_effect();
     }
 }
 
