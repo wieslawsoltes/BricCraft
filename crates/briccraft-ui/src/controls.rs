@@ -1,6 +1,7 @@
 use crate::{theme, Dispatch, UiAction, UiState};
 use ferroui_base::layout::{HorizontalAlignment as H, VerticalAlignment as V};
 use ferroui_base::media::{FontWeight, TextWrapping};
+use ferroui_controls::Button;
 use ferroui_view::prelude::*;
 
 pub fn label(value: impl Into<String>) -> Element {
@@ -59,7 +60,7 @@ pub fn panel(
         .vertical_alignment(V::Stretch)
         .margin(move || {
             if state.compact.get() {
-                (12.0, 86.0, 12.0, 52.0)
+                (12.0, 118.0, 12.0, 52.0)
             } else {
                 (16.0, 90.0, 20.0, 150.0)
             }
@@ -100,90 +101,89 @@ pub fn panel(
         .into()
 }
 
+/// Native Button press state includes pointer release, capture loss, and cancellation.
+/// Each axis combines its two directions, so lifting one finger never clears a
+/// different finger's steering or throttle input.
+fn held_button(
+    title: &str,
+    hint: &str,
+    axis: u8,
+    positive: bool,
+    held: Signal<[bool; 6]>,
+    dispatch: Dispatch,
+) -> El<Button> {
+    button()
+        .content(title)
+        .width(42.0)
+        .height(42.0)
+        .padding(0.0)
+        .font_size(11.0)
+        .focusable(false)
+        .tool_tip_tip(hint)
+        .on_changed(Button::is_pressed_property(), move |pressed| {
+            let mut buttons = held.get_untracked();
+            let offset = axis as usize * 2;
+            buttons[offset + usize::from(positive)] = *pressed;
+            held.set(buttons);
+            dispatch(UiAction::TouchAxis {
+                axis,
+                value: u8::from(buttons[offset + 1]) as f64 - u8::from(buttons[offset]) as f64,
+            });
+        })
+}
+
 pub fn touch_controls(state: UiState, dispatch: Dispatch) -> Element {
-    let forward = dispatch.clone();
-    let back = dispatch.clone();
-    let left = dispatch.clone();
-    let right = dispatch.clone();
-    let up = dispatch.clone();
+    let held = signal([false; 6]);
     let place = dispatch.clone();
-    let remove = dispatch;
+    let remove = dispatch.clone();
     grid()
         .name("TouchControls")
-        .is_visible(state.compact)
+        .is_visible(move || {
+            state.compact.get()
+                && !state.catalog_open.get()
+                && !state.blueprints_open.get()
+                && !state.help_open.get()
+                && !state.settings_open.get()
+        })
         .horizontal_alignment(H::Left)
         .vertical_alignment(V::Bottom)
         .margin((16.0, 0.0, 16.0, 158.0))
         .column_definitions("Auto,Auto,Auto,20,Auto")
         .row_definitions("Auto,Auto")
         .children((
-            button()
-                .grid_column(1)
-                .content("↑")
-                .width(42.0)
-                .height(42.0)
-                .tool_tip_tip("Move forward")
-                .on_click(move |_| {
-                    forward(UiAction::Move {
-                        forward: 1.0,
-                        strafe: 0.0,
-                        up: 0.0,
-                    })
-                }),
-            button()
+            held_button("Down", "Descend", 1, false, held, dispatch.clone()),
+            held_button(
+                "↑",
+                "Move forward / accelerate",
+                2,
+                true,
+                held,
+                dispatch.clone(),
+            )
+            .grid_column(1),
+            held_button("Up", "Jump / rise", 1, true, held, dispatch.clone()).grid_column(2),
+            held_button(
+                "←",
+                "Move left / steer left",
+                0,
+                false,
+                held,
+                dispatch.clone(),
+            )
+            .grid_row(1),
+            held_button(
+                "↓",
+                "Move backward / reverse",
+                2,
+                false,
+                held,
+                dispatch.clone(),
+            )
+            .grid_row(1)
+            .grid_column(1),
+            held_button("→", "Move right / steer right", 0, true, held, dispatch)
                 .grid_row(1)
-                .content("←")
-                .width(42.0)
-                .height(42.0)
-                .tool_tip_tip("Move left")
-                .on_click(move |_| {
-                    left(UiAction::Move {
-                        forward: 0.0,
-                        strafe: -1.0,
-                        up: 0.0,
-                    })
-                }),
-            button()
-                .grid_row(1)
-                .grid_column(1)
-                .content("↓")
-                .width(42.0)
-                .height(42.0)
-                .tool_tip_tip("Move backward")
-                .on_click(move |_| {
-                    back(UiAction::Move {
-                        forward: -1.0,
-                        strafe: 0.0,
-                        up: 0.0,
-                    })
-                }),
-            button()
-                .grid_row(1)
-                .grid_column(2)
-                .content("→")
-                .width(42.0)
-                .height(42.0)
-                .tool_tip_tip("Move right")
-                .on_click(move |_| {
-                    right(UiAction::Move {
-                        forward: 0.0,
-                        strafe: 1.0,
-                        up: 0.0,
-                    })
-                }),
-            button()
-                .grid_column(2)
-                .content("↟")
-                .width(42.0)
-                .height(42.0)
-                .tool_tip_tip("Jump / rise")
-                .on_click(move |_| {
-                    up(UiAction::Move {
-                        forward: 0.0,
-                        strafe: 0.0,
-                        up: 1.0,
-                    })
-                }),
+                .grid_column(2),
             button()
                 .grid_column(4)
                 .class("primary")

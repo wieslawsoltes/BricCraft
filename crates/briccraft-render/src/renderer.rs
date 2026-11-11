@@ -70,6 +70,8 @@ pub struct Renderer {
     cells: EffectImage,
     parts: EffectImage,
     uploads: u64,
+    last_time: Option<f32>,
+    rotor_angle: f32,
 }
 
 impl Renderer {
@@ -93,6 +95,16 @@ impl Renderer {
         world: &World,
         frame: &RenderFrame,
     ) -> Result<Rc<dyn IEffect>, AtlasError> {
+        let dt = self
+            .last_time
+            .map(|time| (frame.time - time).clamp(0.0, 0.1))
+            .unwrap_or(0.0);
+        self.last_time = Some(frame.time);
+        if let Some(vehicle) = &frame.vehicle {
+            self.rotor_angle = (self.rotor_angle
+                + dt * vehicle.engine_rpm * std::f32::consts::TAU / 60.0)
+                .rem_euclid(std::f32::consts::TAU);
+        }
         let members = frame
             .vehicle
             .as_ref()
@@ -171,10 +183,7 @@ impl Renderer {
             effect.vehicle_axis_z = vector4(axes[2], pivot[2]);
             effect.vehicle_motion = Size::new(
                 f64::from(vehicle.wheel_angle.rem_euclid(std::f32::consts::TAU)),
-                f64::from(
-                    (frame.time * vehicle.engine_rpm * std::f32::consts::TAU / 60.0)
-                        .rem_euclid(std::f32::consts::TAU),
-                ),
+                f64::from(self.rotor_angle),
             );
         }
         Ok(ImmutableCustomEffect::new(effect).into())
@@ -183,6 +192,7 @@ impl Renderer {
     /// Forces a new upload when switching to another world with the same revision.
     pub fn invalidate(&mut self) {
         self.revision = None;
+        self.last_time = None;
     }
 }
 

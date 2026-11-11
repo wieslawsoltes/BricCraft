@@ -7,6 +7,7 @@ export function installInput(runtime, mount) {
     const touches = new Set();
     const position = { x: mount.clientWidth / 2, y: mount.clientHeight / 2 };
     let gestureScale = 1;
+    let gestureFromTouch = false;
     let lastControlWheel = -Infinity;
     const isTextInput = target => target instanceof HTMLElement &&
         (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
@@ -30,7 +31,7 @@ export function installInput(runtime, mount) {
         runtime.briccraftKey(event.code, false, event.ctrlKey || event.metaKey, false);
     }, captures);
 
-    const reset = () => { touches.clear(); gestureScale = 1; runtime.briccraftBlur(); };
+    const reset = () => { touches.clear(); gestureScale = 1; gestureFromTouch = false; runtime.briccraftBlur(); };
     window.addEventListener('blur', reset, options);
     document.addEventListener('visibilitychange', () => { if (document.hidden) reset(); }, options);
     mount.addEventListener('contextmenu', event => event.preventDefault(), options);
@@ -40,7 +41,7 @@ export function installInput(runtime, mount) {
         position.y = event.clientY - bounds.top;
     }, captures);
     mount.addEventListener('pointerdown', event => {
-        if (event.pointerType === 'touch') touches.add(event.pointerId);
+        if (event.pointerType === 'touch') { touches.add(event.pointerId); gestureFromTouch = true; }
     }, captures);
     const release = event => touches.delete(event.pointerId);
     window.addEventListener('pointerup', release, captures);
@@ -53,17 +54,18 @@ export function installInput(runtime, mount) {
     // screens native pointer gestures already apply the pinch, so never double it.
     mount.addEventListener('gesturestart', event => {
         gestureScale = Number.isFinite(event.scale) && event.scale > 0 ? event.scale : 1;
+        gestureFromTouch = touches.size > 0;
         event.preventDefault();
     }, { ...options, passive: false });
     mount.addEventListener('gesturechange', event => {
         event.preventDefault();
         const scale = event.scale;
         if (!Number.isFinite(scale) || scale <= 0) return;
-        if (touches.size < 2 && performance.now() - lastControlWheel > 100) {
+        if (!gestureFromTouch && touches.size === 0 && performance.now() - lastControlWheel > 100) {
             runtime.briccraftGesture(position.x, position.y, -Math.log(scale / gestureScale) / 0.0015);
         }
         gestureScale = scale;
     }, { ...options, passive: false });
-    mount.addEventListener('gestureend', () => { gestureScale = 1; }, options);
+    mount.addEventListener('gestureend', () => { gestureScale = 1; gestureFromTouch = false; }, options);
     return () => { subscriptions.abort(); reset(); };
 }

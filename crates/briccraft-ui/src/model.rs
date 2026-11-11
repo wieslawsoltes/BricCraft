@@ -42,11 +42,17 @@ pub enum UiAction {
     SetQuality(u8),
     SetGrid(bool),
     SetPaused(bool),
-    /// A short movement impulse for touch controls, in camera-local axes.
+    /// Set held movement in camera-local axes; all zero releases the input.
     Move {
         forward: f64,
         strafe: f64,
         up: f64,
+    },
+    /// Set one held touch axis without changing the others. Zero releases it.
+    /// Axes: 0 = strafe / steer, 1 = rise / descend, 2 = forward / reverse.
+    TouchAxis {
+        axis: u8,
+        value: f64,
     },
 }
 

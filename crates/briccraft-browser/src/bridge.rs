@@ -135,7 +135,10 @@ pub fn key(code: &str, down: bool, command: bool, repeat: bool) -> bool {
                 | "ControlLeft"
                 | "ControlRight"
         ) || code == "KeyB" && driving;
-        if !command && !modal && world_focused && movement {
+        // The Control key itself is also a flight input. Its modifier flag is
+        // already set on keydown; only shortcut letters should be excluded.
+        let flight_modifier = matches!(code, "ControlLeft" | "ControlRight");
+        if (!command || flight_modifier) && !modal && (world_focused || driving) && movement {
             runtime.session.borrow_mut().input.set_key(code, true);
             handled = true;
             return;
@@ -150,6 +153,9 @@ pub fn key(code: &str, down: bool, command: bool, repeat: bool) -> bool {
             ("Escape", _) => {
                 if modal {
                     state.close_panels();
+                    if let Some(view) = runtime.viewport.get_untracked() {
+                        let _ = view.focus();
+                    }
                     handled = true;
                     None
                 } else if driving {

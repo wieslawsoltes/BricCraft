@@ -1,5 +1,5 @@
 use crate::VehicleKind;
-use briccraft_parts::{Shape, part};
+use briccraft_parts::{part, Shape};
 use briccraft_world::Instance;
 
 #[derive(Debug, Clone)]
@@ -11,6 +11,12 @@ pub struct AssemblyAssessment {
     pub wings: usize,
     pub gears: usize,
     pub has_power: bool,
+    pub wheel_radius: f32,
+    pub wheelbase: f32,
+    pub track: f32,
+    /// Reduction of the first geometrically meshing gear pair; 1 for direct drive.
+    pub drive_ratio: f32,
+    pub forward_yaw: f32,
     pub suggested_vehicle: VehicleKind,
     /// Face-contact groups of the conservative part envelopes.
     pub connected_components: usize,
@@ -27,6 +33,11 @@ pub fn assess_assembly(instances: &[Instance]) -> AssemblyAssessment {
         wings: 0,
         gears: 0,
         has_power: false,
+        wheel_radius: 1.25,
+        wheelbase: 6.0,
+        track: 4.0,
+        drive_ratio: 1.0,
+        forward_yaw: 0.0,
         suggested_vehicle: VehicleKind::Car,
         connected_components: 0,
         drive_ready: false,
@@ -47,6 +58,7 @@ pub fn assess_assembly(instances: &[Instance]) -> AssemblyAssessment {
         boat |= part.id == 127;
         train |= matches!(part.id, 104 | 135 | 136);
     }
+    crate::drive::measure_drive(instances, &mut result);
     result.suggested_vehicle = if boat {
         VehicleKind::Boat
     } else if train {

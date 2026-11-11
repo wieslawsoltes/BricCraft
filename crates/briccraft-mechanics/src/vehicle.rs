@@ -1,4 +1,4 @@
-use crate::{RailPath, Transmission};
+use crate::{AssemblyAssessment, Motor, RailPath, Transmission};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -30,6 +30,12 @@ pub struct Vehicle {
     pub wheel_angle: f32,
     pub engine_rpm: f32,
     pub gear: i8,
+    pub mass_kg: f32,
+    pub wheel_radius: f32,
+    pub wheelbase: f32,
+    pub track: f32,
+    pub drive_ratio: f32,
+    pub motor_count: usize,
     rail_distance: f32,
 }
 
@@ -58,8 +64,25 @@ impl Vehicle {
             wheel_angle: 0.0,
             engine_rpm: 0.0,
             gear: 1,
+            mass_kg: 0.08,
+            wheel_radius: 1.25,
+            wheelbase: 6.0,
+            track: 4.0,
+            drive_ratio: 1.0,
+            motor_count: 1,
             rail_distance,
         }
+    }
+
+    /// Configure dynamics from the actual construction, rather than its chosen vehicle label.
+    /// Shape-derived shell mass is an approximation; motor torque uses the game's stud-unit scale.
+    pub fn configure(&mut self, assembly: &AssemblyAssessment) {
+        self.mass_kg = assembly.mass_kg.clamp(0.01, 50.0);
+        self.wheel_radius = assembly.wheel_radius.clamp(0.2, 8.0);
+        self.wheelbase = assembly.wheelbase.clamp(1.0, 50.0);
+        self.track = assembly.track.clamp(1.0, 50.0);
+        self.drive_ratio = assembly.drive_ratio.clamp(0.05, 20.0);
+        self.motor_count = assembly.motors;
     }
 
     /// Semi-fixed 120 Hz integration avoids frame-rate-dependent suspension and steering.
@@ -95,10 +118,35 @@ impl Vehicle {
             VehicleKind::Train => (4.0, 0.10, 17.0),
             VehicleKind::Boat => (3.5, 0.17, 11.0),
         };
-        self.speed += (input.throttle * acceleration
-            - drag * self.speed
-            - self.speed * self.speed.abs() * 0.006)
-            * dt;
+        let ratio = match self.gear {
+            2 => 1.8,
+            3 => 1.1,
+            _ => 3.0,
+        };
+        let transmission = Transmission {
+            gear_ratio: ratio,
+            final_drive: self.drive_ratio,
+            efficiency: 0.88,
+            wheel_radius: self.wheel_radius,
+        };
+        let shaft_speed = self.speed / self.wheel_radius * ratio * self.drive_ratio;
+        let motor = Motor {
+            stall_torque: self.motor_count as f32 * 0.6,
+            free_speed: 45.0,
+            target: input.throttle,
+        };
+        let drive_acceleration = if self.kind == VehicleKind::Car {
+            transmission.wheel_force(motor.torque(shaft_speed)) / (self.mass_kg * 2.5)
+        } else {
+            let power = if self.kind == VehicleKind::Boat {
+                1.0
+            } else {
+                self.motor_count as f32
+            };
+            input.throttle * acceleration * (0.08 * power / self.mass_kg).clamp(0.1, 3.0)
+        };
+        self.speed +=
+            (drive_acceleration - drag * self.speed - self.speed * self.speed.abs() * 0.006) * dt;
         if input.brake {
             self.speed = approach(self.speed, 0.0, 24.0 * dt);
         }
@@ -112,12 +160,12 @@ impl Vehicle {
         } else {
             3
         };
-        self.engine_rpm = Transmission::default().motor_rpm(self.speed).abs();
-        self.wheel_angle =
-            (self.wheel_angle + self.speed / 1.25 * dt).rem_euclid(std::f32::consts::TAU);
+        self.engine_rpm = transmission.motor_rpm(self.speed).abs();
+        self.wheel_angle = (self.wheel_angle + self.speed / self.wheel_radius * dt)
+            .rem_euclid(std::f32::consts::TAU);
         if self.kind == VehicleKind::Train {
             self.rail_distance += self.speed * dt;
-            let rail = RailPath::coastal().sample(self.rail_distance);
+            let rail = RailPath::sample_coastal(self.rail_distance);
             self.position = rail.position;
             self.yaw = rail.yaw;
             self.velocity = rail.tangent.map(|v| v * self.speed);
@@ -132,8 +180,12 @@ impl Vehicle {
             VehicleKind::Boat => 0.065,
             _ => 0.0,
         };
-        self.yaw = (self.yaw + input.steering * self.speed * steer_scale * dt)
-            .rem_euclid(std::f32::consts::TAU);
+        let yaw_rate = if self.kind == VehicleKind::Car {
+            self.speed / self.wheelbase * (input.steering * 0.55).tan()
+        } else {
+            input.steering * self.speed * steer_scale
+        };
+        self.yaw = (self.yaw + yaw_rate * dt).rem_euclid(std::f32::consts::TAU);
         let direction = [self.yaw.sin(), self.yaw.cos()];
         self.position[0] += direction[0] * self.speed * dt;
         self.position[2] += direction[1] * self.speed * dt;
@@ -146,20 +198,20 @@ impl Vehicle {
                     self.speed = 0.0;
                 }
                 let front = terrain(
-                    self.position[0] + direction[0] * 3.0,
-                    self.position[2] + direction[1] * 3.0,
+                    self.position[0] + direction[0] * self.wheelbase * 0.5,
+                    self.position[2] + direction[1] * self.wheelbase * 0.5,
                 );
                 let rear = terrain(
-                    self.position[0] - direction[0] * 3.0,
-                    self.position[2] - direction[1] * 3.0,
+                    self.position[0] - direction[0] * self.wheelbase * 0.5,
+                    self.position[2] - direction[1] * self.wheelbase * 0.5,
                 );
                 let left = terrain(
-                    self.position[0] + direction[1] * 2.0,
-                    self.position[2] - direction[0] * 2.0,
+                    self.position[0] + direction[1] * self.track * 0.5,
+                    self.position[2] - direction[0] * self.track * 0.5,
                 );
                 let right = terrain(
-                    self.position[0] - direction[1] * 2.0,
-                    self.position[2] + direction[0] * 2.0,
+                    self.position[0] - direction[1] * self.track * 0.5,
+                    self.position[2] + direction[0] * self.track * 0.5,
                 );
                 let floor = ground.max((front + rear + left + right) * 0.25);
                 self.velocity[1] +=
@@ -167,12 +219,12 @@ impl Vehicle {
                 self.position[1] = (self.position[1] + self.velocity[1] * dt).max(ground);
                 self.pitch = approach(
                     self.pitch,
-                    ((front - rear) / 6.0).atan().clamp(-0.5, 0.5),
+                    ((front - rear) / self.wheelbase).atan().clamp(-0.5, 0.5),
                     2.0 * dt,
                 );
                 self.roll = approach(
                     self.roll,
-                    ((right - left) / 4.0).atan().clamp(-0.45, 0.45),
+                    ((right - left) / self.track).atan().clamp(-0.45, 0.45),
                     2.0 * dt,
                 );
             }
@@ -216,6 +268,30 @@ impl Vehicle {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn actual_mass_and_reduction_change_wheel_acceleration() {
+        let mut world = briccraft_world::World::empty(1);
+        world
+            .spawn_blueprint(briccraft_world::Blueprint::Rover, [20, 0, 20], 0)
+            .unwrap();
+        let assessment = crate::assess_assembly(&world.instances().cloned().collect::<Vec<_>>());
+        let mut normal = Vehicle::new(VehicleKind::Car, [20.0, 0.0, 20.0]);
+        normal.configure(&assessment);
+        let mut heavy = normal.clone();
+        heavy.mass_kg *= 2.0;
+        let mut reduced = normal.clone();
+        reduced.drive_ratio *= 2.0;
+        let input = VehicleControl {
+            throttle: 1.0,
+            ..Default::default()
+        };
+        for vehicle in [&mut normal, &mut heavy, &mut reduced] {
+            vehicle.step(1.0 / 120.0, input, |_, _| 0.0);
+        }
+        assert!(heavy.speed < normal.speed * 0.55);
+        assert!(reduced.speed > normal.speed * 1.9);
+        assert_eq!(normal.wheel_radius, 1.6);
+    }
     #[test]
     fn driving_is_frame_rate_independent_and_brakes() {
         let mut a = Vehicle::new(VehicleKind::Car, [20.0, 0.0, 20.0]);

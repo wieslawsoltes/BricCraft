@@ -1,5 +1,5 @@
 use crate::{BuildError, BuildOp, Instance, Placement, WORLD_SIZE};
-use briccraft_parts::{PALETTE, part};
+use briccraft_parts::{part, Shape, PALETTE};
 use std::collections::{HashSet, VecDeque};
 
 #[derive(Debug, Clone)]
@@ -185,6 +185,17 @@ impl World {
                             cell[a] = u;
                             cell[b] = v;
                             if let Some(neighbor) = self.cell(cell) {
+                                // Tires roll on a floor; their vertical contact is not a snapped joint.
+                                // Side contacts still find axles, hubs, and the chassis.
+                                if axis == 1
+                                    && [instance.part_id, neighbor.part_id].into_iter().any(|id| {
+                                        part(id).is_some_and(|definition| {
+                                            definition.shape == Shape::Wheel
+                                        })
+                                    })
+                                {
+                                    continue;
+                                }
                                 if visited.len() < max_parts && visited.insert(neighbor.id) {
                                     queue.push_back(neighbor.id);
                                 }

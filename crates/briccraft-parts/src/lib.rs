@@ -55,11 +55,9 @@ mod tests {
 
     #[test]
     fn search_has_stable_ids() {
-        assert!(
-            search("axle", Some(Category::Technic))
-                .iter()
-                .all(|p| p.category == Category::Technic)
-        );
+        assert!(search("axle", Some(Category::Technic))
+            .iter()
+            .all(|p| p.category == Category::Technic));
         assert_eq!(part(3).unwrap().size, [2, 3, 4]);
     }
 }

@@ -9,10 +9,14 @@ impl Runtime {
         let elapsed = if previous == 0.0 {
             1.0 / 60.0
         } else {
-            ((milliseconds - previous) / 1000.0).clamp(0.0, 0.1)
+            ((milliseconds - previous) / 1000.0).max(0.0)
         };
         self.state.compact.set_if_changed(width < 850.0);
         let mut game = self.session.borrow_mut();
+        let scale = [0.5, 0.75, 1.0][game.quality.min(2) as usize];
+        if (self.world_cache.render_at_scale() - scale).abs() > 0.01 {
+            self.world_cache.set_render_at_scale(scale);
+        }
         game.aspect = (width / height.max(1.0)) as f32;
         let modal = self.state.catalog_open.get_untracked()
             || self.state.blueprints_open.get_untracked()
@@ -50,7 +54,7 @@ impl Runtime {
                 instance_ids: a.instance_ids.clone(),
                 pivot: a.pivot,
                 position: a.vehicle.position,
-                yaw: a.vehicle.yaw,
+                yaw: a.render_yaw(),
                 pitch: a.vehicle.pitch,
                 roll: a.vehicle.roll,
                 wheel_angle: a.vehicle.wheel_angle,

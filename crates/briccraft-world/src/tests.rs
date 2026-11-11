@@ -5,14 +5,12 @@ fn failed_transaction_is_atomic() {
     let mut world = World::empty(1);
     let placed = world.place(Placement::new(3, 0, [10, 10, 10], 0)).unwrap();
     let revision = world.revision();
-    assert!(
-        world
-            .apply(&[
-                BuildOp::Remove(placed),
-                BuildOp::Place(Placement::new(2, 1, [95, 0, 0], 0))
-            ])
-            .is_err()
-    );
+    assert!(world
+        .apply(&[
+            BuildOp::Remove(placed),
+            BuildOp::Place(Placement::new(2, 1, [95, 0, 0], 0))
+        ])
+        .is_err());
     assert!(world.instance(placed).is_some());
     assert_eq!(world.revision(), revision);
 }
@@ -67,11 +65,9 @@ fn raycast_accounts_for_plate_height_and_external_entry() {
             .normal,
         [0, 0, -1]
     );
-    assert!(
-        world
-            .raycast([f32::NAN, 0.0, 0.0], [0.0, 1.0, 0.0], 50.0)
-            .is_none()
-    );
+    assert!(world
+        .raycast([f32::NAN, 0.0, 0.0], [0.0, 1.0, 0.0], 50.0)
+        .is_none());
 }
 
 #[test]
@@ -123,5 +119,80 @@ fn all_u64_seeds_are_supported_at_boundary_values() {
     for seed in [0, 1, 42, 1234, u64::MAX] {
         let world = World::generate(seed);
         assert!(world.len() > 5_000, "seed {seed}");
+    }
+}
+
+#[test]
+fn vehicle_tires_do_not_snap_to_the_ground() {
+    let mut world = World::empty(1);
+    let ground = world.place(Placement::new(34, 12, [20, 0, 20], 0)).unwrap();
+    let ids = world
+        .spawn_blueprint(Blueprint::Rover, [22, 1, 22], 0)
+        .unwrap();
+    let assembly = world.connected_assembly(ids[0], 256);
+    assert_eq!(assembly.len(), ids.len());
+    assert!(!assembly.contains(&ground));
+}
+
+#[test]
+fn assembly_transform_preserves_ids_and_rolls_back_on_collision() {
+    let mut world = World::empty(1);
+    let ids = world
+        .spawn_blueprint(Blueprint::Rover, [20, 0, 20], 0)
+        .unwrap();
+    let original: Vec<_> = ids
+        .iter()
+        .map(|id| world.instance(*id).unwrap().clone())
+        .collect();
+    let mut moved = original.clone();
+    for instance in &mut moved {
+        instance.position[0] += 12;
+    }
+    let mut history = History::default();
+    assert_eq!(history.transform(&mut world, &moved).unwrap(), ids);
+    assert_eq!(world.instance(ids[0]), Some(&moved[0]));
+    history.undo(&mut world).unwrap();
+    assert_eq!(world.instance(ids[0]), Some(&original[0]));
+    history.redo(&mut world).unwrap();
+    assert_eq!(world.instance(ids[0]), Some(&moved[0]));
+    let revision = world.revision();
+    moved[0].position = [95, 0, 95];
+    assert!(history.transform(&mut world, &moved).is_err());
+    assert_eq!(world.revision(), revision);
+}
+
+#[test]
+fn blueprint_quarter_turns_match_renderer_positive_yaw() {
+    for blueprint in Blueprint::ALL {
+        let original = blueprint.placements([0; 3], 0);
+        let rotated = blueprint.placements([0; 3], 1);
+        let size = blueprint.size(0);
+        for (before, after) in original.iter().zip(rotated) {
+            // +90deg yaw maps a +Z offset to +X, and +X to -Z.
+            assert_eq!(after.position[0], before.position[2]);
+            assert_eq!(
+                after.position[2],
+                size[0] - before.position[0] - before.size()[0] as i32
+            );
+            assert_eq!(after.rotation, (before.rotation + 1) & 3);
+        }
+    }
+}
+
+#[test]
+fn generated_rails_support_the_locomotive_gauge_all_around_the_route() {
+    let world = World::generate(42);
+    for distance in (0..(COASTAL_RAIL_LENGTH * 2.0) as i32).map(|n| n as f32 * 0.5) {
+        let sample = coastal_rail_sample(distance);
+        for side in [-1.0, 1.0] {
+            let x = sample.position[0] + sample.tangent[2] * side * COASTAL_RAIL_GAUGE * 0.5;
+            let z = sample.position[2] - sample.tangent[0] * side * COASTAL_RAIL_GAUGE * 0.5;
+            assert!(
+                world
+                    .cell([x.floor() as i32, 19, z.floor() as i32])
+                    .is_some_and(|instance| instance.part_id == 40),
+                "missing rail at distance{distance}, side{side}, [{x},{z}]"
+            );
+        }
     }
 }

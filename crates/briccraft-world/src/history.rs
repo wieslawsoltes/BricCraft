@@ -1,4 +1,4 @@
-use crate::{BuildError, BuildOp, ChangeSet, World};
+use crate::{BuildError, BuildOp, ChangeSet, Instance, World};
 
 /// History records whole user actions, including multi-part blueprints, as a single reversible edit.
 #[derive(Debug)]
@@ -53,6 +53,36 @@ impl History {
         world.apply_exact(&change.added, &change.removed)?;
         self.redo.push(self.undo.pop().expect("checked history"));
         Ok(true)
+    }
+    /// Atomically move/recolor/rotate existing identities. Parking and assembly transforms preserve
+    /// references held by selection, mechanical connections, and later undo/redo operations.
+    pub fn transform(
+        &mut self,
+        world: &mut World,
+        after: &[Instance],
+    ) -> Result<Vec<u32>, BuildError> {
+        let before: Vec<_> = after
+            .iter()
+            .map(|instance| {
+                world
+                    .instance(instance.id)
+                    .cloned()
+                    .ok_or(BuildError::MissingInstance(instance.id))
+            })
+            .collect::<Result<_, _>>()?;
+        world.apply_exact(&before, after)?;
+        let ids = after.iter().map(|instance| instance.id).collect();
+        if !after.is_empty() {
+            if self.undo.len() == self.capacity {
+                self.undo.remove(0);
+            }
+            self.undo.push(ChangeSet {
+                removed: before,
+                added: after.to_vec(),
+            });
+            self.redo.clear();
+        }
+        Ok(ids)
     }
     pub fn redo(&mut self, world: &mut World) -> Result<bool, BuildError> {
         let Some(change) = self.redo.last() else {

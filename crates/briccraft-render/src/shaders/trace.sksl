@@ -94,6 +94,7 @@ float sunlight(float3 point,float3 direction,float ownId) {
     float3 steps=float3(gridRd.x<0.0?-1.0:1.0,gridRd.y<0.0?-1.0:1.0,gridRd.z<0.0?-1.0:1.0);
     float3 delta=abs(safeInverse(gridRd));
     float3 next=(cell+max(steps,float3(0.0))-gridRo)*safeInverse(gridRd);
+    float shadowDistance=quality==2?64.0:32.0;
     for(int i=0;i<96;++i) {
         float3 blockSize=float3(4.0,6.0,4.0);
         float3 coarse=floor(cell/blockSize);
@@ -102,22 +103,27 @@ float sunlight(float3 point,float3 direction,float ownId) {
             float3 blockEdge=(coarse+max(steps,float3(0.0)))*blockSize;
             float3 blockNext=(blockEdge-gridRo)*safeInverse(gridRd);
             float t=min(min(blockNext.x,blockNext.y),blockNext.z)+0.0002;
-            if(t>38.0) break;
+            if(t>shadowDistance) break;
             cell=floor(gridRo+gridRd*t);
             next=(cell+max(steps,float3(0.0))-gridRo)*safeInverse(gridRd);
             if(cell.y>=world_dimensions.y || cell.x<0.0 || cell.z<0.0 || cell.x>=world_dimensions.x || cell.z>=world_dimensions.z) break;
             continue;
         }
         float id=cellId(cell,world_dimensions.xyz,0.0);
-        if(id>0.0 && id!=ownId) return 0.24;
+        if(id>0.0 && id!=ownId) {
+            if(quality<2) return 0.24;
+            float exit=min(min(next.x,next.y),next.z);
+            Hit blocker=intersectPart(ro,direction,id,cell,0.0,exit);
+            if(blocker.t<FAR) return 0.24;
+        }
         float t=min(min(next.x,next.y),next.z);
         float3 advance=float3(next.x<=t+0.00001?1.0:0.0,next.y<=t+0.00001?1.0:0.0,next.z<=t+0.00001?1.0:0.0);
         cell+=steps*advance;next+=delta*advance;
-        if(t>38.0 || cell.y>=world_dimensions.y || cell.x<0.0 || cell.z<0.0 || cell.x>=world_dimensions.x || cell.z>=world_dimensions.z) break;
+        if(t>shadowDistance || cell.y>=world_dimensions.y || cell.x<0.0 || cell.z<0.0 || cell.x>=world_dimensions.x || cell.z>=world_dimensions.z) break;
         if(quality==1 && i>44) break;
     }
     if(vehicle_position.w>0.5) {
-        Hit moving=traceVolume(vehicleLocal(ro),vehicleDirection(direction),vehicle_dimensions.xyz,vehicle_dimensions.w,38.0);
+        Hit moving=traceVolume(vehicleLocal(ro),vehicleDirection(direction),vehicle_dimensions.xyz,vehicle_dimensions.w,shadowDistance);
         if(moving.t<FAR && moving.id!=ownId) return 0.24;
     }
     return 1.0;

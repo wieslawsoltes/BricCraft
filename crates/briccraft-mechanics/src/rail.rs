@@ -11,6 +11,7 @@ pub struct RailPath {
     cumulative: Vec<f32>,
     length: f32,
     closed: bool,
+    coastal: bool,
 }
 impl RailPath {
     pub fn new(points: Vec<[f32; 3]>, closed: bool) -> Option<Self> {
@@ -38,24 +39,34 @@ impl RailPath {
             cumulative,
             length,
             closed,
+            coastal: false,
         })
     }
     pub fn coastal() -> Self {
-        Self::new(
-            vec![
-                [20.0, 8.0, 20.0],
-                [74.0, 8.0, 20.0],
-                [74.0, 8.0, 74.0],
-                [20.0, 8.0, 74.0],
-            ],
-            true,
-        )
-        .expect("valid coastal track")
+        Self {
+            points: Vec::new(),
+            cumulative: Vec::new(),
+            length: briccraft_world::COASTAL_RAIL_LENGTH,
+            closed: true,
+            coastal: true,
+        }
+    }
+    /// Allocation-free sample of the built-in circuit for the fixed-step train loop.
+    pub fn sample_coastal(distance: f32) -> RailSample {
+        let sample = briccraft_world::coastal_rail_sample(distance);
+        RailSample {
+            position: sample.position,
+            tangent: sample.tangent,
+            yaw: sample.yaw,
+        }
     }
     pub fn length(&self) -> f32 {
         self.length
     }
     pub fn sample(&self, distance: f32) -> RailSample {
+        if self.coastal {
+            return Self::sample_coastal(distance);
+        }
         let distance = if self.closed {
             distance.rem_euclid(self.length)
         } else {
@@ -78,6 +89,9 @@ impl RailPath {
         }
     }
     pub fn closest_distance(&self, position: [f32; 3]) -> f32 {
+        if self.coastal {
+            return briccraft_world::coastal_rail_closest_distance(position);
+        }
         let mut best = (f32::INFINITY, 0.0);
         for i in 0..self.cumulative.len() - 1 {
             let a = self.points[i];

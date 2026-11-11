@@ -5,25 +5,28 @@ use ferroui_view::prelude::*;
 
 pub fn header(state: UiState, dispatch: Dispatch) -> Element {
     let explore = dispatch.clone();
+    let touch_explore = dispatch.clone();
+    let touch_vehicle = dispatch.clone();
     let save = dispatch;
     border()
         .name("Header")
         .vertical_alignment(V::Top)
-        .margin((20.0, 18.0, 20.0, 0.0))
+        .margin(move || if state.compact.get() { (12.0, 12.0, 12.0, 0.0) } else { (20.0, 18.0, 20.0, 0.0) })
         .background(theme::SURFACE)
         .border_brush(theme::EDGE)
         .border_thickness(1.0)
         .corner_radius(14.0)
-        .padding((14.0, 10.0))
+        .padding(move || if state.compact.get() { (10.0, 8.0) } else { (14.0, 10.0) })
         .effect(theme::shadow())
         .child(
+            grid().row_definitions("Auto,Auto").children((
             grid().column_definitions("Auto,*,Auto").children((
                 stack_panel()
                     .orientation(Orientation::Horizontal)
                     .spacing(10.0)
                     .vertical_alignment(V::Center)
                     .children((
-                        preview::brick(
+                        border().is_visible(move || !state.compact.get()).child(preview::brick(
                             &PartCard {
                                 id: 0,
                                 name: "Brick".into(),
@@ -32,14 +35,14 @@ pub fn header(state: UiState, dispatch: Dispatch) -> Element {
                             },
                             theme::ACCENT,
                             0.8,
-                        ),
+                        )),
                         stack_panel()
                             .spacing(0.0)
                             .vertical_alignment(V::Center)
                             .children((
                                 text_block()
                                     .text("BricCraft")
-                                    .font_size(24.0)
+                                    .font_size(move || if state.compact.get() { 20.0 } else { 24.0 })
                                     .font_weight(FontWeight::Bold),
                                 text_block()
                                     .text("A WORLD OF POSSIBILITIES")
@@ -69,10 +72,8 @@ pub fn header(state: UiState, dispatch: Dispatch) -> Element {
                             ),
                         button()
                             .class("quiet")
-                            .content("Explore  ↗")
-                            .tool_tip_tip(
-                                "Switch between builder orbit and first-person exploration · Tab",
-                            )
+                            .content("Explore")
+                            .tool_tip_tip("Switch between builder orbit and first-person exploration · Tab")
                             .on_click(move |_| explore(UiAction::ToggleExplore)),
                         button()
                             .class("quiet")
@@ -98,11 +99,10 @@ pub fn header(state: UiState, dispatch: Dispatch) -> Element {
                             .on_click(move |_| save(UiAction::Save)),
                         button()
                             .class("quiet")
-                            .content("☷")
+                            .content("Settings")
                             .tool_tip_tip("World settings, save files and quality")
-                            .width(36.0)
-                            .padding(0.0)
-                            .font_size(18.0)
+                            .padding((8.0, 7.0))
+                            .font_size(11.0)
                             .on_click(move |_| {
                                 let open = !state.settings_open.get_untracked();
                                 state.close_panels();
@@ -110,13 +110,8 @@ pub fn header(state: UiState, dispatch: Dispatch) -> Element {
                             }),
                         button()
                             .class("primary")
-                            .content(move || {
-                                if state.compact.get() {
-                                    "Bricks"
-                                } else {
-                                    "Brick library  B"
-                                }
-                            })
+                            .content(move || if state.compact.get() { "Bricks" } else { "Brick library  B" })
+                            .padding(move || if state.compact.get() { (10.0, 7.0) } else { (12.0, 9.0) })
                             .tool_tip_tip("Browse every building part · B")
                             .on_click(move |_| {
                                 let open = !state.catalog_open.get_untracked();
@@ -124,6 +119,34 @@ pub fn header(state: UiState, dispatch: Dispatch) -> Element {
                                 state.catalog_open.set(open);
                             }),
                     )),
+            )),
+            grid()
+                .name("CompactActions")
+                .grid_row(1)
+                .column_definitions("*,*,*")
+                .margin((0.0, 6.0, 0.0, 0.0))
+                .is_visible(state.compact)
+                .children((
+                    button().content("Explore").font_size(11.0).height(32.0).min_height(32.0)
+                        .padding((6.0, 5.0)).margin((0.0, 0.0, 4.0, 0.0))
+                        .tool_tip_tip("Switch builder, flight and walking modes")
+                        .on_click(move |_| touch_explore(UiAction::ToggleExplore)),
+                    button().grid_column(1).content("Blueprints").font_size(11.0).height(32.0).min_height(32.0)
+                        .padding((6.0, 5.0)).margin((2.0, 0.0, 2.0, 0.0))
+                        .on_click(move |_| {
+                            let open = !state.blueprints_open.get_untracked();
+                            state.close_panels();
+                            state.blueprints_open.set(open);
+                        }),
+                    button().grid_column(2).font_size(11.0).height(32.0).min_height(32.0)
+                        .padding((6.0, 5.0)).margin((4.0, 0.0, 0.0, 0.0))
+                        .content(move || if state.mode.get() == "DRIVE" { "Exit vehicle" } else { "Drive" })
+                        .on_click(move |_| touch_vehicle(if state.mode.get_untracked() == "DRIVE" {
+                            UiAction::ExitVehicle
+                        } else {
+                            UiAction::ActivateVehicle("auto".into())
+                        })),
+                )),
             )),
         )
         .into()
@@ -188,7 +211,7 @@ pub fn world_card(state: UiState, dispatch: Dispatch) -> Element {
                     )),
                 button()
                     .class("quiet")
-                    .content("↺  Reset camera")
+                    .content("Reset camera")
                     .horizontal_alignment(H::Left)
                     .tool_tip_tip("Return to the island overview · Home")
                     .on_click(move |_| reset(UiAction::ResetCamera)),
@@ -237,7 +260,13 @@ pub fn footer(state: UiState, dispatch: Dispatch) -> Element {
     let redo = dispatch;
     grid()
         .vertical_alignment(V::Bottom)
-        .margin((24.0, 0.0, 24.0, 14.0))
+        .margin(move || {
+            if state.compact.get() {
+                (12.0, 0.0, 12.0, 12.0)
+            } else {
+                (24.0, 0.0, 24.0, 14.0)
+            }
+        })
         .column_definitions("Auto,*,Auto")
         .children((
             stack_panel()
@@ -246,8 +275,8 @@ pub fn footer(state: UiState, dispatch: Dispatch) -> Element {
                 .children((
                     button()
                         .class("quiet")
-                        .content("?")
-                        .width(32.0)
+                        .content("Help")
+                        .width(44.0)
                         .height(30.0)
                         .min_height(30.0)
                         .padding(0.0)
@@ -259,8 +288,8 @@ pub fn footer(state: UiState, dispatch: Dispatch) -> Element {
                         }),
                     button()
                         .class("quiet")
-                        .content("↶")
-                        .width(32.0)
+                        .content("Undo")
+                        .width(48.0)
                         .height(30.0)
                         .min_height(30.0)
                         .padding(0.0)
@@ -268,8 +297,8 @@ pub fn footer(state: UiState, dispatch: Dispatch) -> Element {
                         .on_click(move |_| undo(UiAction::Undo)),
                     button()
                         .class("quiet")
-                        .content("↷")
-                        .width(32.0)
+                        .content("Redo")
+                        .width(48.0)
                         .height(30.0)
                         .min_height(30.0)
                         .padding(0.0)

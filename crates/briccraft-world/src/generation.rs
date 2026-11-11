@@ -136,14 +136,15 @@ fn settlement(world: &mut World) {
         }
     }
     let _ = world.spawn_blueprint(Blueprint::Tower, [28, 18, 64], 0);
-    for (x, z) in [(39, 28), (48, 28), (39, 44), (48, 44), (39, 60), (48, 60)] {
-        try_part(world, 152, 4, [x, 19, z], 0);
-        try_part(world, 153, 30, [x, 34, z], 0);
+    for (x, z) in [(39, 28), (48, 28), (25, 44), (48, 44), (25, 60), (48, 60)] {
+        let y = (world.surface_height(x as f32, z as f32) / 0.4).round() as i32;
+        try_part(world, 152, 4, [x, y, z], 0);
+        try_part(world, 153, 30, [x, y + 15, z], 0);
     }
-    for z in [40, 52, 62] {
-        try_part(world, 0, 9, [36, 18, z], 0);
-        try_part(world, 0, 9, [36, 18, z + 4], 0);
-        try_part(world, 150, 28, [36, 21, z], 0);
+    for z in [52, 58, 64] {
+        try_part(world, 0, 9, [64, 18, z], 0);
+        try_part(world, 0, 9, [64, 18, z + 4], 0);
+        try_part(world, 150, 28, [64, 21, z], 0);
     }
     // Open plaza: paving perimeter only, preserving stud connections inside.
     for x in (48..62).step_by(2) {
@@ -169,54 +170,39 @@ fn settlement(world: &mut World) {
 }
 
 fn railway(world: &mut World) {
-    // Raised plate roadbed allows a track to traverse changing terrain continuously.
-    for z in (24..72).step_by(4) {
-        for x in [18, 72] {
-            try_part(world, 26, 7, [x, 18, z], 0);
-            for rail_x in [x, x + 3] {
-                try_part(world, 46, 6, [rail_x, 19, z], 0);
+    // The generated bricks and the moving train share one exact rounded centerline.
+    // Seven-stud rail gauge matches the locomotive's actual wheel-center spacing.
+    for z in 14..82 {
+        for x in 14..82 {
+            let p = [x as f32 + 0.5, 8.0, z as f32 + 0.5];
+            let distance = crate::coastal_rail_closest_distance(p);
+            let sample = crate::coastal_rail_sample(distance);
+            let lateral =
+                ((p[0] - sample.position[0]).powi(2) + (p[2] - sample.position[2]).powi(2)).sqrt();
+            if lateral > 4.25 {
+                continue;
+            }
+            let color = if distance.rem_euclid(3.0) < 0.9 {
+                28
+            } else {
+                7
+            };
+            try_part(world, 20, color, [x, 18, z], 0);
+            if (lateral - crate::COASTAL_RAIL_GAUGE * 0.5).abs() < 0.72 {
+                try_part(world, 40, 6, [x, 19, z], 0);
             }
         }
     }
-    for x in (24..72).step_by(4) {
-        for z in [18, 72] {
-            try_part(world, 26, 7, [x, 18, z], 0);
-            for rail_z in [z, z + 3] {
-                try_part(world, 46, 6, [x, 19, rail_z], 1);
-            }
-        }
-    }
-    for (x, z) in [(18, 18), (18, 72), (72, 18), (72, 72)] {
-        for dx in [0, 4] {
-            for dz in [0, 4] {
-                try_part(world, 26, 7, [x + dx, 18, z + dz], 0);
-            }
-        }
-        for d in 0..6 {
-            try_part(world, 40, 6, [x + d, 19, z + d], 0);
-            try_part(world, 40, 6, [x + d, 19, z + d + 2], 0);
-        }
-    }
-    for (x, z) in [
-        (18, 30),
-        (18, 46),
-        (18, 62),
-        (72, 30),
-        (72, 46),
-        (72, 62),
-        (30, 18),
-        (46, 18),
-        (62, 18),
-        (30, 72),
-        (46, 72),
-        (62, 72),
-    ] {
-        let bottom = (world.surface_height(x as f32, z as f32) / 0.4).round() as i32;
-        // Read the pre-roadbed column below it, rather than attempting overlapping support columns.
+    for distance in (0..crate::COASTAL_RAIL_LENGTH as i32).step_by(12) {
+        let p = crate::coastal_rail_sample(distance as f32).position;
         for y in (0..18).step_by(3) {
-            if bottom > 0 {
-                try_part(world, 2, 6, [x, y, z], 0);
-            }
+            try_part(
+                world,
+                0,
+                6,
+                [p[0].floor() as i32, y, p[2].floor() as i32],
+                0,
+            );
         }
     }
 }
@@ -250,7 +236,6 @@ fn foliage(world: &mut World) {
                     [x - 1, y + 9, z - 1],
                     0,
                 )));
-                ops.push(BuildOp::Place(Placement::new(67, 5, [x, y + 19, z], 0)));
             } else {
                 ops.push(BuildOp::Place(Placement::new(
                     111,
@@ -277,6 +262,7 @@ fn foliage(world: &mut World) {
             let y = (world.surface_height(x as f32, z as f32) / 0.4).round() as i32;
             if y != 18
                 || ((38..50).contains(&x))
+                || ((26..48).contains(&x) && (40..64).contains(&z))
                 || ((46..64).contains(&x) && (46..65).contains(&z))
             {
                 continue;

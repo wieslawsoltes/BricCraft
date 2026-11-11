@@ -31,8 +31,8 @@ pub fn blueprints(state: UiState, dispatch: Dispatch) -> Element {
         ),
         (
             "boat",
-            "Harbor launch",
-            "Hull · propeller · water travel",
+            "Lagoon sailboat",
+            "Hull · sail · water travel",
             "#EBE9DE",
             "Slope",
         ),
@@ -207,21 +207,23 @@ pub fn settings(state: UiState, dispatch: Dispatch) -> Element {
 pub fn help(state: UiState) -> Element {
     let keys: Vec<Element> = [
         ("DRAG", "Orbit around your construction"),
+        ("SHIFT", "Hold while dragging to pan"),
         ("WHEEL", "Zoom toward or away from the world"),
         ("LMB", "Place the selected brick"),
         ("RMB", "Remove the targeted brick"),
         ("R", "Rotate the part by a quarter turn"),
         ("1–8", "Select a hotbar part"),
-        ("B", "Open the brick library"),
+        ("B", "Open the library; brake while driving"),
         ("TAB", "Switch builder / first-person mode"),
         ("WASD", "Move, drive, or steer"),
         ("SPACE", "Jump or climb when flying"),
+        ("Q / E", "Descend / ascend while flying"),
         ("F", "Activate / enter the nearest vehicle"),
         ("HOME", "Return to the overview"),
         ("CTRL Z", "Undo the last construction edit"),
         ("CTRL Y", "Redo an edit"),
         ("CTRL S", "Save the world in your browser"),
-        ("ESC", "Close panels / release the pointer"),
+        ("ESC", "Close panels, leave vehicle, or pause"),
     ]
     .into_iter()
     .map(|(key, description)| {
@@ -250,7 +252,7 @@ pub fn help(state: UiState) -> Element {
             separator(), stack_panel().children(keys), separator(),
             text_block().text("Connected by design").font_size(16.0).font_weight(FontWeight::SemiBold),
             controls::caption("Horizontal positions follow the stud grid. Vertical positions use plate units: three plates make one full brick. Axles, pins, gears and hinges provide mechanical connections."),
-            controls::caption("On a touch screen, drag to orbit and pinch to zoom. Use the movement pad and + / − controls to move and build."),
+            controls::caption("On a touch screen, drag to orbit. Move two fingers together to pan, and pinch to zoom. Use the movement pad and + / − controls to move and build."),
         ))).into();
     border()
         .is_visible(state.help_open)

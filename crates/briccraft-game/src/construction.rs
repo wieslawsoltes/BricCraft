@@ -1,6 +1,6 @@
 use crate::Session;
 use briccraft_parts::part;
-use briccraft_world::{Blueprint, BuildOp, Placement};
+use briccraft_world::{BuildOp, Placement};
 
 impl Session {
     pub fn update_pick(&mut self) {
@@ -87,62 +87,5 @@ impl Session {
                 );
             }
         }
-    }
-    pub fn spawn_blueprint(&mut self, name: &str) {
-        if self.active_vehicle.is_some() {
-            self.status = "Park your vehicle before inserting another construction.".into();
-            return;
-        }
-        let blueprint = match name {
-            "rover" | "car" => Blueprint::Rover,
-            "plane" => Blueprint::Airplane,
-            "train" => Blueprint::Locomotive,
-            "boat" => Blueprint::Sailboat,
-            "house" => Blueprint::House,
-            "tower" => Blueprint::Tower,
-            "windmill" => Blueprint::Windmill,
-            "bridge" => Blueprint::Bridge,
-            _ => return,
-        };
-        let center = self
-            .hit
-            .as_ref()
-            .map_or([48, 18, 45], |h| [h.cell[0], h.cell[1] + 1, h.cell[2]]);
-        // Search the nearby buildable area; a template is committed atomically, never partly inserted.
-        let mut result = None;
-        'search: for radius in [0_i32, 4, 8, 12, 18, 24, 32] {
-            for (dx, dz) in [
-                (radius, 0),
-                (-radius, 0),
-                (0, radius),
-                (0, -radius),
-                (radius, radius),
-                (-radius, -radius),
-            ] {
-                let x = (center[0] + dx).clamp(4, 80);
-                let z = (center[2] + dz).clamp(4, 80);
-                let y =
-                    (self.world.surface_height(x as f32 + 0.5, z as f32 + 0.5) / 0.4).ceil() as i32;
-                let placements = blueprint.placements([x, y, z], self.rotation);
-                let operations: Vec<_> = placements.into_iter().map(BuildOp::Place).collect();
-                if let Ok(ids) = self.history.execute(&mut self.world, &operations) {
-                    result = Some(ids);
-                    break 'search;
-                }
-            }
-        }
-        if let Some(ids) = result {
-            let count = ids.len();
-            self.last_blueprint = ids;
-            self.status = format!(
-                "{} assembled from {count} parts. Choose Drive to bring a vehicle to life.",
-                blueprint.name()
-            );
-        } else {
-            self.status =
-                "There is not enough clear space here for this construction. Choose another area."
-                    .into();
-        }
-        self.update_pick();
     }
 }

@@ -9,7 +9,7 @@
 Explore an editable stud-built island with a harbor village, lighthouse, terraced shoreline, woodland, a coastal railway and a building meadow. Place individual pieces, browse an extensive catalogue, or insert complete constructions assembled from the same editable parts.
 
 - **161 procedural parts and 32 colors:** bricks, plates, tiles, slopes, rounded pieces, arches, windows, doors, furniture, plants, liftarms, gears, axles, wheels, power components and transport pieces.
-- **Eight construction blueprints:** trail rover, island seaplane, coastal locomotive, lagoon sailboat, harbor cottage, lighthouse, windmill and bridge.
+- **Eight construction blueprints:** trail rover, island hopper, coastal locomotive, lagoon sailboat, harbor cottage, lighthouse, windmill and bridge.
 - **Construction tools:** face picking, placement preview with collision feedback, quarter-turn rotation, color selection, eyedropper, grouped undo/redo and a construction grid.
 - **Working vehicles:** activate connected constructions, drive or fly with the keyboard, then park them back onto the construction grid. Cars, aircraft, trains and boats have distinct simulation models.
 - **Reusable mechanical systems:** connected assembly assessment, motor/power checks, gear speed and torque ratios, locked-loop detection, transmission, differential, steering, spring/damper joints and a sampled rail path.
@@ -25,17 +25,17 @@ Explore an editable stud-built island with a harbor village, lighthouse, terrace
 | Place / remove a part | Click / right-click the world |
 | Orbit or look | Drag the world |
 | Pan | Shift-drag or middle-drag |
-| Zoom | Mouse wheel / trackpad |
+| Zoom | Mouse wheel / trackpad / two-finger pinch |
 | Pick part and color | Middle-click |
 | Rotate selected part | R |
 | Hotbar | 1–8 |
-| Parts library | B or Tab |
-| Change camera | F |
+| Parts library | B |
+| Change camera | Tab |
 | Move | W A S D / arrow keys |
 | Ascend / descend in flight | E / Q |
 | Jump when walking | Space |
 | Faster movement | Shift |
-| Activate vehicle | V or Drive in the world panel |
+| Activate vehicle | F / V or Drive in the world panel |
 | Throttle / steer | W S / A D |
 | Aircraft lift / vehicle brake | E Q / B |
 | Park vehicle / close panel | Escape |

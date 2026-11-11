@@ -101,7 +101,7 @@ float partDistance(float3 local, PartData part) {
         return max(cylinder,-bore);
     }
     if (kind<6.5) {
-        float angle=atan(q.z,q.y);
+        float angle=dot(q.yz,q.yz)>0.00000001?atan(q.z,q.y):0.0;
         float radius=min(halfSize.y,halfSize.z);
         float tooth=step(0.0,sin(angle*16.0))*radius*0.10;
         return max(cappedCylinder(q.yz,q.x,radius-tooth,halfSize.x),0.13-length(q.yz));
@@ -162,15 +162,19 @@ float complexHit(float3 ro,float3 rd,PartData part,float minT,float maxT,out flo
     for(int i=0;i<28;++i) {
         float3 local=ro+rd*t-part.origin;
         float d=partDistance(local,part);
-        if(d<0.005) {
+        // A negative distance means the camera starts inside the solid; it is
+        // not a surface hit. March towards the exit with the absolute distance.
+        if(abs(d)<0.005) {
             float e=0.009;
-            normal=normalize(float3(
+            float3 gradient=float3(
                 partDistance(local+float3(e,0.0,0.0),part)-partDistance(local-float3(e,0.0,0.0),part),
                 partDistance(local+float3(0.0,e,0.0),part)-partDistance(local-float3(0.0,e,0.0),part),
-                partDistance(local+float3(0.0,0.0,e),part)-partDistance(local-float3(0.0,0.0,e),part)));
+                partDistance(local+float3(0.0,0.0,e),part)-partDistance(local-float3(0.0,0.0,e),part));
+            float lengthSquared=dot(gradient,gradient);
+            normal=lengthSquared>0.00000001?gradient*inversesqrt(lengthSquared):-rd;
             return t;
         }
-        t+=max(d*0.75,0.005);
+        t+=max(abs(d)*0.75,0.005);
         if(t>maxT) break;
     }
     return FAR;

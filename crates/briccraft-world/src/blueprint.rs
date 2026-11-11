@@ -26,7 +26,7 @@ impl Blueprint {
     pub const fn name(self) -> &'static str {
         match self {
             Self::Rover => "Trail rover",
-            Self::Airplane => "Island seaplane",
+            Self::Airplane => "Island hopper",
             Self::Locomotive => "Coastal express",
             Self::Sailboat => "Lagoon sailboat",
             Self::House => "Harbor cottage",
@@ -48,14 +48,27 @@ impl Blueprint {
             Self::Bridge => bridge(&mut items),
         }
         let [width, _, depth] = bounds(&items);
+        // All transport blueprints use +Z as their forward axis. Chassis plates have no visual
+        // front; keep their canonical orientation as the assembly's heading reference.
+        if matches!(self, Self::Rover | Self::Airplane | Self::Locomotive) {
+            for item in &mut items {
+                let size = item.size().map(i32::from);
+                item.position[0] = width - item.position[0] - size[0];
+                item.position[2] = depth - item.position[2] - size[2];
+                item.rotation = (item.rotation + 2) & 3;
+                if matches!(item.part_id, 120 | 135) {
+                    item.rotation = 0;
+                }
+            }
+        }
         for item in &mut items {
             let [x, y, z] = item.position;
             let size = item.size().map(i32::from);
             let position = match rotation & 3 {
                 0 => [x, y, z],
-                1 => [depth - z - size[2], y, x],
+                1 => [z, y, width - x - size[0]],
                 2 => [width - x - size[0], y, depth - z - size[2]],
-                _ => [z, y, width - x - size[0]],
+                _ => [depth - z - size[2], y, x],
             };
             item.position = std::array::from_fn(|axis| origin[axis] + position[axis]);
             item.rotation = (item.rotation + rotation) & 3;

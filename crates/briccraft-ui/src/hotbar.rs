@@ -33,6 +33,8 @@ pub fn hotbar(
                         .children((
                             text_block()
                                 .text(state.selected_name)
+                                .max_width(move || if state.compact.get() { 140.0 } else { 350.0 })
+                                .text_wrapping(ferroui_base::media::TextWrapping::Wrap)
                                 .font_size(12.0)
                                 .font_weight(FontWeight::SemiBold),
                             text_block()
@@ -48,7 +50,7 @@ pub fn hotbar(
                         .children((
                             button()
                                 .class("quiet")
-                                .content("↻ R")
+                                .content("R")
                                 .height(24.0)
                                 .min_height(24.0)
                                 .padding((6.0, 2.0))

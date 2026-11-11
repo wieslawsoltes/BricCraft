@@ -1,5 +1,5 @@
 use crate::{controls, preview, theme, ColorSwatch, Dispatch, PartCard, UiAction, UiState};
-use ferroui_base::layout::{HorizontalAlignment as H, VerticalAlignment as V};
+use ferroui_base::layout::{HorizontalAlignment as H, Orientation, VerticalAlignment as V};
 use ferroui_base::media::{FontWeight, TextWrapping};
 use ferroui_controls::primitives::ScrollBarVisibility;
 use ferroui_view::prelude::*;
@@ -57,11 +57,26 @@ pub fn catalog(
                             .into()
                     })
                     .collect();
-                wrap_panel()
-                    .grid_row(1)
-                    .margin((0.0, 0.0, 0.0, 10.0))
-                    .children(choices)
-                    .into_element()
+                if state.compact.get() {
+                    scroll_viewer()
+                        .grid_row(1)
+                        .height(44.0)
+                        .margin((0.0, 0.0, 0.0, 8.0))
+                        .horizontal_scroll_bar_visibility(ScrollBarVisibility::Auto)
+                        .vertical_scroll_bar_visibility(ScrollBarVisibility::Disabled)
+                        .child(
+                            stack_panel()
+                                .orientation(Orientation::Horizontal)
+                                .children(choices),
+                        )
+                        .into_element()
+                } else {
+                    wrap_panel()
+                        .grid_row(1)
+                        .margin((0.0, 0.0, 0.0, 10.0))
+                        .children(choices)
+                        .into_element()
+                }
             }),
             scroll_viewer()
                 .grid_row(2)
@@ -104,7 +119,31 @@ pub fn catalog(
                             ))
                             .into_element()
                     } else {
-                        wrap_panel().children(items).into_element()
+                        // The vertical scrollbar consumes part of the panel's
+                        // width. Star columns divide the actual viewport, so a
+                        // scrollbar can never force every card onto its own row.
+                        let rows = vec!["Auto"; items.len().div_ceil(2)].join(",");
+                        let cards: Vec<Element> = items
+                            .into_iter()
+                            .enumerate()
+                            .map(|(index, card)| {
+                                border()
+                                    .grid_row((index / 2) as i32)
+                                    .grid_column((index % 2) as i32)
+                                    .margin(if index % 2 == 0 {
+                                        (0.0, 0.0, 4.0, 8.0)
+                                    } else {
+                                        (4.0, 0.0, 0.0, 8.0)
+                                    })
+                                    .child(card)
+                                    .into()
+                            })
+                            .collect();
+                        grid()
+                            .column_definitions("*,*")
+                            .row_definitions(&rows)
+                            .children(cards)
+                            .into_element()
                     }
                 })),
             stack_panel()
@@ -148,7 +187,12 @@ pub fn catalog(
                                     .into()
                             })
                             .collect();
-                        wrap_panel().children(swatches).into_element()
+                        scroll_viewer()
+                            .max_height(if state.compact.get() { 92.0 } else { 140.0 })
+                            .horizontal_scroll_bar_visibility(ScrollBarVisibility::Disabled)
+                            .vertical_scroll_bar_visibility(ScrollBarVisibility::Auto)
+                            .child(wrap_panel().children(swatches))
+                            .into_element()
                     }),
                 )),
         ))
@@ -175,10 +219,9 @@ fn part_card(
     let id = part.id;
     button()
         .name(format!("Part{}", part.id))
-        .width(if compact { 119.0 } else { 148.0 })
-        .height(98.0)
+        .horizontal_alignment(H::Stretch)
+        .height(112.0)
         .padding(7.0)
-        .margin((0.0, 0.0, 8.0, 8.0))
         .corner_radius(10.0)
         .horizontal_content_alignment(H::Stretch)
         .background(if selected { "#523D2F" } else { "#1C2D37" })

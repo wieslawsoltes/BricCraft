@@ -15,6 +15,7 @@ pub struct Runtime {
     pub state: UiState,
     pub viewport: NodeRef<Border>,
     pub world_effect: Signal<Option<Rc<dyn IEffect>>>,
+    pub world_cache: ferroui_base::Ref<ferroui_base::media::BitmapCache>,
     pub pointer: RefCell<crate::viewport::PointerState>,
     pub owner: Owner,
     last_frame: Cell<f64>,
@@ -25,12 +26,15 @@ pub struct Runtime {
 impl Runtime {
     pub fn new(owner: Owner) -> Self {
         let session = Session::new(42);
+        let world_cache = ferroui_base::media::BitmapCache::new();
+        world_cache.set_render_at_scale(0.75);
         Self {
             session: RefCell::new(session),
             renderer: RefCell::new(Renderer::new()),
             state: UiState::new(),
             viewport: NodeRef::new(),
             world_effect: signal(None),
+            world_cache,
             pointer: RefCell::new(Default::default()),
             owner,
             last_frame: Cell::new(0.0),

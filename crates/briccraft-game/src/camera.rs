@@ -102,6 +102,13 @@ impl CameraRig {
     fn update_orbit(&mut self) {
         self.position = self.target - self.forward() * self.distance;
     }
+    pub fn focus(&mut self, target: [f32; 3], distance: f32) {
+        self.mode = CameraMode::Orbit;
+        self.target = Vec3::from_array(target);
+        self.distance = distance.clamp(8.0, 160.0);
+        self.pitch = -0.40;
+        self.update_orbit();
+    }
     pub fn tick(&mut self, dt: f32, input: &Input, floor: impl Fn(f32, f32) -> f32) {
         let dt = dt.clamp(0.0, 0.05);
         let [x, y, z] = input.axes();

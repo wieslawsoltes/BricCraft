@@ -1,11 +1,20 @@
 use crate::Session;
-use briccraft_mechanics::{Vehicle, VehicleKind};
-use briccraft_world::{BuildOp, Placement};
+use briccraft_mechanics::{assess_assembly, Vehicle, VehicleKind};
+use briccraft_world::Instance;
 
 pub struct ActiveVehicle {
     pub instance_ids: Vec<u32>,
     pub pivot: [f32; 3],
     pub vehicle: Vehicle,
+    /// World heading of the construction before the continuous driving transform is applied.
+    pub base_yaw: f32,
+    pub half_extents_xz: [f32; 2],
+}
+
+impl ActiveVehicle {
+    pub fn render_yaw(&self) -> f32 {
+        self.vehicle.yaw - self.base_yaw
+    }
 }
 
 impl Session {
@@ -13,24 +22,41 @@ impl Session {
         if self.active_vehicle.is_some() {
             return;
         }
-        let ids: Vec<u32> = self
-            .last_blueprint
+        let pointed = self
+            .hit
+            .as_ref()
+            .map(|h| self.world.connected_assembly(h.id, 256))
+            .unwrap_or_default();
+        let pointed_parts: Vec<_> = pointed
             .iter()
-            .copied()
-            .filter(|id| self.world.instance(*id).is_some())
+            .filter_map(|id| self.world.instance(*id).cloned())
             .collect();
-        let ids = if ids.is_empty() {
-            self.hit
-                .as_ref()
-                .map(|h| self.world.connected_assembly(h.id, 256))
-                .unwrap_or_default()
+        let pointed_ready = pointed.len() < 256 && assess_assembly(&pointed_parts).drive_ready;
+        let ids = if pointed_ready {
+            pointed
         } else {
-            ids
+            self.last_blueprint
+                .iter()
+                .copied()
+                .filter(|id| self.world.instance(*id).is_some())
+                .collect::<Vec<_>>()
         };
         if ids.is_empty() {
             self.status =
                 "Insert a vehicle blueprint, or point at your connected vehicle construction."
                     .into();
+            return;
+        }
+        let instances: Vec<_> = ids
+            .iter()
+            .filter_map(|id| self.world.instance(*id).cloned())
+            .collect();
+        let assessment = assess_assembly(&instances);
+        if !assessment.drive_ready {
+            self.status = format!(
+                "Construction needs attention: {}.",
+                assessment.reasons.join("; ")
+            );
             return;
         }
         let mut min = [f32::MAX; 3];
@@ -64,9 +90,7 @@ impl Session {
             "plane" => VehicleKind::Plane,
             "train" => VehicleKind::Train,
             "boat" => VehicleKind::Boat,
-            _ if wings > 0 && propellers > 0 => VehicleKind::Plane,
-            _ if hulls > 0 => VehicleKind::Boat,
-            _ => VehicleKind::Car,
+            _ => assessment.suggested_vehicle,
         };
         let ready = match kind {
             VehicleKind::Car | VehicleKind::Train => wheels >= 2,
@@ -78,11 +102,16 @@ impl Session {
             return;
         }
         let pivot = [(min[0] + max[0]) * 0.5, min[1], (min[2] + max[2]) * 0.5];
-        let vehicle = Vehicle::new(kind, pivot);
+        let base_yaw = assessment.forward_yaw;
+        let mut vehicle = Vehicle::new(kind, pivot);
+        vehicle.configure(&assessment);
+        vehicle.yaw = base_yaw;
         self.active_vehicle = Some(ActiveVehicle {
             instance_ids: ids,
             pivot,
             vehicle,
+            base_yaw,
+            half_extents_xz: [(max[0] - min[0]) * 0.5, (max[2] - min[2]) * 0.5],
         });
         self.input.clear();
         self.preview = None;
@@ -94,16 +123,12 @@ impl Session {
         let Some(active) = &self.active_vehicle else {
             return;
         };
-        let quarter = (active.vehicle.yaw / std::f32::consts::FRAC_PI_2).round() as i32;
+        let quarter = (active.render_yaw() / std::f32::consts::FRAC_PI_2).round() as i32;
         let rotation = quarter.rem_euclid(4) as u8;
         let origin = active.vehicle.position;
         let pivot = active.pivot;
         let (sin, cos) = (f32::from(rotation) * std::f32::consts::FRAC_PI_2).sin_cos();
-        let mut operations: Vec<_> = active
-            .instance_ids
-            .iter()
-            .map(|id| BuildOp::Remove(*id))
-            .collect();
+        let mut transformed = Vec::with_capacity(active.instance_ids.len());
         for id in &active.instance_ids {
             let Some(instance) = self.world.instance(*id) else {
                 continue;
@@ -120,14 +145,15 @@ impl Session {
                 (instance.position[1] as f32 + (origin[1] - pivot[1]) / 0.4).round() as i32,
                 (origin[2] - x * sin + z * cos - f32::from(next_size[2]) * 0.5).round() as i32,
             ];
-            operations.push(BuildOp::Place(Placement::new(
-                instance.part_id,
-                instance.color,
-                p,
-                r,
-            )));
+            transformed.push(Instance {
+                id: *id,
+                part_id: instance.part_id,
+                color: instance.color,
+                position: p,
+                rotation: r,
+            });
         }
-        match self.history.execute(&mut self.world, &operations) {
+        match self.history.transform(&mut self.world, &transformed) {
             Ok(ids) => {
                 self.last_blueprint = ids;
                 self.active_vehicle = None;

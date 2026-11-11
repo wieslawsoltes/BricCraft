@@ -81,6 +81,28 @@ impl Session {
                 active.vehicle.step(STEP, controls, |x, z| {
                     world.surface_height_excluding(x, z, ids)
                 });
+                // Keep the complete construction inside the finite editable world, including turns.
+                // Flight height remains unrestricted; parking validates the destination's Y cells.
+                let (sin, cos) = active.render_yaw().sin_cos();
+                let [half_x, half_z] = active.half_extents_xz;
+                let half = [
+                    cos.abs() * half_x + sin.abs() * half_z,
+                    sin.abs() * half_x + cos.abs() * half_z,
+                ];
+                let dimensions = world.dimensions();
+                let mut at_edge = false;
+                for (index, axis) in [0, 2].into_iter().enumerate() {
+                    let original = active.vehicle.position[axis];
+                    active.vehicle.position[axis] =
+                        original.clamp(half[index], dimensions[axis] as f32 - half[index]);
+                    at_edge |= (original - active.vehicle.position[axis]).abs() > 0.00001;
+                }
+                if at_edge {
+                    active.vehicle.speed = 0.0;
+                    active.vehicle.velocity[0] = 0.0;
+                    active.vehicle.velocity[2] = 0.0;
+                    self.status = "World edge · turn or reverse to continue. Your construction remains inside the build area.".into();
+                }
                 self.camera
                     .follow(active.vehicle.position, active.vehicle.yaw, STEP);
             } else {
