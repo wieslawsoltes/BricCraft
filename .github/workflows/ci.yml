@@ -10,13 +10,18 @@ permissions:
   id-token: write
 concurrency:
   group: briccraft-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  # A newer commit supersedes an older build; Pages retains its own deployment lock.
+  cancel-in-progress: true
 jobs:
   application:
     uses: wieslawsoltes/FerroUI/.github/workflows/app.yml@1c51d201a74fb835c065ab43d1bf091429f92392
     with:
       test: -p briccraft-parts -p briccraft-world -p briccraft-mechanics -p briccraft-game -p briccraft-stream -p briccraft-import -p briccraft-import-worker -p briccraft-render-data
       check: -p briccraft-browser
+      script: |
+        python3 -m venv "$RUNNER_TEMP/skia-check"
+        "$RUNNER_TEMP/skia-check/bin/pip" install --quiet --disable-pip-version-check --only-binary=:all: skia-python==144.1
+        BRICCRAFT_SKIA_PYTHON="$RUNNER_TEMP/skia-check/bin/python" bash scripts/check-shaders.sh "$RUNNER_TEMP/smoke"
       browser-package: briccraft-browser
       browser-script: |
         node tests/import-host.mjs
@@ -24,9 +29,6 @@ jobs:
         node tests/import-engine.mjs "$SITE"
         rustc --edition=2021 --test crates/briccraft-browser/src/runtime/resolution.rs -o "$RUNNER_TEMP/resolution-tests"
         "$RUNNER_TEMP/resolution-tests"
-        python3 -m venv "$RUNNER_TEMP/skia-check"
-        "$RUNNER_TEMP/skia-check/bin/pip" install --quiet --disable-pip-version-check --only-binary=:all: skia-python==144.1
-        BRICCRAFT_SKIA_PYTHON="$RUNNER_TEMP/skia-check/bin/python" bash scripts/check-shaders.sh "$RUNNER_TEMP/smoke"
         timeout 2m node tests/storage.mjs
         timeout 15m node tests/browser.mjs "$SITE" "$RUNNER_TEMP/smoke"
         mkdir -p "$SITE/previews"
