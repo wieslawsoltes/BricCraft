@@ -198,6 +198,12 @@ fn world_view(state: UiState, dispatch: Dispatch) -> Element {
         .vertical_scroll_bar_visibility(ScrollBarVisibility::Auto)
         .child(stack_panel().spacing(14.0).children((
             controls::caption("Capture your own construction once, then place copies with the same parts, colors and rotations. Imported designs join this world's library."),
+            border().background("#142D32").corner_radius(10.0).padding(12.0)
+                .child(stack_panel().spacing(6.0).children((
+                    controls::label("LATEST ACTION"),
+                    text_block().text(state.status).font_size(11.0).foreground(theme::POSITIVE)
+                        .text_wrapping(TextWrapping::Wrap),
+                ))),
             editor(state, name, editing, dispatch),
             rerender(move || {
                 let library = state.designs.get();
@@ -217,12 +223,6 @@ fn world_view(state: UiState, dispatch: Dispatch) -> Element {
                     stack_panel().spacing(10.0).children(cards).into_element()
                 }
             }),
-            border().background("#142D32").corner_radius(10.0).padding(12.0)
-                .child(stack_panel().spacing(6.0).children((
-                    controls::label("LATEST ACTION"),
-                    text_block().text(state.status).font_size(11.0).foreground(theme::POSITIVE)
-                        .text_wrapping(TextWrapping::Wrap),
-                ))),
         ))).into()
 }
 

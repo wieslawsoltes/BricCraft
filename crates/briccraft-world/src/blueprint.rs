@@ -196,17 +196,18 @@ fn house(p: &mut Vec<Placement>) {
             add(p, 0, 3, [x, y, 0], 0);
         }
     }
+    // Slopes are high at canonical -Z. Both pitches rise toward the central ridge.
     for x in [0, 2, 4, 6] {
-        add(p, 52, 15, [x, 19, 0], 0);
-        add(p, 52, 15, [x, 19, 4], 2);
+        add(p, 51, 15, [x, 19, 0], 2);
+        add(p, 51, 15, [x, 19, 5], 0);
     }
-    for x in [0, 2, 4, 6] {
-        add(p, 3, 15, [x, 22, 2], 0);
-    }
+    // A full-width beam spans the side walls; its matching studded cap supports the chimney.
+    add(p, 5, 15, [0, 19, 3], 1);
+    add(p, 25, 15, [0, 22, 3], 1);
     add(p, 154, 9, [2, 1, 4], 0);
     add(p, 151, 10, [2, 4, 2], 0);
-    add(p, 0, 7, [6, 22, 6], 0);
-    add(p, 0, 7, [6, 25, 6], 0);
+    add(p, 0, 7, [6, 23, 3], 0);
+    add(p, 0, 7, [6, 26, 3], 0);
 }
 
 fn tower(p: &mut Vec<Placement>) {

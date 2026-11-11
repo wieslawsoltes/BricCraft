@@ -19,8 +19,8 @@ export async function checkMobile(page, out) {
     const touch = (type, points = []) => send('Input.dispatchTouchEvent', {
         type, touchPoints: points.map(([id, x, y]) => ({id, x, y, radiusX: 5, radiusY: 5, force: 1})),
     });
-    const paint = async () => {
-        const before = (await state()).rendering.frames;
+    const paint = async before => {
+        before ??= (await state()).rendering.frames;
         await wait(`${current}.rendering.frames > ${before} && !${current}.worldBusy`);
     };
     const closePanel = async () => {
@@ -103,15 +103,18 @@ export async function checkMobile(page, out) {
 
             // A real native catalog scroll is isolated from the full-bleed
             // world underneath it, even at the phone layout's tight bounds.
+            const catalogFrame = (await state()).rendering.frames;
             await command('catalog');
             await wait(`${current}.interface.catalogOpen && ${current}.interface.modal`);
-            await paint();
+            await paint(catalogFrame);
             const blocked = await state();
             const [mx, my] = layout.modal;
             await touch('touchStart', [[5, mx, my]]);
             await touch('touchMove', [[5, mx, my - 40]]);
             await touch('touchEnd');
-            await paint();
+            // An idle modal retains its world bitmap. Observe the frame caused
+            // by this gesture, including one already presented before release.
+            await paint(blocked.rendering.frames);
             assert((await state()).interface.catalogOpen, `${name}: scrolling inside the catalog must keep it open`);
             assert(distance((await state()).globalCamera, blocked.globalCamera) < 0.0001,
                 `${name}: a modal interaction must not move the world camera`);
@@ -121,9 +124,10 @@ export async function checkMobile(page, out) {
             await page.screenshot(path.join(out, name === 'portrait' ? 'mobile-terrain.png' : 'mobile-landscape.png'));
 
             if (name === 'portrait') {
+                const studioFrame = (await state()).rendering.frames;
                 await command('studio');
                 await wait(`${current}.interface.studioOpen && ${current}.interface.modal`);
-                await paint();
+                await paint(studioFrame);
                 await page.screenshot(path.join(out, 'mobile-studio.png'));
                 await closePanel();
             }

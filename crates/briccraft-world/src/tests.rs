@@ -200,3 +200,90 @@ fn generated_rails_support_the_locomotive_gauge_all_around_the_route() {
         }
     }
 }
+
+#[test]
+fn cottage_roof_has_outward_pitches_and_fully_supported_cap_and_chimney() {
+    // Nominal solid height, excluding decorative studs and tiny molded edge recesses.
+    // A slope's occupied cuboid alone cannot reveal a reversed pitch or a floating ridge.
+    fn solid_top(part: &Placement, x: f32, z: f32) -> Option<f32> {
+        let definition = briccraft_parts::part(part.part_id).unwrap();
+        let size = part.size().map(f32::from);
+        let px = x - part.position[0] as f32;
+        let pz = z - part.position[2] as f32;
+        if px < 0.0 || px >= size[0] || pz < 0.0 || pz >= size[2] {
+            return None;
+        }
+        let height = if definition.shape == briccraft_parts::Shape::Slope {
+            let dx = px - size[0] * 0.5;
+            let dz = pz - size[2] * 0.5;
+            let canonical_z = match part.rotation {
+                0 => dz,
+                1 => dx,
+                2 => -dz,
+                _ => -dx,
+            };
+            size[1] * (0.5 - canonical_z / f32::from(definition.size[2]))
+        } else {
+            size[1]
+        };
+        Some(part.position[1] as f32 + height)
+    }
+
+    let parts = Blueprint::House.placements([0; 3], 0);
+    assert_eq!(Blueprint::House.size(0), [8, 29, 8]);
+    let profile: Vec<_> = (0..8)
+        .map(|z| {
+            parts
+                .iter()
+                .filter_map(|part| solid_top(part, 3.5, z as f32 + 0.5))
+                .fold(f32::NEG_INFINITY, f32::max)
+        })
+        .collect();
+    for index in 0..3 {
+        assert!(
+            profile[index + 1] > profile[index] + 0.1,
+            "front roof must rise toward its ridge: {profile:?}"
+        );
+        assert!(
+            profile[6 - index] > profile[7 - index] + 0.1,
+            "back roof must rise toward its ridge: {profile:?}"
+        );
+    }
+    assert!((profile[3] - profile[4]).abs() < 0.001);
+    for index in 0..4 {
+        assert!((profile[index] - profile[7 - index]).abs() < 0.001);
+    }
+
+    // Every stud column below the raised cap and chimney must end at their underside.
+    // This checks the actual slope plane; bounding-box occupancy would accept the old gaps.
+    for raised in parts.iter().filter(|part| part.position[1] >= 22) {
+        let size = raised.size().map(i32::from);
+        for x in raised.position[0]..raised.position[0] + size[0] {
+            for z in raised.position[2]..raised.position[2] + size[2] {
+                let support = parts
+                    .iter()
+                    .filter(|part| part.position[1] < raised.position[1])
+                    .filter_map(|part| solid_top(part, x as f32 + 0.5, z as f32 + 0.5))
+                    .fold(f32::NEG_INFINITY, f32::max);
+                assert!(
+                    (support - raised.position[1] as f32).abs() < 0.001,
+                    "floating part {} at {:?}: support height {support}",
+                    raised.part_id,
+                    raised.position
+                );
+            }
+        }
+    }
+
+    for rotation in 0..4 {
+        let mut world = World::empty(1);
+        let ids = world
+            .spawn_blueprint(Blueprint::House, [24, 0, 24], rotation)
+            .unwrap();
+        assert_eq!(
+            world.connected_assembly(ids[0], ids.len() + 1).len(),
+            ids.len(),
+            "all cottage parts must remain connected at rotation {rotation}"
+        );
+    }
+}
