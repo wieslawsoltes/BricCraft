@@ -38,7 +38,7 @@ jobs:
 
   native:
     name: Native checks and shader variants
-    runs-on: ubuntu-24.04
+    runs-on: macos-15
     timeout-minutes: 45
     permissions:
       contents: read
@@ -48,6 +48,8 @@ jobs:
       CARGO_PROFILE_DEV_DEBUG: 0
       CARGO_PROFILE_TEST_DEBUG: 0
       RUST_BACKTRACE: 1
+      # Match the browser's Ganesh API using FerroUI's documented Apple backend.
+      RUSTFLAGS: --cfg ferro_skia_apple_ganesh
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -55,7 +57,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d # stable
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
-          key: native-ubuntu-24.04
+          key: native-macos-15-ganesh
           save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
       - name: Domain tests
@@ -64,8 +66,11 @@ jobs:
           -p briccraft-parts -p briccraft-world -p briccraft-mechanics
           -p briccraft-game -p briccraft-stream -p briccraft-import
           -p briccraft-import-worker -p briccraft-render-data
-      - name: Required native library capabilities
-        run: bash scripts/ensure-native-deps.sh
+      - name: Native SDK and Python capabilities
+        run: |
+          xcrun --find clang
+          xcrun --show-sdk-path
+          python3 -c 'import ensurepip, venv'
       - name: Compile and render all production shader variants
         run: |
           python3 -m venv "$RUNNER_TEMP/skia-check"
