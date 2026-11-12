@@ -63,7 +63,7 @@ try {
     assert(worldLayer.effectiveQuality<=worldLayer.requestedQuality && start.renderer.shaderQuality===worldLayer.effectiveQuality,
         'The actual shader must respect the requested and adaptive quality limits');
     measurements.presented=await presentedSample();
-    measurements.canvasSizing=await checkCanvasPresentation(page,presentedSample);
+    measurements.canvasSizing=await checkCanvasPresentation(page);
     console.log('Presented frames over elapsed wall time:',JSON.stringify(measurements.presented));
     assert(start.parts>5000,'The initial world must contain actual geometry');
     const before=await page.screenshot(undefined,{x:300,y:110,width:640,height:440});
