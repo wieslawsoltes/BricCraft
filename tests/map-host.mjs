@@ -26,6 +26,22 @@ await test('raster requests are bounded, cache-aware, and reused', async () => {
     assert.throws(()=>tileUrl('https://example.test/fixed.png',[2,1,1]), /contain/);
 });
 
+await test('the default raster transport observes the active browser fetch adapter', async () => {
+    const original = globalThis.fetch;
+    const loader = createMapTileLoader();
+    const requests = [];
+    try {
+        globalThis.fetch = async (url, options) => {
+            requests.push({url, options}); return new Response(png());
+        };
+        let published = 0;
+        await loader.load([[2, 1, 1]], () => published++);
+        assert.equal(requests.length, 1);
+        assert.equal(published, 1);
+        assert.equal(requests[0].url, 'https://tile.openstreetmap.org/2/1/1.png');
+    } finally { globalThis.fetch = original; }
+});
+
 await test('stale raster callbacks and invalid images never reach the native view', async () => {
     const pending = deferred(); let published = 0;
     const loader = createMapTileLoader(()=>pending.promise);

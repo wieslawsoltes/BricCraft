@@ -43,7 +43,7 @@ async function readPng(response) {
     return bytes;
 }
 
-export function createMapTileLoader(fetcher = globalThis.fetch, cacheLimit = 64) {
+export function createMapTileLoader(fetcher = (...args) => globalThis.fetch(...args), cacheLimit = 64) {
     const memory = new Map();
     let generation = 0, controller;
     const cancel = () => { generation++; controller?.abort(); controller = undefined; };
