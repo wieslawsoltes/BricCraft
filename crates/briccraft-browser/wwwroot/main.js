@@ -8,6 +8,7 @@ import { installGraphics } from './graphics-host.js';
 import { installCanvasSizing } from './canvas-size.js';
 import { installGraphicsPreferences } from './graphics-preferences.js';
 import { installDesignFiles } from './design-host.js';
+import { installPlaces } from './places-host.js';
 
 export let canvasSizing;
 
@@ -23,6 +24,7 @@ try {
         const storage = installStorage(runtime);
         installImports(runtime,storage);
         installDesignFiles(runtime);
+        const places = installPlaces(runtime, storage);
         installAudio();
         installInput(runtime, mount);
         installGraphics(mount);
@@ -61,6 +63,7 @@ try {
                     }
                 }
                 runtime.briccraftFrame(time, mount.clientWidth, mount.clientHeight);
+                places.tick(time);
                 if (++frames >= 3 && graphicsVerified && !readyAnnounced) {
                     readyAnnounced = true;
                     loading.classList.add('ready');

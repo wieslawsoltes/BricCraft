@@ -1,3 +1,4 @@
+import { SourceHttpError } from './source-errors.js';
 const CACHE='briccraft-map-sources-v1';
 const MAX_BYTES=32*1024*1024;
 export function mapBounds(latitude,longitude,radius) {
@@ -19,14 +20,17 @@ export function overpassQuery(bounds) {
         'relation[leisure~"^(park|garden|golf_course|pitch|recreation_ground)$"]'];
     return `[out:json][timeout:25][maxsize:16777216];(${selectors.map(s=>`${s}(${b});`).join('')});out tags geom;`;
 }
-export async function fetchBounded(url,options={},maximum=MAX_BYTES) {
+export async function fetchBounded(url,options={},maximum=MAX_BYTES,inspectResponse) {
     const response=await fetch(url,options);
     if(!response.ok) {
-        const retry=response.headers.get('Retry-After');
-        throw new Error(`Source returned HTTP ${response.status}${retry ? `; retry after ${retry}` : ''}`);
+        throw new SourceHttpError(response.status,response.headers.get('Retry-After'));
     }
     const tooLarge=()=>new Error(`Source exceeds the ${Math.ceil(maximum/1024/1024)} MB input limit`);
-    if(Number(response.headers.get('Content-Length'))>maximum) throw tooLarge();
+    if(Number(response.headers.get('Content-Length'))>maximum) {
+        await response.body?.cancel(); throw tooLarge();
+    }
+    inspectResponse?.(response);
+    if(!response.body) return new ArrayBuffer(0);
     const reader=response.body.getReader(), chunks=[]; let size=0;
     try {
         for(;;) {

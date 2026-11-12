@@ -185,7 +185,7 @@ fn validate_settings(save: &Save) -> Result<(), BuildError> {
     Ok(())
 }
 
-fn validate_info(info: &WorldInfo) -> Result<(), BuildError> {
+pub(crate) fn validate_info(info: &WorldInfo) -> Result<(), BuildError> {
     if info.id.len() > 256
         || info.name.len() > 1_024
         || info.attributions.len() > 64

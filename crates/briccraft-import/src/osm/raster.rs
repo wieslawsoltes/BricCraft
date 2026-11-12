@@ -111,14 +111,7 @@ pub(super) fn render(
     report: &mut ImportReport,
     callback: &mut dyn FnMut(ImportProgress) -> bool,
 ) -> ImportResult<()> {
-    let nw = projection.project(options.bounds.north, options.bounds.west)?;
-    let se = projection.project(options.bounds.south, options.bounds.east)?;
-    let clip = [
-        nw[0].floor() as i32,
-        nw[1].floor() as i32,
-        se[0].ceil() as i32,
-        se[1].ceil() as i32,
-    ];
+    let clip = options.grid_bounds(projection)?;
     if options.include_ground {
         let count = ((clip[2] - clip[0]) as usize)
             .checked_mul((clip[3] - clip[1]) as usize)
@@ -227,7 +220,7 @@ pub(super) fn render(
                     }
                 }
             }
-            if let Some(height) = height {
+            if let Some(height) = height.filter(|_| drawn) {
                 report.inferred_heights += usize::from(height.inferred);
                 report.height_evidence.push(height);
             }

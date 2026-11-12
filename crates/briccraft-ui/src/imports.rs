@@ -6,11 +6,17 @@ use ferroui_view::prelude::*;
 
 pub fn panel(state: UiState, dispatch: Dispatch) -> Element {
     let report = dispatch.clone();
+    let places = dispatch.clone();
     let content = scroll_viewer()
         .horizontal_scroll_bar_visibility(ScrollBarVisibility::Disabled)
         .vertical_scroll_bar_visibility(ScrollBarVisibility::Auto)
         .child(
             stack_panel().spacing(16.0).children((
+                button()
+                    .name("StudioPlaces")
+                    .class("primary")
+                    .content("Choose a place on the map")
+                    .on_click(move |_| places(UiAction::ShowPlaces)),
                 import_area::view(state, dispatch.clone()),
                 border()
                     .height(1.0)

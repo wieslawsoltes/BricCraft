@@ -231,6 +231,7 @@ impl Session {
 
     /// One bounded preparation step per display frame, independent of the fixed simulation loop.
     pub fn advance_streaming(&mut self) {
+        self.constrain_map_camera();
         let Some(mut state) = self.streaming.take() else {
             return;
         };
@@ -271,6 +272,11 @@ impl Session {
                     state.stream.request_window(rebase.origin)?;
                     state.pending_origin = Some(rebase.origin);
                 }
+            } else if state.stream.map_anchor().is_some() && state.pending_origin.take().is_some() {
+                // The player returned to the resident view while I/O was pending.
+                // Withdraw the obsolete window demand instead of fetching beyond
+                // the currently selected geography or publishing a needless rebase.
+                state.stream.request_window(state.snapshot.origin)?;
             }
         }
         let Some(origin) = state.pending_origin else {

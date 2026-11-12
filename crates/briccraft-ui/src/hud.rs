@@ -11,6 +11,7 @@ use ferroui_view::prelude::*;
 pub fn world_card(state: UiState, dispatch: Dispatch) -> Element {
     let worlds = dispatch.clone();
     let reset = dispatch.clone();
+    let places = dispatch.clone();
     grid()
         .name("WorldCard")
         .is_visible(move || !state.compact.get() && !state.modal())
@@ -111,6 +112,7 @@ pub fn world_card(state: UiState, dispatch: Dispatch) -> Element {
                                     .vertical_alignment(V::Center),
                             )),
                         ),
+                    crate::places::roam_card(state, places),
                 )),
             vehicle(state, dispatch),
         ))
@@ -307,7 +309,7 @@ pub fn footer(state: UiState, dispatch: Dispatch) -> Element {
 }
 
 /// Phone HUD chips provide direct access to goals and the full latest message.
-pub fn activity(state: UiState) -> Element {
+pub fn activity(state: UiState, dispatch: Dispatch) -> Element {
     grid()
         .horizontal_alignment(H::Center)
         .vertical_alignment(V::Top)
@@ -353,10 +355,22 @@ pub fn activity(state: UiState) -> Element {
                 .background(theme::HUD)
                 .border_brush("#53647786")
                 .tool_tip_tip("Read the complete activity message")
-                .on_click(move |_| crate::world_details::toggle(state))
+                .on_click(move |_| {
+                    if !state.roam_status.get_untracked().is_empty() {
+                        dispatch(UiAction::ShowPlaces);
+                    } else {
+                        crate::world_details::toggle(state);
+                    }
+                })
                 .child(
                     text_block()
-                        .text(state.status)
+                        .text(move || {
+                            if !state.roam_status.get().is_empty() {
+                                state.roam_status.get()
+                            } else {
+                                state.status.get()
+                            }
+                        })
                         .font_size(11.0)
                         .foreground("#DCE9F3")
                         .text_wrapping(TextWrapping::Wrap)

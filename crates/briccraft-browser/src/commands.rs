@@ -85,6 +85,80 @@ pub fn command(name: &str, value: &str) {
                 r.state.imports_open.set(value != "false");
                 None
             }
+            "places" => {
+                if value == "false" {
+                    r.state.close_panels();
+                    Some(UiAction::MapViewportChanged)
+                } else {
+                    Some(UiAction::ShowPlaces)
+                }
+            }
+            "map-view" => serde_json::from_str::<serde_json::Value>(value)
+                .ok()
+                .and_then(|v| {
+                    let latitude = v.get("latitude")?.as_f64()?;
+                    let longitude = v.get("longitude")?.as_f64()?;
+                    if !latitude.is_finite()
+                        || !longitude.is_finite()
+                        || latitude.abs() > 85.0
+                        || longitude.abs() > 180.0
+                    {
+                        return None;
+                    }
+                    let mut map = r.state.map_view.get_untracked();
+                    map.latitude = latitude;
+                    map.longitude = longitude;
+                    map.selected_latitude = latitude;
+                    map.selected_longitude = longitude;
+                    map.label = "Selected location".into();
+                    if let Some(zoom) = v.get("zoom").and_then(|v| v.as_u64()) {
+                        map.zoom = zoom.clamp(2, 19) as u8;
+                    }
+                    if let Some(radius) = v
+                        .get("radius")
+                        .and_then(|v| v.as_f64())
+                        .filter(|v| v.is_finite())
+                    {
+                        map.radius = radius.clamp(20.0, 1500.0);
+                    }
+                    if let Some(scale) = v
+                        .get("meters_per_stud")
+                        .and_then(|v| v.as_f64())
+                        .filter(|v| v.is_finite())
+                    {
+                        map.meters_per_stud = scale.clamp(0.5, 16.0);
+                    }
+                    if let Some(terrain) = v.get("terrain").and_then(|v| v.as_bool()) {
+                        map.terrain = terrain;
+                    }
+                    r.state.map_view.set(map);
+                    Some(UiAction::MapViewportChanged)
+                }),
+            "map-roam" => {
+                let map = r.state.map_view.get_untracked();
+                Some(UiAction::StartMapRoam {
+                    latitude: map.selected_latitude,
+                    longitude: map.selected_longitude,
+                    meters_per_stud: map.meters_per_stud,
+                    terrain: map.terrain,
+                })
+            }
+            "map-pause" => Some(UiAction::StopMapRoam),
+            "map-retry" => Some(UiAction::RetryMapRoam),
+            "map-build" => {
+                let map = r.state.map_view.get_untracked();
+                Some(UiAction::ImportMap {
+                    latitude: map.selected_latitude,
+                    longitude: map.selected_longitude,
+                    radius: map.radius,
+                    meters_per_stud: map.meters_per_stud,
+                    endpoint: "https://overpass-api.de/api/interpreter".into(),
+                    local: false,
+                    terrain: map.terrain,
+                    fit_height: true,
+                    vertical_exaggeration: 1.0,
+                })
+            }
             "expedition" => match value {
                 "on" | "true" => Some(UiAction::SetExpedition(true)),
                 "off" | "false" => Some(UiAction::SetExpedition(false)),

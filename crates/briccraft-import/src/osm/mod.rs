@@ -1,19 +1,25 @@
 //! OSM geometry is a source of mapped footprints and tags, not missing 3D scans.
-mod data;
+pub(crate) mod data;
 mod geometry;
 mod raster;
+mod region;
+mod region_foundation;
 mod terrain;
 mod terrain_raster;
 
+pub use region::MapRegionOptions;
+
 use crate::{
     error::invalid, limits::progress, packing, voxels::Voxels, Attribution, GeoBounds,
-    GeoReference, ImportLimits, ImportPlan, ImportProgress, ImportReport, ImportResult,
-    ImportStage, SourceKind,
+    ImportLimits, ImportPlan, ImportProgress, ImportReport, ImportResult, ImportStage, SourceKind,
 };
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct OsmOptions {
+    /// A live mapped region uses a stable projection and exact shared cell edges.
+    #[serde(default)]
+    pub region: Option<MapRegionOptions>,
     /// Optional measured elevation. None preserves the legacy flat import path.
     #[serde(default)]
     pub terrain: Option<briccraft_terrain::TerrainOptions>,
@@ -30,6 +36,7 @@ pub struct OsmOptions {
 impl Default for OsmOptions {
     fn default() -> Self {
         Self {
+            region: None,
             terrain: None,
             bounds: GeoBounds {
                 south: 52.515,
@@ -78,12 +85,31 @@ pub fn import_overpass_json_with_progress(
             "default building height must be between 0.5 and 1000 meters",
         ));
     }
-    let projection = GeoReference::new(options.bounds, options.meters_per_stud, options.origin)?;
+    let projection = options.projection(options.meters_per_stud)?;
     progress(callback, ImportStage::Parse, 0, source.len())?;
     let mut report = ImportReport::new(SourceKind::OpenStreetMap);
     report.source_name = "OpenStreetMap extract".into();
     report.projection = Some(projection.clone());
     let features = data::parse(source, &options.limits, &mut report)?;
+    import_features(features, options, report, callback)
+}
+
+pub(crate) fn import_features(
+    features: Vec<data::Feature>,
+    options: &OsmOptions,
+    mut report: ImportReport,
+    callback: &mut dyn FnMut(ImportProgress) -> bool,
+) -> ImportResult<ImportPlan> {
+    let projection = options.projection(options.meters_per_stud)?;
+    if options.max_height_plates == Some(0)
+        || !options.default_height_m.is_finite()
+        || !(0.5..=1000.0).contains(&options.default_height_m)
+    {
+        return Err(invalid(
+            "map height budget or default building height is invalid",
+        ));
+    }
+    report.projection = Some(projection.clone());
     progress(
         callback,
         ImportStage::Project,

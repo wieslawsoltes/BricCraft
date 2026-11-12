@@ -82,6 +82,7 @@ impl Session {
         }
         self.accumulator += elapsed.clamp(0.0, 0.1);
         const STEP: f32 = 1.0 / 60.0;
+        let mapped = self.map_anchor().is_some();
         while self.accumulator >= STEP {
             self.accumulator -= STEP;
             self.time += STEP;
@@ -111,11 +112,16 @@ impl Session {
                 ];
                 let dimensions = world.dimensions();
                 let mut at_edge = false;
-                if self.streaming.is_none() {
+                if self.streaming.is_none() || mapped {
                     for (index, axis) in [0, 2].into_iter().enumerate() {
                         let original = active.vehicle.position[axis];
+                        let margin = if mapped {
+                            half[index].max(8.0)
+                        } else {
+                            half[index]
+                        };
                         active.vehicle.position[axis] =
-                            original.clamp(half[index], dimensions[axis] as f32 - half[index]);
+                            original.clamp(margin, dimensions[axis] as f32 - margin);
                         at_edge |= (original - active.vehicle.position[axis]).abs() > 0.00001;
                     }
                 }
@@ -123,7 +129,7 @@ impl Session {
                     active.vehicle.speed = 0.0;
                     active.vehicle.velocity[0] = 0.0;
                     active.vehicle.velocity[2] = 0.0;
-                    self.status = "World edge · turn or reverse to continue. Your construction remains inside the build area.".into();
+                    self.status = if mapped { "Waiting for nearby map terrain · turn, build or retry the source in Places." } else { "World edge · turn or reverse to continue. Your construction remains inside the build area." }.into();
                 }
                 let current = active.vehicle.position;
                 let horizontal = ((current[0] - previous[0]).powi(2)
@@ -149,6 +155,7 @@ impl Session {
             } else {
                 let previous = self.camera.position;
                 self.camera.tick_world(STEP, &self.input, &self.world);
+                self.constrain_map_camera();
                 if self.camera.mode == CameraMode::Walk {
                     let delta = self.camera.position - previous;
                     travel = Some((

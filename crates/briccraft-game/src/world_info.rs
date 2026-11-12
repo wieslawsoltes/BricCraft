@@ -21,6 +21,12 @@ pub struct WorldInfo {
 }
 
 impl WorldInfo {
+    /// Validate candidate source metadata before a host publishes new geography.
+    /// This is the same contract enforced by session persistence.
+    pub fn validate(&self) -> Result<(), briccraft_stream::StreamError> {
+        crate::persistence::validate_info(self).map_err(Into::into)
+    }
+
     pub fn classic(seed: u64) -> Self {
         Self {
             id: format!("classic-{seed}"),

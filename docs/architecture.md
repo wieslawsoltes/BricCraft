@@ -1,6 +1,6 @@
 # Architecture
 
-BricCraft is a Rust workspace with a pinned FerroUI submodule. All visible game controls are native FerroUI declarative elements. The HTML host only mounts the application and supplies browser timing, file/IndexedDB operations and procedural audio.
+BricCraft is a Rust workspace with a pinned FerroUI submodule. All visible game controls, including the place picker, are native FerroUI declarative elements. The HTML host mounts the application and supplies browser timing, file/IndexedDB operations, bounded source transport, worker lifetime and procedural audio.
 
 ## Crate boundaries
 
@@ -8,9 +8,9 @@ BricCraft is a Rust workspace with a pinned FerroUI submodule. All visible game 
 | --- | --- | --- |
 | `briccraft-parts` | Stable catalogue identities, dimensions, colors and connectors | None |
 | `briccraft-world` | Seeded world, occupancy, atomic construction/history, picking, blueprints, validated persistence | None |
-| `briccraft-stream` | Global coordinates/identities, deterministic chunks, bounded residency, sparse edits, global history and staged imports | None |
+| `briccraft-stream` | Global coordinates/identities, procedural and mapped source chunks, bounded residency, sparse edits, global history and staged imports | None |
 | `briccraft-terrain` | Geographic/WebMercator elevation grids, Terrarium/HGT decoding, bilinear sampling, height fitting and solid terrain packing | None |
-| `briccraft-import` | OSM geometry, georeferencing, OBJ/glTF/GLB parsing, texture sampling, surface voxelization and exact-cover brick packing | None |
+| `briccraft-import` | OSM/Shortbread MVT geometry, fixed map projection, OBJ/glTF/GLB parsing, texture sampling, surface voxelization and exact-cover brick packing | None |
 | `briccraft-import-worker` | Small wasm-bindgen conversion boundary for a dedicated Web Worker | wasm-bindgen only |
 | `briccraft-mechanics` | Gear constraints, shafts, transmission, differential, steering, springs, rails and vehicle dynamics | None |
 | `briccraft-character` | Generic voxel collision interface, swept character movement, wall sliding, stepping, gravity and grounded jumps | None |
@@ -25,10 +25,11 @@ BricCraft is a Rust workspace with a pinned FerroUI submodule. All visible game 
 ## Global worlds and bounded residency
 
 Global X/Z positions are signed 64-bit studs. The local `World` stays 96 × 72 × 96 cells,
-covering six by six 16-stud chunks. A 64-chunk LRU cache retains recently visited terrain;
-the saved world contains the seed, generator version, biome preset and sparse edits,
-not an ever-growing copy of generated terrain. Meadow, Alpine, Desert, Coast and Flat
-share deterministic global sampling, including negative coordinates.
+covering six by six 16-stud chunks. A 64-chunk LRU cache retains recently visited terrain.
+Procedural saves contain the seed, generator version, biome preset and sparse edits;
+Meadow, Alpine, Desert, Coast and Flat share deterministic global sampling, including
+negative coordinates. Mapped saves additionally retain bounded source regions and
+their fixed geographic reference.
 
 The renderer sees only complete snapshots. Generation and import collision validation
 share a two-chunk budget per display frame. A completed replacement shifts the camera
@@ -47,18 +48,61 @@ budgets, not claims that the entire visible world must be loaded.
 
 ## Map and mesh conversion
 
-Network access is user initiated and owned by the browser host. One bounded Overpass
-request retrieves a selected area; a small source cache avoids repeated downloads.
+Network access is owned by the browser host. **Build this area** makes one explicit bounded Overpass
+request for the selected rectangle; a small source cache avoids repeated downloads.
 Local map extracts and the included Brandenburg Gate extract need no live map backend.
 The Telegraph Hill sample also includes its original elevation tiles and provenance.
-Traveling through a world does not scrape successive public-service bounding boxes.
-The endpoint is configurable for self-hosted or dedicated use.
+Its endpoint remains configurable for self-hosted or dedicated use. **Free roam** uses
+the separate OSMF Shortbread vector service and requests data for successive resident
+views; it does not issue recurring Overpass bounding-box queries.
 
 `briccraft-import` projects geographic coordinates to a local metric frame, converts
 mapped footprints, roads and water to plate-grid cells, and records the evidence used
 for each building height. Explicit height tags remain distinct from inferred floor
 counts or defaults. Source reports retain projection, dimensions, warning lists and
 attribution. Facade geometry is not inferred from footprint tags.
+
+### Continuous mapped sessions
+
+The native Places map selects an anchor for a new session. A separate Web Worker
+decodes bounded zoom-14 Shortbread MVT ranges, converts supported surface buildings,
+roads, water and land-cover layers into the shared geographic importer, and optionally
+adds measured DEM terrain. Unsupported layers and underground paths are not invented.
+Vector feature IDs are explicitly bundle-local; missing source height/width tags remain
+reported inferences. The [map guide](maps.md) records providers and service constraints.
+
+`MapAnchor` fixes latitude/longitude, the stud origin, metres per stud, elevation reference,
+metres per plate, a terrain flag and region size. Each `MapRegion` is a complete aligned
+128 × 128-stud rectangle. Conversion clips and packs within the exact integer rectangle,
+uses the same projection for all regions and disables per-region automatic coarsening.
+DEM samples share a global sampling lattice. The first terrain conversion reserves
+vertical headroom; later regions retain its vertical reference and scale. An elevation
+or structure outside the fixed 72-plate range fails explicitly instead of producing a seam.
+
+Mapped `StreamWorld` backing never generates procedural replacement ground. Missing
+source regions keep the requested window pending while the last complete snapshot is
+drawn. `map_demands` considers only current/requested resident windows. Source requests
+are serialized; cancellation reaches fetch and worker work, and epoch/world-ID fences
+reject late completions, including reopening the same saved world. A starting world
+is prepared as a candidate and replaces the current session only after its latest state
+is saved. Adjacent source publication preserves the live session and camera.
+
+Source placement order is canonicalized into stable generated identities. Parts crossing
+an internal chunk boundary have one identity indexed into every intersected chunk. Source
+arrival adds no construction undo action or resource charge. Normal building/removal and
+vehicle parking continue through sparse global edits and existing transaction validation.
+The source cache retains at most 32 regions and 250,000 parts; far pristine regions can
+be evicted, while active/pending views and regions referenced by edits/history stay
+protected. Exhaustion fails without discarding player work. Saves retain those sources,
+anchor metadata and sparse edits, so already generated geography survives reopening.
+
+Walkers and vehicles stop inside the resident window while another region is unavailable.
+They can turn or reverse, and movement resumes after the complete next view publishes.
+Returning to the current view withdraws an obsolete demand. Cars and aircraft work on
+mapped terrain; boats require the classic sea until buoyancy supports mapped water heights.
+The renderer disables its classic global sea plane for mapped worlds; mapped water remains
+source geometry. This path preserves existing rendering policies and does not establish
+a hardware frame-rate claim.
 
 ### Elevation and complete-area generation
 
@@ -197,6 +241,13 @@ vehicles do not advertise inert rise/descend controls. Shared vector icons, pane
 headers and cards are native `ferroui-view` builders. Settings, help, blueprint
 previews, saved designs and world details are separate modules.
 
+Places composes native image tiles, selection overlays, zoom controls, presets and
+coordinate fields. Pointer capture isolates map gestures from the world and surrounding
+scroll panel; tap selection is distinct from dragging/pinching. Desktop uses a map and
+options column, while compact layouts scroll the controls. The browser only fetches and
+validates 256 × 256 PNG tiles, then supplies immutable images to the native view. Provider
+templates are configurable without rebuilding; source attribution stays on the map.
+
 ### Reusable construction recipes
 
 `briccraft-design` validates bounded relative placements independently of UI, browser
@@ -268,8 +319,13 @@ award objectives or duplicate mechanical readiness rules.
 
 Construction transactions validate all removals/additions before committing, so a blueprint, undo, redo or parked assembly cannot be half applied. Save files carry explicit schema versions and reject malformed identities, bounds, colors, overlaps and camera settings before replacing the live session. Browser saves use IndexedDB transactions. Export/import uses the same validated JSON format.
 
-Session version 2 stores either a classic local world or sparse streamed state, plus the
+Session version 2 stores either a classic local world or streamed state, plus the
 origin, camera, stable world identity, display name, attribution and source report.
+Streamed state has an optional mapped-source envelope containing the anchor and retained
+regions; older procedural saves remain valid. `WorldInfo::validate` shares persistence
+limits with source publication, preventing invalid reports or credits from making a
+newly generated world unsaveable. The browser also validates region projection, bounds
+and vertical scale before appending source geometry.
 Version 1 island saves remain readable. IndexedDB version 2 adds independent named
 world records and a lightweight metadata manifest; listing worlds does not deserialize
 all their geometry. The legacy `current` record is migrated and retained as a backup.
@@ -284,10 +340,14 @@ Complete Minecraft gameplay parity—survival/hunger systems, hostile creatures,
 recipes, redstone-like logic and networking—is not implemented. Expedition adds a
 construction economy and real-action progression. Vertical occupancy is
 72 plates (28.8 studs); mesh imports fit uniformly, while area imports expose explicit
-vertical fitting. There is no continuously streamed planet or photogrammetric tile service. Imported real areas are
-finite source datasets placed in the open procedural world; their footprint/height
-fidelity is limited by source evidence and selected stud resolution.
+vertical fitting. Explicit Overpass imports remain finite datasets; mapped free roam
+continues through successive source regions around a fixed local projection. Its
+fixed vertical range, bounded protected source store, provider availability and map
+coverage remain limits. It is not an unrestricted globe or a photogrammetric tile service.
+Source footprint/height fidelity is limited by available tags, generalized vector
+geometry, DEM resolution and selected stud scale. Address/name geocoding is not implemented;
+the place picker supports map interaction, city presets and coordinates.
 
-The catalogue contains procedural shape families, not a complete manufacturer parts database. Placement occupancy is conservative by part envelope; it does not yet permit physically threading an axle through another part's hole. The mechanical library models gear ratios, shaft constraints and vehicle behavior, but the game does not yet infer and simulate every possible user-built Technic mechanism. Vehicle dynamics are game-oriented approximations rather than a general rigid-body/contact solver. Train movement uses the generated coastal rail route; streamed worlds explicitly reject activation without a guided railway network. Cars, planes and boats retain their bodies while crossing regions.
+The catalogue contains procedural shape families, not a complete manufacturer parts database. Placement occupancy is conservative by part envelope; it does not yet permit physically threading an axle through another part's hole. The mechanical library models gear ratios, shaft constraints and vehicle behavior, but the game does not yet infer and simulate every possible user-built Technic mechanism. Vehicle dynamics are game-oriented approximations rather than a general rigid-body/contact solver. Train movement uses the generated coastal rail route; streamed worlds explicitly reject activation without a guided railway network. Cars and planes retain their bodies while crossing mapped regions. Mapped boat activation is rejected consistently by the workshop and activation path; island/procedural boat behavior is unchanged.
 
 These limits are explicit so future work can extend the appropriate crate without replacing UI, persistence or the renderer.

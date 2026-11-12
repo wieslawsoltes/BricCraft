@@ -58,6 +58,7 @@ pub fn state() -> String {
             "catalogOpen":r.state.catalog_open.get_untracked(),"studioOpen":r.state.imports_open.get_untracked(),
             "gameplayOpen":r.state.gameplay_open.get_untracked(),
             "settingsOpen":r.state.settings_open.get_untracked(),
+            "placesOpen":r.state.places_open.get_untracked(),
             "blueprintsOpen":r.state.blueprints_open.get_untracked(),
             "designsOpen":r.state.blueprints_open.get_untracked() && r.state.blueprint_section.get_untracked() == 1,
             "sourceCount":r.state.credits.get_untracked().len(),
@@ -94,6 +95,12 @@ pub fn state() -> String {
         fields.insert("rendering".into(), rendering);
         fields.insert("worldRendering".into(), world_rendering);
         fields.insert("interface".into(), interface);
+        fields.insert("map".into(),serde_json::json!({
+            "active":r.state.roam_active.get_untracked(),"status":r.state.roam_status.get_untracked(),
+            "regions":game.mapped_regions().len(),"waiting":game.map_waiting(),
+            "sourceParts":game.mapped_source_parts(),
+            "geographicPosition":game.map_anchor().and_then(|a|a.unproject(game.global_camera_position()[0],game.global_camera_position()[2]).ok()),
+        }));
         result = snapshot.to_string();
     });
     result

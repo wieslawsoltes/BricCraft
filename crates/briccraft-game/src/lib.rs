@@ -7,6 +7,7 @@ mod designs;
 mod gameplay;
 mod importing;
 pub mod input;
+mod mapped;
 mod persistence;
 pub mod session;
 mod streaming;
@@ -15,7 +16,8 @@ mod world_info;
 pub use briccraft_design::{CaptureKind, ConstructionDesign, DesignMetadata};
 pub use briccraft_play::{BuildQuote, GameMode, Gameplay, ObjectiveView};
 pub use briccraft_stream::{
-    BiomePreset, GlobalPlacement, GlobalPos, ImportProgress, StreamError, StreamStats, WindowOrigin,
+    BiomePreset, GlobalPlacement, GlobalPos, ImportProgress, MapAnchor, MapRegion, StreamError,
+    StreamStats, WindowOrigin,
 };
 pub use camera::{CameraMode, CameraRig};
 pub use designs::DesignCaptureStatus;

@@ -82,8 +82,15 @@ impl Session {
                     ];
                     let low = samples.into_iter().fold(f32::INFINITY, f32::min);
                     let high = samples.into_iter().fold(0.0, f32::max);
+                    // Real-map ground uses its fixed elevation reference, so a
+                    // perfectly dry flat area may sit below the classic sea plane.
+                    let minimum_ground = if self.map_anchor().is_some() {
+                        0.1
+                    } else {
+                        briccraft_world::SEA_LEVEL
+                    };
                     if matches!(blueprint, Blueprint::Rover | Blueprint::Airplane)
-                        && (high - low > 0.85 || low < 2.4)
+                        && (high - low > 0.85 || low < minimum_ground)
                     {
                         continue;
                     }

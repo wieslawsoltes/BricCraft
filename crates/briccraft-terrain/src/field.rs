@@ -149,13 +149,65 @@ impl HeightField {
         height_budget: u32,
         callback: &mut dyn FnMut(usize, usize) -> bool,
     ) -> TerrainResult<Self> {
+        Self::sample_inner(
+            projection,
+            options,
+            tallest_structure_m,
+            height_budget,
+            projection.grid_bounds()?,
+            None,
+            false,
+            callback,
+        )
+    }
+
+    /// Samples an adjacent mapped region on exact shared integer cell edges.
+    /// The first region fits once with twelve plates of headroom in each direction;
+    /// every later region validates and reuses its immutable vertical scale.
+    pub fn sample_region(
+        projection: &GeoReference,
+        options: &TerrainOptions,
+        tallest_structure_m: f64,
+        height_budget: u32,
+        bounds: [i32; 4],
+        fixed_scale: Option<VerticalScale>,
+        callback: &mut dyn FnMut(usize, usize) -> bool,
+    ) -> TerrainResult<Self> {
+        Self::sample_inner(
+            projection,
+            options,
+            tallest_structure_m,
+            height_budget,
+            bounds,
+            fixed_scale,
+            true,
+            callback,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn sample_inner(
+        projection: &GeoReference,
+        options: &TerrainOptions,
+        tallest_structure_m: f64,
+        height_budget: u32,
+        bounds: [i32; 4],
+        fixed_scale: Option<VerticalScale>,
+        region: bool,
+        callback: &mut dyn FnMut(usize, usize) -> bool,
+    ) -> TerrainResult<Self> {
         options.validate()?;
         if !options.elevation.covers(projection.bounds) {
             return Err(TerrainError::MissingElevation(
                 "the elevation grid does not cover the complete requested map bounds".into(),
             ));
         }
-        let bounds = projection.grid_bounds()?;
+        if bounds[0] >= bounds[2]
+            || bounds[1] >= bounds[3]
+            || bounds.iter().any(|v| v.unsigned_abs() > 1_000_000_000)
+        {
+            return Err(invalid("terrain region cell edges are invalid"));
+        }
         let width = (bounds[2] - bounds[0]) as usize;
         let depth = (bounds[3] - bounds[1]) as usize;
         let count = width
@@ -183,15 +235,57 @@ impl HeightField {
                 elevations.push(elevation);
             }
         }
-        let scale = VerticalScale::fit(
-            minimum_m,
-            maximum_m,
-            tallest_structure_m,
-            projection.meters_per_stud,
-            options.vertical_exaggeration,
-            height_budget,
-            options.fit_height,
-        )?;
+        let scale = if let Some(scale) = fixed_scale {
+            let requested = projection.meters_per_stud * 0.4 / options.vertical_exaggeration;
+            if !scale.reference_elevation_m.is_finite()
+                || !scale.requested_meters_per_plate.is_finite()
+                || !scale.effective_meters_per_plate.is_finite()
+                || (scale.requested_meters_per_plate - requested).abs() > 1e-8
+                || scale.effective_meters_per_plate < requested
+                || scale.effective_meters_per_plate > 100_000.0
+                || minimum_m < scale.reference_elevation_m - 1e-6
+                || (maximum_m - scale.reference_elevation_m + tallest_structure_m)
+                    / scale.effective_meters_per_plate
+                    + 2.0
+                    > f64::from(height_budget)
+            {
+                return Err(invalid("the next mapped terrain exceeds this journey's fixed vertical range; choose a new starting place or a coarser map scale"));
+            }
+            scale
+        } else {
+            let headroom = if region { 12 } else { 0 };
+            let fit_budget = height_budget
+                .checked_sub(headroom * 2)
+                .filter(|v| *v >= 3)
+                .ok_or_else(|| {
+                    invalid("live terrain needs room for ground and vertical headroom")
+                })?;
+            let (fit_minimum, fit_maximum) = if region {
+                // The initial source mosaic includes complete nearby footprints.
+                // Reserve one shared height scale for that measured neighborhood.
+                options
+                    .elevation
+                    .values
+                    .iter()
+                    .flatten()
+                    .fold((minimum_m, maximum_m), |(lo, hi), v| {
+                        (lo.min(f64::from(*v)), hi.max(f64::from(*v)))
+                    })
+            } else {
+                (minimum_m, maximum_m)
+            };
+            let mut scale = VerticalScale::fit(
+                fit_minimum,
+                fit_maximum,
+                tallest_structure_m,
+                projection.meters_per_stud,
+                options.vertical_exaggeration,
+                fit_budget,
+                options.fit_height,
+            )?;
+            scale.reference_elevation_m -= f64::from(headroom) * scale.effective_meters_per_plate;
+            scale
+        };
         let cells = elevations
             .into_iter()
             .map(|v| TerrainCell {

@@ -57,6 +57,17 @@ pub enum UiAction {
     ExitVehicle,
     NewWorld(u64),
     ShowWorlds,
+    ShowPlaces,
+    /// The view and logical viewport size are available in UiState.
+    MapViewportChanged,
+    StartMapRoam {
+        latitude: f64,
+        longitude: f64,
+        meters_per_stud: f64,
+        terrain: bool,
+    },
+    RetryMapRoam,
+    StopMapRoam,
     CreateWorld {
         preset: String,
         name: String,
@@ -165,6 +176,12 @@ pub struct UiState {
     pub settings_open: Signal<bool>,
     pub worlds_open: Signal<bool>,
     pub imports_open: Signal<bool>,
+    pub places_open: Signal<bool>,
+    pub map_view: Signal<crate::MapView>,
+    pub map_tiles: Signal<Vec<crate::MapTile>>,
+    pub map_status: Signal<String>,
+    pub roam_active: Signal<bool>,
+    pub roam_status: Signal<String>,
     pub credits_open: Signal<bool>,
     pub gameplay_open: Signal<bool>,
     pub world_details_open: Signal<bool>,
@@ -222,6 +239,12 @@ impl UiState {
             settings_open: signal(false),
             worlds_open: signal(false),
             imports_open: signal(false),
+            places_open: signal(false),
+            map_view: signal(crate::MapView::default()),
+            map_tiles: signal(Vec::new()),
+            map_status: signal("Choose a place on the map.".into()),
+            roam_active: signal(false),
+            roam_status: signal(String::new()),
             credits_open: signal(false),
             gameplay_open: signal(false),
             world_details_open: signal(false),
@@ -250,6 +273,7 @@ impl UiState {
             self.settings_open.set(false);
             self.worlds_open.set(false);
             self.imports_open.set(false);
+            self.places_open.set(false);
             self.credits_open.set(false);
             self.gameplay_open.set(false);
             self.world_details_open.set(false);
@@ -263,6 +287,7 @@ impl UiState {
             || self.settings_open.get()
             || self.worlds_open.get()
             || self.imports_open.get()
+            || self.places_open.get()
             || self.credits_open.get()
             || self.gameplay_open.get()
             || self.world_details_open.get()
@@ -277,6 +302,7 @@ impl UiState {
             || self.settings_open.get_untracked()
             || self.worlds_open.get_untracked()
             || self.imports_open.get_untracked()
+            || self.places_open.get_untracked()
             || self.credits_open.get_untracked()
             || self.gameplay_open.get_untracked()
             || self.world_details_open.get_untracked()

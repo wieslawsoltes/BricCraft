@@ -3,7 +3,9 @@
 #![forbid(unsafe_code)]
 
 mod elevation;
+mod map_region;
 pub use elevation::elevation_grid_json;
+pub use map_region::convert_map_region;
 
 use briccraft_import::{mesh, osm, GeoBounds, ImportPlan, ImportProgress, MeshOptions, OsmOptions};
 
@@ -88,6 +90,39 @@ pub fn convert(
 mod bindings {
     use super::*;
     use wasm_bindgen::prelude::*;
+
+    #[wasm_bindgen(js_name = processMapRegion)]
+    pub fn process_map_region(
+        metadata: &str,
+        vector_bytes: &[u8],
+        elevation_metadata: &str,
+        elevation_bytes: &[u8],
+        progress: js_sys::Function,
+    ) -> Result<String, JsValue> {
+        let mut callback_error = None;
+        let result = convert_map_region(
+            metadata,
+            vector_bytes,
+            elevation_metadata,
+            elevation_bytes,
+            &mut |update| {
+                let json =
+                    serde_json::to_string(&update).expect("progress contains finite integers");
+                match progress.call1(&JsValue::NULL, &JsValue::from_str(&json)) {
+                    Ok(value) => value.as_bool().unwrap_or(true),
+                    Err(error) => {
+                        callback_error = Some(error);
+                        false
+                    }
+                }
+            },
+        );
+        if let Some(error) = callback_error {
+            return Err(error);
+        }
+        let plan = result.map_err(|e| JsValue::from_str(&e))?;
+        serde_json::to_string(&plan).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
 
     /// Decode raw DEM channels and sample a complete georeferenced area off the UI thread.
     #[wasm_bindgen(js_name = elevationGrid)]

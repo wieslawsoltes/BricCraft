@@ -44,7 +44,11 @@ async function tileBytes(tile, signal, cache) {
 }
 
 export async function fetchElevation(data, signal, progress = () => {}) {
-    const plan = planElevation(data);
+    return fetchElevationPlan(planElevation(data), signal, progress);
+}
+
+// Live mapped regions supply a shared-grid plan, retaining the same bounded transport.
+export async function fetchElevationPlan(plan, signal, progress = () => {}) {
     let cache;
     try { cache = await caches.open(CACHE); } catch { /* Optional disk cache. */ }
     const buffers = new Array(plan.tiles.length);

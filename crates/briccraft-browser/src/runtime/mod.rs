@@ -33,6 +33,11 @@ pub struct Runtime {
     scene_generation: Cell<u64>,
     pub import_anchor: Cell<Option<briccraft_stream::GlobalPos>>,
     pub import_world_id: RefCell<String>,
+    pub map_epoch: Cell<u32>,
+    pub map_lock: Cell<Option<u32>>,
+    pub map_tile_request: Cell<u32>,
+    pub map_gesture_zoom: Cell<f64>,
+    pub map_requested_tiles: RefCell<Vec<(u8, u32, u32)>>,
 }
 
 impl Runtime {
@@ -67,6 +72,11 @@ impl Runtime {
             scene_generation: Cell::new(0),
             import_anchor: Cell::new(None),
             import_world_id: RefCell::new(String::new()),
+            map_epoch: Cell::new(0),
+            map_lock: Cell::new(None),
+            map_tile_request: Cell::new(0),
+            map_gesture_zoom: Cell::new(0.0),
+            map_requested_tiles: RefCell::new(Vec::new()),
         }
     }
     pub fn view(self: &Rc<Self>) -> Element {
@@ -114,5 +124,6 @@ pub(crate) mod gameplay;
 mod graphics;
 mod hud;
 mod layout;
+mod maps;
 mod resolution;
 mod world_actions;

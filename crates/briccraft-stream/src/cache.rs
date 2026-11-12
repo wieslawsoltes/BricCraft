@@ -72,6 +72,7 @@ pub struct StreamWorld {
     pub(crate) undo: VecDeque<GlobalChange>,
     pub(crate) redo: Vec<GlobalChange>,
     pub(crate) history_parts: usize,
+    pub(crate) mapped: Option<crate::mapped::MapSource>,
 }
 
 impl StreamWorld {
@@ -98,6 +99,7 @@ impl StreamWorld {
             undo: VecDeque::new(),
             redo: Vec::new(),
             history_parts: 0,
+            mapped: None,
         })
     }
 
@@ -172,12 +174,17 @@ impl StreamWorld {
             .required
             .iter()
             .filter(|coord| !self.chunks.contains_key(coord))
+            .filter(|coord| {
+                self.mapped
+                    .as_ref()
+                    .is_none_or(|source| source.contains_chunk(coord))
+            })
             .copied()
             .take(count)
             .collect();
         let protected: BTreeSet<_> = self.required.iter().copied().collect();
         for &coord in &missing {
-            let chunk = Arc::new(generation::generate(self.seed, self.preset, coord)?);
+            let chunk = self.base_chunk(coord)?;
             if self.chunks.len() >= self.capacity {
                 let oldest = self
                     .chunks
@@ -229,6 +236,31 @@ impl StreamWorld {
     }
 
     pub fn terrain_at(&self, x: i64, z: i64) -> TerrainSample {
+        if self.mapped.is_some() {
+            let mut height_plates = 0;
+            let mut color = 29;
+            if let Ok(chunk) = self.base_chunk(ChunkCoord::containing(x, z)) {
+                for part in &chunk.parts {
+                    if let Ok([sx, sy, sz]) = part.placement.size() {
+                        let p = part.placement.position;
+                        if x >= p.x
+                            && x < p.x + i64::from(sx)
+                            && z >= p.z
+                            && z < p.z + i64::from(sz)
+                            && p.y + i32::from(sy) > height_plates
+                        {
+                            height_plates = p.y + i32::from(sy);
+                            color = part.placement.color;
+                        }
+                    }
+                }
+            }
+            return TerrainSample {
+                height_plates,
+                color,
+                biome: self.preset,
+            };
+        }
         generation::terrain(self.seed, self.preset, x, z)
     }
 
@@ -238,6 +270,11 @@ impl StreamWorld {
     ) -> Result<Arc<generation::Chunk>, StreamError> {
         if let Some(entry) = self.chunks.get(&coord) {
             return Ok(Arc::clone(&entry.chunk));
+        }
+        if let Some(source) = &self.mapped {
+            return source
+                .chunk(coord)
+                .ok_or(StreamError::NotReady { remaining: 1 });
         }
         // Transaction validation may touch a remote part. This temporary chunk does not displace a
         // protected render window and is dropped immediately after that chunk's collision pass.
@@ -255,11 +292,13 @@ impl StreamWorld {
         let PartKey::Generated { chunk, index } = key else {
             return Ok(None);
         };
-        Ok(self
-            .base_chunk(chunk)?
-            .parts
-            .get(index as usize)
-            .map(|part| part.placement))
+        let base = self.base_chunk(chunk)?;
+        let part = if self.mapped.is_some() {
+            base.parts.iter().find(|part| part.key == key)
+        } else {
+            base.parts.get(index as usize)
+        };
+        Ok(part.map(|part| part.placement))
     }
 
     pub fn resolve(&self, key: PartKey) -> Result<Option<GlobalPlacement>, StreamError> {

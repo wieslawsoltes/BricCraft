@@ -17,6 +17,8 @@ struct StreamSave {
     origin: WindowOrigin,
     next_user_id: u64,
     edits: Vec<SavedEdit>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    mapped: Option<crate::mapped::SavedMap>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -42,6 +44,7 @@ impl StreamWorld {
                 .iter()
                 .map(|(&key, &value)| SavedEdit { key, value })
                 .collect(),
+            mapped: self.mapped.as_ref().map(crate::mapped::MapSource::saved),
         };
         serde_json::to_string(&save).map_err(|error| StreamError::InvalidSave(error.to_string()))
     }
@@ -71,6 +74,14 @@ impl StreamWorld {
             ));
         }
         let mut stream = Self::new(save.seed, save.preset, capacity)?;
+        if let Some(mapped) = save.mapped {
+            if save.preset != BiomePreset::Flat {
+                return Err(StreamError::InvalidSave(
+                    "Mapped sources use the empty external base, not a procedural preset".into(),
+                ));
+            }
+            stream.mapped = Some(crate::mapped::MapSource::restore(mapped)?);
+        }
         stream.origin = save.origin;
         stream.next_user_id = save.next_user_id;
         let mut seen = BTreeSet::new();
@@ -93,10 +104,14 @@ impl StreamWorld {
                         generated_chunks.clear();
                         generated_chunks.insert(chunk, stream.base_chunk(chunk)?);
                     }
+                    let parts = &generated_chunks[&chunk].parts;
+                    let original = if stream.mapped.is_some() {
+                        parts.iter().find(|part| part.key == edit.key)
+                    } else {
+                        parts.get(index as usize)
+                    };
                     Some(
-                        generated_chunks[&chunk]
-                            .parts
-                            .get(index as usize)
+                        original
                             .ok_or(StreamError::MissingPart(edit.key))?
                             .placement,
                     )

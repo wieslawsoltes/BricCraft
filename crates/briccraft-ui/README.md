@@ -15,6 +15,35 @@ keyboard handling, and 44–48 pixel minimum action targets. The vertical contro
 become Jump while walking and are hidden for vehicles without airborne controls.
 Landscape keeps the existing world gesture area and compact hotbar.
 
+## Map-based place selection
+
+Places opens an interactive OpenStreetMap view on desktop, phone and short
+landscape layouts. The viewport is composed from native `Image`, `Canvas`,
+`Border` and shape builders. The standard raster map guides selection; it is not
+the source of the generated world geometry. Attribution remains visible and
+opens the source copyright page. Decoded tiles enter through `MapTile`; network
+fetching, source caching and image decoding belong to the browser host.
+
+Drag pans, wheel/pinch zooms, and a tap selects a location without moving the
+camera. Multiple contacts or a drag suppress selection on release. Arrow keys
+pan the focused map, Page Up/Down zoom, and Enter selects the center. Presets and
+coordinate entry offer direct navigation. The marked square shows the selected
+build area, independently of the current map center.
+
+`MapView` holds center/selection latitude and longitude, zoom, label, radius,
+world scale and elevation preference. `map_view_size` is the shared source of
+logical viewport dimensions for tile acquisition and picking;
+`visible_map_tiles` returns only intersecting tiles. `MapViewportChanged` tells
+the host to refresh visible tiles, while `ShowPlaces` opens the panel and starts
+its first request. Coordinate selection itself does not load or replace a world.
+
+Build this area uses `ImportMap`. Free roam dispatches `StartMapRoam` with the
+selected location, scale and elevation preference. The browser supplies
+`roam_active`/`roam_status`; the UI exposes resume/retry and pause commands and
+keeps stream status visible in the gameplay HUD, including paused and failed
+requests. Advanced source and model imports remain
+available from the Places panel and retain their existing contracts.
+
 Settings expose independent resolution policy, antialiasing and surface-detail
 choices. Actual render status appears there. Performance counters are an opt-in
 overlay, so normal gameplay does not expose renderer implementation details.
@@ -39,6 +68,7 @@ as keyboard and public commands.
 - World-details and performance-overlay state are local view preferences.
 - Every modal is included in UiState's close and input-isolation helpers.
 
-All interface illustrations are native geometry. Icon and construction drawings
+Interface illustrations are native geometry. Icon and construction drawings
 scale with the device; there are no raster UI assets, DOM widgets, or painted
-replacement controls.
+replacement controls. The geographic map is the sole raster data surface in
+this UI crate.

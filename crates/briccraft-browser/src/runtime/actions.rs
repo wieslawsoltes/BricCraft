@@ -6,6 +6,11 @@ impl Runtime {
         if self.dispatch_graphics(&action) {
             return;
         }
+        // Map cancellation must remain reachable while its short storage commit
+        // holds the world-operation lock. All other map mutations validate it.
+        if self.dispatch_map(&action) {
+            return;
+        }
         if self.state.world_busy.get_untracked() {
             return;
         }

@@ -243,14 +243,44 @@ pub fn gesture(x: f64, y: f64, zoom: f64) -> bool {
         let Some(top) = TopLevel::get_top_level(Some(&view)) else {
             return;
         };
-        if top
-            .input_hit_test(ferroui_base::Point::new(x, y))
-            .is_some_and(|hit| hit.name().as_deref() == Some("WorldViewport"))
-        {
-            let mut game = runtime.session.borrow_mut();
-            game.camera.zoom(zoom.clamp(-600.0, 600.0) as f32);
-            game.update_pick();
-            handled = true;
+        let position = ferroui_base::Point::new(x, y);
+        let hit = top.input_hit_test(position);
+        match hit.as_ref().and_then(|hit| hit.name()).as_deref() {
+            Some("PlaceMapViewport") if runtime.state.places_open.get_untracked() => {
+                let Some(local) = hit
+                    .as_ref()
+                    .and_then(|hit| top.translate_point(position, hit))
+                else {
+                    return;
+                };
+                // The DOM fallback sends -ln(current_scale / previous_scale) / .0015.
+                // Retain sub-level motion instead of zooming a full level on every event.
+                let accumulated = (runtime.map_gesture_zoom.get()
+                    - zoom.clamp(-600.0, 600.0) * 0.0015 / std::f64::consts::LN_2)
+                    .clamp(-3.0, 3.0);
+                let steps = accumulated.round() as i8;
+                runtime.map_gesture_zoom.set(accumulated - f64::from(steps));
+                if steps != 0 {
+                    let mut map = runtime.state.map_view.get_untracked();
+                    briccraft_ui::zoom_map_at(
+                        &mut map,
+                        briccraft_ui::map_view_size(runtime.state.layout.get_untracked()),
+                        [local.x, local.y],
+                        steps,
+                    );
+                    runtime.state.map_view.set_if_changed(map);
+                    runtime.dispatch(UiAction::MapViewportChanged);
+                }
+                handled = true;
+            }
+            Some("WorldViewport") if !runtime.state.modal_untracked() => {
+                runtime.map_gesture_zoom.set(0.0);
+                let mut game = runtime.session.borrow_mut();
+                game.camera.zoom(zoom.clamp(-600.0, 600.0) as f32);
+                game.update_pick();
+                handled = true;
+            }
+            _ => runtime.map_gesture_zoom.set(0.0),
         }
     });
     handled
@@ -263,6 +293,7 @@ pub fn import_world(source: &str) -> bool {
         let result = runtime.session.borrow_mut().import_json(source);
         match result {
             Ok(()) => {
+                runtime.map_world_changed();
                 runtime.renderer.borrow_mut().invalidate();
                 runtime.state.close_panels();
                 success = true;

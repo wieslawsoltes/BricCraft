@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   application:
-    uses: wieslawsoltes/FerroUI/.github/workflows/app.yml@8281ef991022abb139c092bae75d4e652361a315
+    uses: wieslawsoltes/FerroUI/.github/workflows/app.yml@44be8b24138d4996ca9a68677259a36a339f9b50
     with:
       test: ''
       check: ''
@@ -26,6 +26,8 @@ jobs:
         node tests/canvas-size.mjs
         node tests/graphics-preferences.mjs
         node tests/design-host.mjs
+        node tests/map-host.mjs
+        node tests/map-region-source.mjs
         bash scripts/build-import-worker.sh "$SITE"
         node tests/import-engine.mjs "$SITE"
         rustc --edition=2021 --test crates/briccraft-browser/src/runtime/resolution.rs -o "$RUNNER_TEMP/resolution-tests"
@@ -34,10 +36,12 @@ jobs:
         "$RUNNER_TEMP/layout-tests"
         rustc --edition=2021 --test crates/briccraft-browser/src/gestures.rs -o "$RUNNER_TEMP/gesture-tests"
         "$RUNNER_TEMP/gesture-tests"
+        rustc --edition=2021 --test tests/map-ui-logic.rs -o "$RUNNER_TEMP/map-ui-tests"
+        "$RUNNER_TEMP/map-ui-tests"
         timeout 2m node tests/storage.mjs
         timeout 30m node tests/browser.mjs "$SITE" "$RUNNER_TEMP/smoke"
         mkdir -p "$SITE/previews"
-        for name in island rover world-library brandenburg telegraph-hill expedition mobile-expedition compact-world-library mobile-terrain mobile-studio mobile-landscape quality-desktop quality-mobile settings mobile-settings design-library mobile-designs; do
+        for name in island rover world-library brandenburg telegraph-hill expedition mobile-expedition compact-world-library mobile-terrain mobile-studio mobile-landscape quality-desktop quality-mobile settings mobile-settings design-library mobile-designs map-picker mobile-map-picker map-roam; do
           cp "$RUNNER_TEMP/smoke/$name.png" "$SITE/previews/$name.png"
         done
         cp "$RUNNER_TEMP/smoke/browser-metrics.json" "$SITE/previews/metrics.json"

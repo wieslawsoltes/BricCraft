@@ -102,6 +102,7 @@ fn brand(state: UiState) -> Element {
 
 fn desktop_navigation(state: UiState, dispatch: Dispatch) -> Element {
     let worlds = dispatch.clone();
+    let places = dispatch.clone();
     let explore = dispatch;
     stack_panel()
         .orientation(Orientation::Horizontal)
@@ -119,7 +120,7 @@ fn desktop_navigation(state: UiState, dispatch: Dispatch) -> Element {
                 "Places",
                 "Build a real place",
                 Icon::Places,
-                move || toggle(state, state.imports_open),
+                move || places(UiAction::ShowPlaces),
             ),
             navigation(
                 "ExploreWorld",
@@ -141,6 +142,7 @@ fn desktop_navigation(state: UiState, dispatch: Dispatch) -> Element {
 
 fn landscape_navigation(state: UiState, dispatch: Dispatch) -> Element {
     let worlds = dispatch.clone();
+    let places = dispatch.clone();
     let explore = dispatch;
     stack_panel()
         .orientation(Orientation::Horizontal)
@@ -149,6 +151,12 @@ fn landscape_navigation(state: UiState, dispatch: Dispatch) -> Element {
             controls::tool_button("LandscapeWorlds", "Your worlds", Icon::World, move || {
                 worlds(UiAction::ShowWorlds)
             }),
+            controls::tool_button(
+                "LandscapePlaces",
+                "Choose a real place",
+                Icon::Places,
+                move || places(UiAction::ShowPlaces),
+            ),
             controls::tool_button(
                 "LandscapeExplore",
                 "Change camera mode",
@@ -173,26 +181,31 @@ fn landscape_navigation(state: UiState, dispatch: Dispatch) -> Element {
 
 fn phone_navigation(state: UiState, dispatch: Dispatch) -> Element {
     let worlds = dispatch.clone();
+    let places = dispatch.clone();
     let explore = dispatch.clone();
     let drive = dispatch;
     grid()
         .name("CompactActions")
-        .column_definitions("*,*,*,*")
+        .column_definitions("*,*,*,*,*")
         .children((
             phone_action("PhoneWorlds", "Worlds", Icon::World, move || {
                 worlds(UiAction::ShowWorlds)
             }),
+            phone_action("PhonePlaces", "Places", Icon::Places, move || {
+                places(UiAction::ShowPlaces)
+            })
+            .grid_column(1),
             phone_action("PhoneExplore", "Explore", Icon::Explore, move || {
                 explore(UiAction::ToggleExplore)
             })
-            .grid_column(1),
+            .grid_column(2),
             phone_action("PhonePlans", "Plans", Icon::Plans, move || {
                 toggle(state, state.blueprints_open)
             })
-            .grid_column(2),
+            .grid_column(3),
             button()
                 .name("PhoneDrive")
-                .grid_column(3)
+                .grid_column(4)
                 .height(48.0)
                 .padding((2.0, 3.0))
                 .margin((2.0, 0.0))

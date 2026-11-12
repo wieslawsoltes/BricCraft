@@ -48,9 +48,9 @@ pub(super) fn render(
             drawn = true;
             match feature.kind {
                 Kind::Building => building(
-                    feature, &footprint, &outer, &inner, options, field, grid, report,
+                    feature, &footprint, &outer, &inner, projection, options, field, grid, report,
                 )?,
-                Kind::Water => water(feature, &footprint, field, report),
+                Kind::Water => water(feature, &footprint, options.region.is_some(), field, report),
                 Kind::Landcover | Kind::Road => {
                     let color = if feature.kind == Kind::Road {
                         7
@@ -114,6 +114,7 @@ fn building(
     footprint: &[[i32; 2]],
     outer: &[Vec<[f64; 2]>],
     inner: &[Vec<[f64; 2]>],
+    projection: &GeoReference,
     options: &OsmOptions,
     field: &mut HeightField,
     grid: &mut Voxels<'_>,
@@ -125,11 +126,15 @@ fn building(
         .get("min_height")
         .and_then(|s| raster::meters(s))
         .unwrap_or(0.0);
-    let surface = footprint
-        .iter()
-        .map(|[x, z]| field.cell(*x, *z).unwrap().top)
-        .max()
-        .unwrap();
+    let surface = if options.region.is_some() {
+        super::region_foundation::surface(outer, inner, projection, options, field, grid)?
+    } else {
+        footprint
+            .iter()
+            .map(|[x, z]| field.cell(*x, *z).unwrap().top)
+            .max()
+            .unwrap()
+    };
     let bottom = surface + field.scale.height_plates(minimum);
     let top = surface + field.scale.height_plates(height.height_m).max(1);
     if top <= bottom {
@@ -186,10 +191,12 @@ fn building(
 fn water(
     feature: &Feature,
     footprint: &[[i32; 2]],
+    region: bool,
     field: &mut HeightField,
     report: &mut ImportReport,
 ) {
-    let flowing = feature.tags.get("water").is_some_and(|v| v == "river")
+    let flowing = region
+        || feature.tags.get("water").is_some_and(|v| v == "river")
         || feature
             .tags
             .get("waterway")
@@ -215,6 +222,9 @@ fn water(
     if level.is_some() {
         report.terrain.as_mut().unwrap().inferred_water_levels += 1;
         report.warn("Enclosed water surfaces use the median DEM ground level inside each mapped polygon, an inferred level rather than bathymetry or a measured water stage. Flowing waterways follow DEM terrain.");
+    }
+    if region {
+        report.warn("Mapped water in live regions follows the shared DEM surface. Independent per-region water levels are not inferred, so adjacent water coverage does not acquire artificial height seams; this is not bathymetry or a measured water stage.");
     }
     if feature.tags.contains_key("ele") {
         report.warn("Water ele tags are retained in the source extract but are not mixed with DEM heights because no common vertical-datum conversion is configured.");

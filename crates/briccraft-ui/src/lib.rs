@@ -20,8 +20,15 @@ mod import_model;
 mod import_progress;
 mod imports;
 mod layout;
+mod map_geometry;
+mod map_gestures;
+mod map_location;
+mod map_model;
+mod map_viewport;
 mod model;
 mod objectives;
+mod place_options;
+mod places;
 mod preview;
 mod settings;
 mod theme;
@@ -34,6 +41,9 @@ pub use design_model::{DesignLibraryView, SavedDesignCard};
 use ferroui_view::prelude::*;
 pub use gameplay_model::{BlueprintQuote, GameplayView, ObjectiveCard, WorkshopView};
 pub use layout::UiLayout;
+pub use map_geometry::{map_view_size, visible_map_tiles, zoom_at as zoom_map_at};
+pub use map_location::MapView;
+pub use map_model::MapTile;
 pub use model::{
     ColorSwatch, Dispatch, PartCard, SourceCredit, UiAction, UiState, WorldSummary, HOTBAR_PARTS,
 };
@@ -63,7 +73,7 @@ pub fn view(
                     hud::crosshair(state),
                     hotbar::hotbar(parts.clone(), colors.clone(), state, dispatch.clone()),
                     hud::footer(state, dispatch.clone()),
-                    hud::activity(state),
+                    hud::activity(state, dispatch.clone()),
                     credits::badge(state),
                     touch::controls(state, dispatch.clone()),
                     controls::modal_backdrop(state),
@@ -73,6 +83,7 @@ pub fn view(
                     dialogs::help(state),
                     worlds::panel(state, dispatch.clone()),
                     imports::panel(state, dispatch.clone()),
+                    places::panel(state, dispatch.clone()),
                     credits::panel(state, dispatch.clone()),
                     gameplay::panel(state, dispatch.clone()),
                     world_details::panel(state),

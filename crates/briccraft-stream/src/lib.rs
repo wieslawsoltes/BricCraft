@@ -2,7 +2,8 @@
 //!
 //! Global coordinates and construction identities never rebase. The renderer receives an ordinary
 //! 96 × 72 × 96 [`briccraft_world::World`] and floating-point camera coordinates remain nearby.
-//! Only sparse differences from generated terrain are saved. Generation and window publication are
+//! Procedural saves contain sparse differences; mapped saves retain bounded source regions plus edits.
+//! Generation and window publication are
 //! separate: callers keep drawing the previous complete window while the next one is prepared.
 
 mod bulk;
@@ -11,6 +12,7 @@ mod coords;
 mod edits;
 mod generation;
 mod history;
+mod mapped;
 mod save;
 mod snapshot;
 mod types;
@@ -18,6 +20,7 @@ mod types;
 pub use bulk::{ImportJob, ImportProgress};
 pub use cache::{GenerationBudget, GenerationProgress, StreamStats, StreamWorld};
 pub use coords::{ChunkCoord, GlobalPos, Rebase, WindowOrigin};
+pub use mapped::{MAX_MAP_REGIONS, MAX_MAP_SOURCE_PARTS, MapAnchor, MapRegion};
 pub use types::{
     BiomePreset, GlobalChange, GlobalPart, GlobalPlacement, PartChange, PartKey, StreamError,
     TerrainSample, WorldSnapshot,

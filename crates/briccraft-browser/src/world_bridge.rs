@@ -104,6 +104,7 @@ pub fn create(preset: &str, name: &str, seed: &str, id: &str) -> bool {
                     game.world_info.name = name.trim().chars().take(80).collect();
                 }
                 *r.session.borrow_mut() = game;
+                r.map_world_changed();
                 r.renderer.borrow_mut().invalidate();
                 r.state.close_panels();
                 success = true;

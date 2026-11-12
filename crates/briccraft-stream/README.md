@@ -53,7 +53,8 @@ Global `undo`/`redo` persists through rebases and cache eviction. History is bou
 and 250,000 changed parts. New edits discard redo. History is intentionally a session resource;
 saving/loading begins a new undo session.
 
-Generated parts fit inside their owner chunks. A user part that intersects the outer window boundary
+Procedural parts fit inside their owner chunks. Geographic source parts are indexed into every
+intersected chunk, while retaining a single stable owner identity. A part that intersects the outer window boundary
 is returned whole in `boundary_parts`, retained in the global edit store, and omitted from the strict
 local occupancy grid until it fits. No part is split into different shapes or lost. The 32-stud camera
 guard keeps these boundary fragments outside interaction range; renderers should fog/fade the outer
@@ -82,3 +83,45 @@ removes its override, so ordinary edits do not expand into full terrain saves.
 `GlobalPos` stores exact global stud/plate integers. `WindowOrigin::global_position` is an approximate
 display helper returning f64; use `global_cell` for persistent coordinates. `local_position` subtracts
 the integer origin before converting to floats, preserving local detail at very distant coordinates.
+
+## Real-map sources
+
+`StreamWorld::new_mapped(seed, anchor, capacity)` creates an external-source world. `MapAnchor`
+fixes latitude, longitude, stud origin, meters per stud, the elevation reference, meters per plate,
+the source region extent and whether measured terrain is enabled. No procedural geometry fills
+unknown source regions. `advance_generation` leaves the missing chunks pending until the host
+publishes a source region; the previous complete snapshot remains usable.
+
+`publish_map_region(MapRegion { bounds, placements })` accepts one complete aligned source region.
+The browser uses 128 × 128 studs per region; the renderer still uses its existing 96 × 72 × 96 window.
+Bounds contain minimum X/Z and exclusive maximum X/Z. Every part must fit wholly inside the region.
+All catalog metadata, vertical bounds and intra-region overlaps are validated before publication.
+An identical repeated region is a no-op; a conflicting replacement is rejected to preserve the
+geography under player edits. Source generation allocates no user IDs and creates no undo action.
+
+Source identities derive from canonical spatial/catalog ordering inside each owner chunk, not
+provider response order. Source parts crossing a 16-stud chunk edge retain the same generated key
+from both sides. Normal removal, movement, undo and redo continue to use sparse overrides.
+
+`map_demands(global_focus)` requests missing regions intersecting the current/requested 96-stud
+render window, ordered nearest first. Moving out of the central camera guard requests the next
+window while the player still has room inside loaded terrain. There is no speculative source
+prefetch for adjacent regions, planned routes, or other zoom levels.
+The game host requests one region at a time, uses generation/world-ID fences, and publishes only a
+complete conversion. The `briccraft-game` mapped session guard holds walkers/vehicles inside the
+last resident window while data is pending, then resumes motion through the usual floating-origin
+publication. Existing camera pose, constructions, design library and gameplay state are retained.
+
+The source store is bounded separately from the render cache: at most 32 retained regions and
+250,000 source parts. Farthest pristine regions may be evicted. Visible/pending regions and regions
+referenced by edits or construction history are protected; if all retained regions are protected,
+new data fails explicitly rather than discarding constructions. The browser may cache evicted
+source data for later requests. Saves include retained source regions, anchor metadata and sparse
+edits so the current area can reopen without a network response. Old procedural saves remain valid.
+
+Fixed vertical scale is required: adjacent region conversion must not refit its elevation minimum
+or height compression. The 72-plate vertical slab is unchanged. The host must report an area that
+cannot fit this fixed range; it must not clip heights or silently change scale at a source seam.
+Mapped sessions support walking, flight, cars and aircraft. Their water bodies remain editable
+source geometry; boat activation requires the island's sea until vehicle buoyancy can follow
+individual mapped water elevations. Streamed guided train networks remain a separate feature.

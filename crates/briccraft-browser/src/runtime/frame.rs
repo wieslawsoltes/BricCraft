@@ -48,6 +48,7 @@ impl Runtime {
             self.state.compact.set_if_changed(layout.compact);
             self.state.layout.set_if_changed(layout);
         });
+        self.refresh_map_tiles(false);
         let presented = ferroui_browser::rendering::RenderStatistics::current().frames;
         let requested_quality = self.session.borrow().quality;
         let measure_scene = !self.state.modal_untracked() && !self.session.borrow().paused;
@@ -117,7 +118,13 @@ impl Runtime {
             },
             time: visual_time,
             daylight: game.daylight,
-            water_level: 2.4,
+            // Mapped lakes/rivers are actual converted geometry. An island's
+            // decorative ocean plane would submerge low real-world streets.
+            water_level: if game.map_anchor().is_some() {
+                -1.0
+            } else {
+                2.4
+            },
             selected_id: game.hit.as_ref().filter(|_| !modal).map(|h| h.id),
             preview,
             quality: resolution.effective_quality,

@@ -9,6 +9,7 @@ import {checkCanvasPresentation} from './graphics-browser.mjs';
 import {checkGameplay} from './gameplay-browser.mjs';
 import {checkImageQuality} from './quality-browser.mjs';
 import {checkDesigns} from './designs-browser.mjs';
+import {checkMappedWorlds} from './maps-browser.mjs';
 const site=process.argv[2],out=process.argv[3] || 'target/browser-checks';
 // SwiftShader is a software GPU. Keep the long input/import journey in the
 // player's explicit Performance mode; checkImageQuality separately verifies
@@ -172,6 +173,8 @@ try {
     assert(Math.abs(sizes.canvas[0]-sizes.width*sizes.dpr)<=2,'Canvas pixel size must match the coherent browser scale');
     stage('Checking native mobile touch navigation and modal isolation');
     measurements.mobile=await checkMobile(page,out);
+    stage('Choosing places and walking a dynamically generated mapped world');
+    measurements.maps=await checkMappedWorlds({page,state,command,wait,current,out});
     assert(page.errors.length===0,`Browser errors: ${page.errors.join('\n')}`);
     console.log(JSON.stringify(measurements,null,2));
     fs.mkdirSync(out,{recursive:true}); fs.writeFileSync(path.join(out,'browser-metrics.json'),JSON.stringify(measurements,null,2));

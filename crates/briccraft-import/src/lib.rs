@@ -11,6 +11,7 @@ mod model;
 pub mod osm;
 mod packing;
 mod projection;
+pub mod vector;
 mod voxels;
 
 pub use error::{ImportError, ImportResult};

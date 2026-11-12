@@ -50,13 +50,13 @@ struct Member {
     geometry: Vec<Option<Point>>,
 }
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(super) enum Kind {
+pub(crate) enum Kind {
     Landcover,
     Water,
     Road,
     Building,
 }
-pub(super) struct Feature {
+pub(crate) struct Feature {
     pub id: i64,
     pub osm_type: String,
     pub kind: Kind,

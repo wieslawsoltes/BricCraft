@@ -105,6 +105,9 @@ impl Session {
             "boat" => VehicleKind::Boat,
             _ => assessment.suggested_vehicle,
         };
+        if self.map_anchor().is_some() && kind == VehicleKind::Boat {
+            return Err("Boats currently need the island sea. Choose a car or aircraft for this mapped world.".into());
+        }
         if self.is_streamed() && kind == VehicleKind::Train {
             return Err("Powered trains use the coastal railway in Sunlit Archipelago. This open world has no guided railway network yet; the locomotive remains editable here.".into());
         }

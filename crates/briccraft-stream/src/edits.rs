@@ -356,7 +356,7 @@ pub(crate) fn placement_chunks(placement: GlobalPlacement) -> Result<Vec<ChunkCo
     Ok(chunks)
 }
 
-fn for_each_cell(
+pub(crate) fn for_each_cell(
     placement: GlobalPlacement,
     chunk: ChunkCoord,
     mut visit: impl FnMut(usize, GlobalPos) -> Result<(), StreamError>,

@@ -42,11 +42,11 @@ pub(super) fn import(
     let mut scale = options.meters_per_stud;
     let mut last_budget = None;
     for attempt in 0..9 {
-        let projection = GeoReference::new(options.bounds, scale, options.origin)?;
-        let b = projection.grid_bounds()?;
+        let projection = options.projection(scale)?;
+        let b = options.grid_bounds(&projection)?;
         let count = (b[2] - b[0]) as usize * (b[3] - b[1]) as usize;
         if count > terrain.max_columns {
-            if !terrain.auto_coarsen {
+            if !terrain.auto_coarsen || options.region.is_some() {
                 return Err(ImportError::BudgetExceeded {
                     resource: "terrain columns",
                     limit: terrain.max_columns,
@@ -70,7 +70,9 @@ pub(super) fn import(
                 }
                 return Ok(plan);
             }
-            Err(e @ ImportError::BudgetExceeded { .. }) if terrain.auto_coarsen && attempt < 8 => {
+            Err(e @ ImportError::BudgetExceeded { .. })
+                if terrain.auto_coarsen && options.region.is_none() && attempt < 8 =>
+            {
                 last_budget = Some(e);
                 scale = coarser(scale * 1.5)?;
             }
@@ -101,19 +103,32 @@ fn attempt_import(
     callback: &mut dyn FnMut(ImportProgress) -> bool,
 ) -> ImportResult<ImportPlan> {
     let terrain = options.terrain.as_ref().unwrap();
-    let mut field = HeightField::sample(
-        projection,
-        terrain,
-        tallest,
-        height_budget,
-        &mut |done, total| {
-            callback(ImportProgress {
-                stage: ImportStage::Project,
-                completed: done,
-                total,
-            })
-        },
-    )?;
+    let mut sample_progress = |done, total| {
+        callback(ImportProgress {
+            stage: ImportStage::Project,
+            completed: done,
+            total,
+        })
+    };
+    let mut field = if let Some(region) = &options.region {
+        HeightField::sample_region(
+            projection,
+            terrain,
+            tallest,
+            height_budget,
+            region.clip,
+            region.vertical_scale,
+            &mut sample_progress,
+        )?
+    } else {
+        HeightField::sample(
+            projection,
+            terrain,
+            tallest,
+            height_budget,
+            &mut sample_progress,
+        )?
+    };
     report.projection = Some(projection.clone());
     report.terrain =
         Some(field.report(terrain, options.meters_per_stud, projection.meters_per_stud));
@@ -180,7 +195,11 @@ fn attempt_import(
     let compressed = terrain_report.vertical_compression < 0.999999;
     let effective_mpp = terrain_report.effective_meters_per_plate;
     let datum = terrain_report.vertical_datum;
-    report.warn("The complete area is sampled from the attributed elevation grid. Heights are relative to its sampled minimum; source vertical datum is retained without an implicit datum conversion. Boundary cells sample the nearest point within the requested box.");
+    if options.region.is_some() {
+        report.warn("Live map regions share one fixed geographic projection and vertical reference. Their integer cell edges are exact; elevation and height scales never refit independently between regions. The initial region reserves twelve plates of lower and upper terrain headroom.");
+    } else {
+        report.warn("The complete area is sampled from the attributed elevation grid. Heights are relative to its sampled minimum; source vertical datum is retained without an implicit datum conversion. Boundary cells sample the nearest point within the requested box.");
+    }
     report.warn("Terrain is quantized to editable plates. Roads and land-cover surfaces follow the sampled terrain; building foundations rise to the highest terrain cell beneath each mapped footprint. Facades and unmapped roof geometry are not inferred from the elevation model.");
     if compressed {
         report.warn(format!("Vertical relief and building heights share an explicit compressed scale of {effective_mpp:.4} meters per plate to fit the resident height. Disable fit_height for strict metric proportions."));
