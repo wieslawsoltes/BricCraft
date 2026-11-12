@@ -135,21 +135,46 @@ impl Session {
 }
 
 fn walking_spawn(world: &briccraft_world::World, x: f32, z: f32) -> [f32; 3] {
-    // Prefer a nearby low clear surface over a building's roof at the exact pin.
-    // The character controller then validates the real capsule on its first step.
-    let mut best = (f32::INFINITY, [x, world.surface_height(x, z) + 2.2, z]);
+    // Rank complete, collision-free bodies by floor height, then proximity. A
+    // low centre sample alone can put the circular footprint inside a wall or
+    // its head beneath an adjoining overhang and force a first-frame roof jump.
+    let mut controller = briccraft_character::CharacterController::default();
+    let grid = crate::camera::WorldCollision(world);
+    let eye_height = controller.config().eye_height;
+    let mut best: Option<(f32, i32, Vec3)> = None;
     for dz in -8i32..=8 {
         for dx in -8i32..=8 {
             let px = (x + dx as f32 * 1.5).clamp(16.0, 80.0);
             let pz = (z + dz as f32 * 1.5).clamp(16.0, 80.0);
             let floor = world.surface_height(px, pz);
-            let score = floor + (dx * dx + dz * dz) as f32 * 0.025;
-            if score < best.0 {
-                best = (score, [px, floor + 2.2, pz]);
+            let feet = Vec3::new(px, floor, pz);
+            if !controller.can_occupy(feet, &grid) {
+                continue;
+            }
+            let distance = dx * dx + dz * dz;
+            if best.as_ref().is_none_or(|&(height, near, _)| {
+                floor < height || (floor == height && distance < near)
+            }) {
+                best = Some((floor, distance, feet));
             }
         }
     }
-    best.1
+    let feet = best.map_or_else(
+        || {
+            // A fully obstructed neighborhood still publishes a valid pose;
+            // resolve its roof fallback before exposing the new session.
+            controller
+                .advance(
+                    Vec3::new(x, world.surface_height(x, z), z),
+                    briccraft_character::CharacterInput::default(),
+                    0.0,
+                    &grid,
+                )
+                .position
+        },
+        |(_, _, feet)| feet,
+    );
+    (feet + Vec3::Y * eye_height).to_array()
 }
 
 #[cfg(test)]

@@ -233,11 +233,16 @@ pub fn view(state: UiState, dispatch: Dispatch) -> Element {
                 let map=state.map_view.get();
                 format!("{:.5}, {:.5}",map.selected_latitude,map.selected_longitude)
             }).font_size(12.0).foreground(theme::MUTED),
+            text_block().name("SelectedAreaStatus")
+                .is_visible(move || !state.import_busy.get() && !state.import_status.get().is_empty())
+                .text(state.import_status).font_size(11.0).foreground(theme::MUTED)
+                .text_wrapping(TextWrapping::Wrap),
         )),
         button().name("BuildMapSelection").class("primary").min_height(48.0)
             .content("Build this area").is_enabled(move || !state.import_busy.get() && !state.world_busy.get())
             .on_click(move |_| {
                 let map=state.map_view.get_untracked();
+                state.import_status.set(String::new());
                 build(UiAction::ImportMap {
                     latitude:map.selected_latitude,longitude:map.selected_longitude,radius:map.radius,
                     meters_per_stud:map.meters_per_stud,endpoint:"https://overpass-api.de/api/interpreter".into(),

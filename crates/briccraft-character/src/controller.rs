@@ -52,6 +52,12 @@ impl CharacterController {
         &self.config
     }
 
+    /// Whether the complete body fits at this feet position without recovery.
+    /// Uses the same circular footprint and headroom as walking collision.
+    pub fn can_occupy<G: CollisionGrid + ?Sized>(&self, feet: Vec3, world: &G) -> bool {
+        Grid::new(world).is_some_and(|grid| grid.clear(feet, &self.config))
+    }
+
     pub fn grounded(&self) -> bool {
         self.grounded
     }

@@ -164,10 +164,25 @@ export async function checkMapPicker({page,state,command,wait,current,out}) {
         map=await picker();
         assert(distance(center(map),center(lifted))>0.000001,'The remaining pinch contact must continue panning');
         assert(distance(map.selected,mobileSelection)<1e-10,'Contact release must not become a map selection');
+        // Upward movement would scroll the surrounding phone panel if its
+        // ancestor gesture recognizer were allowed to steal the map contact.
+        const beforeUpward=map;
+        before=(await state()).rendering.frames;
+        await touch('touchStart',[[4,tx,ty]]);
+        await touch('touchMove',[[4,tx,ty-45]]);
+        await touch('touchMove',[[4,tx,ty-80]]);
+        await touch('touchEnd');
+        await paint(before);
+        map=await picker();
+        assert(distance(map.rect,beforeUpward.rect)<0.01,
+            'Dragging upward on the map must not scroll the surrounding phone panel');
+        assert(distance(center(map),center(beforeUpward))>0.000001,
+            'Upward map dragging must pan its geographic center');
+        assert(distance(map.selected,mobileSelection)<1e-10,'Upward map dragging must preserve the chosen location');
         await assertSameWorld(originalWorld,unchanged,'Phone picker');
         await page.screenshot(path.join(out,'mobile-map-picker.png'));
         result.mobile={rect:map.rect,zoom:map.zoom,selected:map.selected,tiles:map.tiles,
-            touchPicking:true,pinch:true,contactLift:true,constructionUnchanged:true};
+            touchPicking:true,pinch:true,contactLift:true,ancestorScrollIsolation:true,constructionUnchanged:true};
         return result;
     } finally {
         await touch('touchCancel').catch(()=>{});

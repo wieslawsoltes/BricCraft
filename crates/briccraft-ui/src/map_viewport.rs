@@ -176,6 +176,9 @@ pub fn view(state: UiState, dispatch: Dispatch) -> Element {
                 ))
                 .child(grid().children((tile_layer(state), selection_layer(state))))
                 .on_pointer_pressed(move |event| {
+                    // The phone layout places this viewport inside a ScrollViewer.
+                    // Its gesture class handlers observe handled events as well.
+                    event.prevent_gesture_recognition();
                     if !state.places_open.get_untracked() {
                         return;
                     }
@@ -191,6 +194,7 @@ pub fn view(state: UiState, dispatch: Dispatch) -> Element {
                     event.set_handled(true);
                 })
                 .on_pointer_moved(move |event| {
+                    event.prevent_gesture_recognition();
                     if !state.places_open.get_untracked() {
                         moved.borrow_mut().cancel(event.pointer().id());
                         event.pointer().capture(None);
@@ -216,6 +220,7 @@ pub fn view(state: UiState, dispatch: Dispatch) -> Element {
                     event.set_handled(true);
                 })
                 .on_pointer_released(move |event| {
+                    event.prevent_gesture_recognition();
                     let tap = released.borrow_mut().release(event.pointer().id());
                     if tap && state.places_open.get_untracked() {
                         if let Some(view) = viewport.get_untracked() {

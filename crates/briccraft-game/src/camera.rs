@@ -198,7 +198,7 @@ impl CameraRig {
     }
 }
 
-struct WorldCollision<'a>(&'a World);
+pub(crate) struct WorldCollision<'a>(pub(crate) &'a World);
 
 impl CollisionGrid for WorldCollision<'_> {
     fn dimensions(&self) -> IVec3 {

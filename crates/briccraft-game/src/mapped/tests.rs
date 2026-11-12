@@ -87,6 +87,43 @@ fn mapped_walk_waits_safely_for_source_and_resumes_across_the_same_world() {
 }
 
 #[test]
+fn mapped_spawn_clears_the_walking_footprint_and_headroom_before_publication() {
+    // The pin's centre column is low ground, but its circular footprint reaches
+    // the adjacent wall or overhang. A point-only spawn would jump onto its roof.
+    for layers in [&[1, 4, 7, 10][..], &[6][..]] {
+        let mut source = region(0, 0);
+        for &y in layers {
+            source
+                .placements
+                .push(GlobalPlacement::new(0, 1, GlobalPos::new(63, y, 64), 0));
+        }
+        let mut session = Session::new_mapped(
+            42,
+            anchor(),
+            source,
+            "Clear walking spawn".into(),
+            vec![],
+            true,
+        )
+        .unwrap();
+        let before = session.global_camera_position();
+        assert!(
+            (before[1] - 2.6).abs() < 0.001,
+            "prefer nearby ground: {before:?}"
+        );
+        assert_ne!([before[0], before[2]], [64.0, 64.0]);
+        session.tick(1.0 / 60.0);
+        let after = session.global_camera_position();
+        assert!(
+            (after[1] - before[1]).abs() < 0.001,
+            "no roof recovery: {after:?}"
+        );
+        assert_eq!([after[0], after[2]], [before[0], before[2]]);
+        assert!(session.camera.grounded());
+    }
+}
+
+#[test]
 fn map_append_and_saved_reopen_preserve_construction_identity_and_georeferencing() {
     let mut session = session();
     let id = session
