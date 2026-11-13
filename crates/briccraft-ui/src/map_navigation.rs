@@ -56,7 +56,7 @@ pub fn marker(state: UiState) -> Element {
     })
 }
 
-pub fn locate(state: UiState, dispatch: Dispatch) -> Element {
+pub fn locate(state: UiState, dispatch: Dispatch) -> El<ferroui_controls::Button> {
     controls::tool_button(
         "MapLocatePlayer",
         "Locate your current position without changing the build selection",
@@ -65,7 +65,6 @@ pub fn locate(state: UiState, dispatch: Dispatch) -> Element {
     )
     .is_visible(move || state.map_player.get().is_some())
     .background("#173C52")
-    .into()
 }
 
 /// Full geographic details live in the roomy Places panel, not a narrow phone chip.
