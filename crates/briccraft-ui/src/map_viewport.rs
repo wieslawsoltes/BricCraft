@@ -142,15 +142,22 @@ fn scale_bar(state: UiState) -> Element {
 }
 
 pub fn view(state: UiState, dispatch: Dispatch) -> Element {
-    let viewport: NodeRef<Border> = NodeRef::new();
-    let gestures = Rc::new(RefCell::new(MapGestures::default()));
+    // Parent layout components may run again while retaining this native map.
+    // Keep its reference and contacts in this component's lifetime: node_ref is
+    // populated on mount, whereas event handler closures are patched each run.
+    rerender(move || content(state, dispatch.clone()))
+}
+
+fn content(state: UiState, dispatch: Dispatch) -> Element {
+    let viewport: NodeRef<Border> = use_hook(NodeRef::new);
+    let gestures = use_hook(|| Rc::new(RefCell::new(MapGestures::default())));
     let pressed = gestures.clone();
     let moved = gestures.clone();
     let released = gestures.clone();
     let lost = gestures;
     let move_dispatch = dispatch.clone();
     let wheel_dispatch = dispatch.clone();
-    let wheel_input = RefCell::new(MapWheel::default());
+    let wheel_input = use_hook(|| Rc::new(RefCell::new(MapWheel::default())));
     let keyboard_dispatch = dispatch.clone();
     let zoom_in = dispatch.clone();
     let zoom_out = dispatch.clone();

@@ -8,7 +8,7 @@ const distance=(a,b)=>Math.hypot(...a.map((value,index)=>value-b[index]));
 const center=picker=>[picker.latitude,picker.longitude];
 
 // Independent inverse-Mercator reference for checking an actual hit-tested pixel.
-function geographicAt(picker,local) {
+export function geographicAt(picker,local) {
     const world=256*2**picker.zoom;
     const latitude=picker.latitude*Math.PI/180;
     const x=(picker.longitude+180)/360*world+local[0]-picker.size[0]/2;

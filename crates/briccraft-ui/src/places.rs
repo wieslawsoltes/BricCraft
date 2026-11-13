@@ -85,9 +85,12 @@ pub fn roam_card(state: UiState, dispatch: Dispatch) -> Element {
 }
 
 fn content(state: UiState, dispatch: Dispatch) -> Element {
+    // Only a structural breakpoint changes this tree. Child sizes already
+    // follow layout signals; resizing within a mode should retain editors and
+    // map interaction state instead of rebuilding them for every measurement.
+    let wide = memo(move |_| geo::map_wide(state.layout.get()));
     rerender(move || {
-        let wide = geo::map_wide(state.layout.get());
-        if wide {
+        if wide.get() {
             grid()
                 .column_definitions("*,300")
                 .children((
