@@ -29,4 +29,6 @@ pub const DEFAULT_SEED: u64 = 0xB71C_C4AF;
 pub const SAVE_VERSION: u32 = 1;
 
 #[cfg(test)]
+mod snapshot_tests;
+#[cfg(test)]
 mod tests;

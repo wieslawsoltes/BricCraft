@@ -43,6 +43,14 @@ then atomically commits a global change and updates local-ID mappings. Call it a
 transaction so the global undo stack retains individual edits. A repeated capture is a no-op.
 `snapshot.part_key(local_id)` and `snapshot.local_id(key)` bridge render and persistent identities.
 
+`World` clones share immutable occupancy and instance arrays through copy-on-write
+storage. The first validated mutation detaches the arrays; failed edits preserve
+sharing and atomicity. `World::shares_snapshot` proves exact shared state in
+constant time, including metadata and revision. `capture_edits` keeps a private
+baseline snapshot and uses this proof to skip unchanged captures without trusting
+the publicly replaceable `WorldSnapshot::world`. Equal revision numbers alone do
+not establish equality. Actual edits retain the normal full validation and diff path.
+
 `place_parts`, `remove_parts`, and `move_parts` validate whole transactions against generated terrain
 and sparse edits, including footprints crossing chunks. Moves preserve `PartKey`; parking a vehicle
 can therefore move its original keys even after their source window has been evicted. After global

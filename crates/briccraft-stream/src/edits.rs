@@ -79,6 +79,14 @@ impl StreamWorld {
         {
             return Err(StreamError::StaleSnapshot);
         }
+        // Most captures are source arrivals, saves, and window rebases without
+        // a construction edit. Shared immutable storage proves equality without
+        // scanning parts or copying the complete occupancy volume.
+        if snapshot.baseline_world.shares_snapshot(current)
+            && snapshot.world.shares_snapshot(current)
+        {
+            return Ok(GlobalChange::default());
+        }
         let mut keys = snapshot.keys.clone();
         let mut next = self.next_user_id;
         let mut changes = Vec::new();
@@ -132,6 +140,7 @@ impl StreamWorld {
             .map(|instance| (instance.id, instance.clone()))
             .collect();
         snapshot.world = current.clone();
+        snapshot.baseline_world = current.clone();
         snapshot.revision = self.revision;
         Ok(change)
     }

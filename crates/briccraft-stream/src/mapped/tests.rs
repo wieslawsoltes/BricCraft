@@ -169,3 +169,94 @@ fn demand_uses_euclidean_negative_regions_and_does_not_refetch_loaded_regions() 
     assert_eq!(positions[0], [-128, -128, 0, 0]);
     assert!(world.map_demands([f64::NAN, 0.0, 0.0]).is_err());
 }
+
+#[test]
+fn direct_region_demands_match_all_intersecting_resident_chunks() {
+    use std::collections::BTreeSet;
+    for size in [96, 112, 128, 256, 512] {
+        let mut anchor = anchor();
+        anchor.region_size = size;
+        let mut world = StreamWorld::new_mapped(42, anchor.clone(), 64).unwrap();
+        world
+            .publish_map_region(MapRegion {
+                bounds: [0, 0, i64::from(size), i64::from(size)],
+                placements: Vec::new(),
+            })
+            .unwrap();
+        for x in [-512, -144, -112, -96, -16, 0, 16, 96, 112, 128, 512] {
+            for z in [-512, -112, -96, -16, 0, 16, 96, 128, 512] {
+                let origin = WindowOrigin::new(x, z);
+                world.request_window(origin).unwrap();
+                let focus = [x as f64 + 48.5, 0.0, z as f64 + 48.5];
+                let actual = world.map_demands(focus).unwrap();
+                let mut expected = BTreeSet::new();
+                for view in [world.origin(), origin] {
+                    for chunk in view.chunks().unwrap() {
+                        let p = chunk.origin().unwrap();
+                        let bounds = anchor.region_at(p.x, p.z).unwrap();
+                        if !world.map_region_loaded(bounds) {
+                            expected.insert(bounds);
+                        }
+                    }
+                }
+                assert_eq!(
+                    actual.iter().copied().collect::<BTreeSet<_>>(),
+                    expected,
+                    "size={size}, origin={origin:?}"
+                );
+                let distance = |b: &[i64; 4]| {
+                    let dx = b[0] as i128 + i128::from(size) / 2 - focus[0].floor() as i128;
+                    let dz = b[1] as i128 + i128::from(size) / 2 - focus[2].floor() as i128;
+                    dx * dx + dz * dz
+                };
+                assert!(
+                    actual
+                        .windows(2)
+                        .all(|pair| distance(&pair[0]) <= distance(&pair[1]))
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn source_arrival_still_validates_existing_player_cells_atomically() {
+    // Normal edits cannot be placed into an unloaded region. Exercise the
+    // defensive publication check directly, as needed for malformed saves.
+    let mut world = StreamWorld::new_mapped(42, anchor(), 64).unwrap();
+    let key = crate::PartKey::User(1);
+    let part = GlobalPlacement::new(0, 2, GlobalPos::new(32, 0, 32), 0);
+    world.edits.insert(key, Some(part));
+    world
+        .edit_chunks
+        .entry(part.position.chunk())
+        .or_default()
+        .insert(key);
+    let before = world.to_json().unwrap();
+    assert!(matches!(
+        world.publish_map_region(region(0, 0)),
+        Err(crate::StreamError::Occupied(_))
+    ));
+    assert_eq!(world.to_json().unwrap(), before);
+    assert_eq!(world.mapped_source_parts(), 0);
+    assert!(world.mapped_regions().is_empty());
+}
+
+#[test]
+fn source_arrival_preserves_non_overlapping_player_additions() {
+    let mut world = StreamWorld::new_mapped(42, anchor(), 64).unwrap();
+    let key = crate::PartKey::User(1);
+    let part = GlobalPlacement::new(0, 2, GlobalPos::new(32, 3, 32), 0);
+    world.edits.insert(key, Some(part));
+    world
+        .edit_chunks
+        .entry(part.position.chunk())
+        .or_default()
+        .insert(key);
+    world.publish_map_region(region(0, 0)).unwrap();
+    assert_eq!(world.resolve(key).unwrap(), Some(part));
+    assert_eq!(world.sparse_edit_count(), 1);
+    assert!(!world.can_undo());
+    let snapshot = world.prepare_window(WindowOrigin::default()).unwrap();
+    assert!(snapshot.local_id(key).is_some());
+}

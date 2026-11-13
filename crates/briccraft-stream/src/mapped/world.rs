@@ -54,6 +54,11 @@ impl StreamWorld {
         // A retained edit must never acquire newly generated geometry underneath
         // it. Normally the edited tile is pinned; this also rejects forged saves.
         for (coord, chunk) in &chunks {
+            // prepare() already proved source/source separation. Only occupied
+            // player edits need a second source occupancy pass.
+            let Some(keys) = self.edit_chunks.get(coord) else {
+                continue;
+            };
             let mut cells = vec![false; CHUNK_CELLS];
             for part in &chunk.parts {
                 crate::edits::for_each_cell(part.placement, *coord, |index, _| {
@@ -61,17 +66,15 @@ impl StreamWorld {
                     Ok(())
                 })?;
             }
-            if let Some(keys) = self.edit_chunks.get(coord) {
-                for key in keys {
-                    if let Some(Some(part)) = self.edits.get(key) {
-                        crate::edits::for_each_cell(*part, *coord, |index, position| {
-                            if cells[index] {
-                                return Err(StreamError::Occupied(position));
-                            }
-                            cells[index] = true;
-                            Ok(())
-                        })?;
-                    }
+            for key in keys {
+                if let Some(Some(part)) = self.edits.get(key) {
+                    crate::edits::for_each_cell(*part, *coord, |index, position| {
+                        if cells[index] {
+                            return Err(StreamError::Occupied(position));
+                        }
+                        cells[index] = true;
+                        Ok(())
+                    })?;
                 }
             }
         }
@@ -175,11 +178,18 @@ impl StreamWorld {
         let size = i64::from(source.anchor.region_size);
         let mut missing = BTreeSet::new();
         for window in std::iter::once(self.origin).chain(self.requested) {
-            for chunk in window.chunks()? {
-                let origin = chunk.origin()?;
-                let bounds = source.anchor.region_at(origin.x, origin.z)?;
-                if !self.map_region_loaded(bounds) {
-                    missing.insert(bounds);
+            window.validate()?;
+            // A resident view spans at most two source regions on either axis.
+            // Enumerate those rectangles directly instead of allocating and
+            // center-sorting all 36 resident chunks for a read-only demand query.
+            let first = source.anchor.region_at(window.x, window.z)?;
+            let last = source.anchor.region_at(window.x + 95, window.z + 95)?;
+            for z in (first[1]..=last[1]).step_by(size as usize) {
+                for x in (first[0]..=last[0]).step_by(size as usize) {
+                    let bounds = source.anchor.region_at(x, z)?;
+                    if !self.map_region_loaded(bounds) {
+                        missing.insert(bounds);
+                    }
                 }
             }
         }

@@ -123,6 +123,9 @@ pub struct WorldSnapshot {
     pub(crate) revision: u64,
     pub(crate) keys: BTreeMap<u32, PartKey>,
     pub(crate) baseline: BTreeMap<u32, Instance>,
+    // The public world can be replaced by a caller. Keep a private, shared
+    // snapshot so capture cannot mistake that replacement for its baseline.
+    pub(crate) baseline_world: World,
 }
 
 impl WorldSnapshot {

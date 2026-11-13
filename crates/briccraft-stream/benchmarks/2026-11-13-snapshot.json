@@ -1,0 +1,199 @@
+{
+  "baseline_commit": "4ab92c9297cd1b7dfbeee4b3e20d8d0aa751bc23",
+  "candidate": "shared immutable World storage, capture identity fast path, direct map demands, edited-chunk publication checks",
+  "compiler": "rustc 1.100.0 (0ef1bc386 2026-11-09)",
+  "profile": {
+    "opt_level": 3,
+    "lto": "thin",
+    "panic": "abort"
+  },
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "cpu": "AMD EPYC 9V74 80-Core Processor",
+  "logical_cpu_affinity": 0,
+  "notes": "Seven batches per operation; identical benchmark source and synthetic source data; A/B/A order on one allowed logical CPU. Native CPU microbenchmark under a shared runner; no GPU, browser, network or FPS claim.",
+  "runs": [
+    {
+      "revision": "before",
+      "measurements": {
+        "clone_reuses_occupancy": false,
+        "fixture": "dense synthetic map source, 128 \u00d7 128 studs",
+        "iterations_per_sample": 256,
+        "map_demands": {
+          "median_ns": 1761.98828125,
+          "samples_ns": [
+            1777.71875,
+            3745.015625,
+            1730.109375,
+            2312.37890625,
+            1724.66796875,
+            1761.98828125,
+            1709.21875
+          ]
+        },
+        "publication_iterations_per_sample": 32,
+        "resident_occupancy_bytes": 2654208,
+        "resident_parts": 2448,
+        "source_parts": 4352,
+        "source_publication": {
+          "median_ns": 674401.03125,
+          "samples_ns": [
+            639828.125,
+            677920.3125,
+            704358.96875,
+            656302.9375,
+            692456.90625,
+            674401.03125,
+            635854.4375
+          ]
+        },
+        "unchanged_capture": {
+          "median_ns": 169192.65625,
+          "samples_ns": [
+            149381.33203125,
+            327432.1015625,
+            596150.78125,
+            241924.75390625,
+            169192.65625,
+            163105.9296875,
+            151828.7890625
+          ]
+        },
+        "unchanged_capture_reuses_occupancy": false,
+        "world_clone": {
+          "median_ns": 61578.8515625,
+          "samples_ns": [
+            61987.42578125,
+            61771.48046875,
+            61827.4609375,
+            60773.91015625,
+            61397.25390625,
+            61515.2421875,
+            61578.8515625
+          ]
+        }
+      }
+    },
+    {
+      "revision": "after",
+      "measurements": {
+        "clone_reuses_occupancy": true,
+        "fixture": "dense synthetic map source, 128 \u00d7 128 studs",
+        "iterations_per_sample": 256,
+        "map_demands": {
+          "median_ns": 147.5625,
+          "samples_ns": [
+            147.5625,
+            565.68359375,
+            144.98046875,
+            240.08203125,
+            147.64453125,
+            147.25,
+            147.015625
+          ]
+        },
+        "publication_iterations_per_sample": 32,
+        "resident_occupancy_bytes": 2654208,
+        "resident_parts": 2448,
+        "source_parts": 4352,
+        "source_publication": {
+          "median_ns": 549030.8125,
+          "samples_ns": [
+            654440.125,
+            549030.8125,
+            657940.9375,
+            526649.65625,
+            557070.78125,
+            506738.15625,
+            503375.375
+          ]
+        },
+        "unchanged_capture": {
+          "median_ns": 13.37890625,
+          "samples_ns": [
+            13.88671875,
+            14.3984375,
+            13.37890625,
+            13.41796875,
+            13.37890625,
+            13.37890625,
+            13.33984375
+          ]
+        },
+        "unchanged_capture_reuses_occupancy": true,
+        "world_clone": {
+          "median_ns": 8.9609375,
+          "samples_ns": [
+            8.99609375,
+            9.07421875,
+            8.9609375,
+            8.83984375,
+            8.8046875,
+            8.91796875,
+            9.0390625
+          ]
+        }
+      }
+    },
+    {
+      "revision": "before",
+      "measurements": {
+        "clone_reuses_occupancy": false,
+        "fixture": "dense synthetic map source, 128 \u00d7 128 studs",
+        "iterations_per_sample": 256,
+        "map_demands": {
+          "median_ns": 1992.3359375,
+          "samples_ns": [
+            1878.76953125,
+            5080.59765625,
+            1865.03515625,
+            1726.08203125,
+            2091.859375,
+            2243.921875,
+            1992.3359375
+          ]
+        },
+        "publication_iterations_per_sample": 32,
+        "resident_occupancy_bytes": 2654208,
+        "resident_parts": 2448,
+        "source_parts": 4352,
+        "source_publication": {
+          "median_ns": 717201.59375,
+          "samples_ns": [
+            656590.59375,
+            654713.40625,
+            616146.71875,
+            717201.59375,
+            721287.6875,
+            762744.90625,
+            947103.3125
+          ]
+        },
+        "unchanged_capture": {
+          "median_ns": 187944.37890625,
+          "samples_ns": [
+            168671.40234375,
+            187944.37890625,
+            195241.359375,
+            179036.84375,
+            189203.75,
+            173759.23828125,
+            203346.29296875
+          ]
+        },
+        "unchanged_capture_reuses_occupancy": false,
+        "world_clone": {
+          "median_ns": 66440.4296875,
+          "samples_ns": [
+            62819.15234375,
+            63146.82421875,
+            62591.23046875,
+            95234.4765625,
+            81950.16015625,
+            66440.4296875,
+            66868.72265625
+          ]
+        }
+      }
+    }
+  ]
+}

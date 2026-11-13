@@ -1,4 +1,5 @@
 use crate::{BuildError, Instance, World};
+use std::sync::Arc;
 
 impl World {
     /// Construct an unpublished world in one pass. The new occupancy grid itself detects overlaps;
@@ -19,13 +20,15 @@ impl World {
                     return Err(BuildError::Occupied(world.coordinate(index)));
                 }
             }
+            let occupancy = Arc::make_mut(&mut world.cells);
             for index in cells {
-                world.cells[index] = instance.id + 1;
+                occupancy[index] = instance.id + 1;
             }
-            if instance.id as usize >= world.slots.len() {
-                world.slots.resize(instance.id as usize + 1, None);
+            let slots = Arc::make_mut(&mut world.slots);
+            if instance.id as usize >= slots.len() {
+                slots.resize(instance.id as usize + 1, None);
             }
-            world.slots[instance.id as usize] = Some(instance.clone());
+            slots[instance.id as usize] = Some(instance.clone());
             world.active += 1;
         }
         world.revision = u64::from(!instances.is_empty());

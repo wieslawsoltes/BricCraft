@@ -40,4 +40,6 @@ pub const MAX_TRANSACTION_CHUNKS: usize = 4_096;
 pub const MAX_HISTORY_PARTS: usize = 250_000;
 
 #[cfg(test)]
+mod capture_tests;
+#[cfg(test)]
 mod tests;

@@ -1,5 +1,6 @@
 use crate::{BuildError, BuildOp, ChangeSet, Instance, World};
 use std::collections::HashSet;
+use std::sync::Arc;
 
 impl World {
     /// Validate every operation before changing any cell. A failed transaction leaves the world intact.
@@ -95,26 +96,29 @@ impl World {
             return;
         }
         for instance in removed {
-            for index in self
+            let footprint = self
                 .footprint(&instance.placement())
-                .expect("validated removal")
-            {
-                self.cells[index] = 0;
+                .expect("validated removal");
+            let cells = Arc::make_mut(&mut self.cells);
+            for index in footprint {
+                cells[index] = 0;
             }
-            self.slots[instance.id as usize] = None;
+            Arc::make_mut(&mut self.slots)[instance.id as usize] = None;
             self.active -= 1;
         }
         for instance in added {
-            for index in self
+            let footprint = self
                 .footprint(&instance.placement())
-                .expect("validated addition")
-            {
-                self.cells[index] = instance.id + 1;
+                .expect("validated addition");
+            let cells = Arc::make_mut(&mut self.cells);
+            for index in footprint {
+                cells[index] = instance.id + 1;
             }
-            if instance.id as usize >= self.slots.len() {
-                self.slots.resize(instance.id as usize + 1, None);
+            let slots = Arc::make_mut(&mut self.slots);
+            if instance.id as usize >= slots.len() {
+                slots.resize(instance.id as usize + 1, None);
             }
-            self.slots[instance.id as usize] = Some(instance.clone());
+            slots[instance.id as usize] = Some(instance.clone());
             self.active += 1;
         }
         self.revision = self.revision.wrapping_add(1);

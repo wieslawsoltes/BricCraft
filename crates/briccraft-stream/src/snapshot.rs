@@ -74,6 +74,7 @@ impl StreamWorld {
             .collect();
         self.origin = origin;
         Ok(WorldSnapshot {
+            baseline_world: world.clone(),
             world,
             origin,
             boundary_parts,

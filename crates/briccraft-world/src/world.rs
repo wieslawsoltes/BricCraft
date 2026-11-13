@@ -1,13 +1,14 @@
 use crate::{BuildError, BuildOp, Instance, Placement, WORLD_SIZE};
 use briccraft_parts::{PALETTE, Shape, part};
 use std::collections::{HashSet, VecDeque};
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct World {
     pub seed: u64,
     pub(crate) size: [u16; 3],
-    pub(crate) slots: Vec<Option<Instance>>,
-    pub(crate) cells: Vec<u32>,
+    pub(crate) slots: Arc<Vec<Option<Instance>>>,
+    pub(crate) cells: Arc<Vec<u32>>,
     pub(crate) active: usize,
     pub(crate) revision: u64,
 }
@@ -17,8 +18,8 @@ impl World {
         Self {
             seed,
             size: WORLD_SIZE,
-            slots: Vec::new(),
-            cells: vec![0; WORLD_SIZE.into_iter().map(usize::from).product()],
+            slots: Arc::new(Vec::new()),
+            cells: Arc::new(vec![0; WORLD_SIZE.into_iter().map(usize::from).product()]),
             active: 0,
             revision: 0,
         }
@@ -28,6 +29,18 @@ impl World {
     }
     pub fn revision(&self) -> u64 {
         self.revision
+    }
+    /// Constant-time proof that two worlds share the exact same immutable state.
+    /// Clones retain their backing arrays until a validated edit detaches them.
+    /// Independently constructed worlds may contain equal data and still return
+    /// false; a matching revision counter alone is deliberately insufficient.
+    pub fn shares_snapshot(&self, other: &Self) -> bool {
+        self.seed == other.seed
+            && self.size == other.size
+            && self.active == other.active
+            && self.revision == other.revision
+            && Arc::ptr_eq(&self.slots, &other.slots)
+            && Arc::ptr_eq(&self.cells, &other.cells)
     }
     pub fn len(&self) -> usize {
         self.active
