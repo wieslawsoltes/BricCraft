@@ -18,7 +18,7 @@ const page=await open(site,{width:1280,height:800,network:true,
     initScript:"localStorage.setItem('briccraft.graphics.v1',JSON.stringify({version:1,mode:2,samples:1}));"});
 const state=async()=>JSON.parse(await page.evaluate('briccraft.briccraftState()'));
 const command=async(name,value='')=>page.evaluate(`briccraft.briccraftCommand(${JSON.stringify(name)},${JSON.stringify(value)})`);
-const wait=async expression=>page.waitFor(`globalThis.briccraft && (${expression})`,90000);
+const wait=async (expression,timeout=90000)=>page.waitFor(`globalThis.briccraft && (${expression})`,timeout);
 const current='JSON.parse(briccraft.briccraftState())';
 const measurements={};
 const readiness=()=>page.evaluate(`(() => {

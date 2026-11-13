@@ -57,14 +57,22 @@ export async function checkMappedWorlds(context) {
             'A mapped save with a valid nearby walking pose must reopen');
         await wait(`${mapCurrent}.active && !${current}.interface.modal`);
         const walker=await state();
+        const walkStarted=Date.now();
         assert(await page.evaluate('briccraft.briccraftKey("KeyW",true,false,false)'), 'Mapped walking must accept forward input');
         await page.evaluate('briccraft.briccraftKey("ShiftLeft",true,false,false)');
         try {
-            await wait(`${current}.globalCamera[0] > 132 && ${mapCurrent}.regions.length > 1`);
+            // Simulation advances by at most 100 ms per real frame. SwiftShader
+            // can spend seconds presenting each frame, so this continuous-input
+            // journey needs its own bounded wall-time budget. Keep the complete
+            // crossing assertion and genuine RAF-driven input/collision path.
+            await wait(`${current}.globalCamera[0] > 132 && ${mapCurrent}.regions.length > 1`,180000);
         } finally {
             await page.evaluate('briccraft.briccraftKey("KeyW",false,false,false); briccraft.briccraftKey("ShiftLeft",false,false,false)');
         }
         const travelled=await state(), afterWalk=await mapped();
+        const walkSeconds=(Date.now()-walkStarted)/1000;
+        const walkFrames=travelled.rendering.frames-walker.rendering.frames;
+        assert(walkFrames>0,'The geographic journey must present real native frames');
         assert(travelled.worldId===walker.worldId,'Crossing geographic regions must preserve the world identity');
         assert(travelled.globalCamera[0]-walker.globalCamera[0]>40,'The walker must travel across a generated source boundary');
         assert(travelled.globalCamera[1]>2,'Pending regions must not drop the walker below solid terrain');
@@ -94,6 +102,7 @@ export async function checkMappedWorlds(context) {
         assert(vectors.length>0 && vectors.length<=provenance.files.length,'Repeated regions must reuse already fetched vector tiles');
         result.freeRoam={initialRegions:initial.regions.length,regions:afterWalk.regions.length,
             sourceParts:afterWalk.source_parts,walkedStuds:travelled.globalCamera[0]-walker.globalCamera[0],
+            wallSeconds:walkSeconds,presentedFrames:walkFrames,
             start:walker.globalCamera,end:travelled.globalCamera,worldIdentityPreserved:true,
             constructionPreserved:true,saveRoundTrip:true,sourceRequests:vectors.length,
             cachedChunks:travelled.cachedChunks,pausedRegions:frozenRegions,anchor:afterWalk.anchor,

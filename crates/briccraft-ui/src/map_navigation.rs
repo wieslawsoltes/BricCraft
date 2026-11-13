@@ -1,5 +1,5 @@
 //! Native player location, compass and map controls, independent of the build pin.
-use crate::{controls, icons, map_geometry as geo, theme, Dispatch, UiAction, UiState};
+use crate::{controls, icons, map_geometry as geo, theme, Dispatch, MapPlayer, UiAction, UiState};
 use ferroui_base::{
     layout::{HorizontalAlignment as H, VerticalAlignment as V},
     media::{FontWeight, Geometry, TextWrapping},
@@ -8,10 +8,28 @@ use ferroui_view::prelude::*;
 
 const LOCATION: &str = "#8CDAFF";
 
+// Read visibility first so reactive dependency tracking drops the moving-player
+// subscription while these native controls are hidden. Updating hidden text can
+// otherwise invalidate layout even though the surrounding panel is not drawn.
+fn places_player(state: UiState) -> Option<MapPlayer> {
+    if state.places_open.get() {
+        state.map_player.get()
+    } else {
+        None
+    }
+}
+
+fn hud_player(state: UiState, compact: bool) -> Option<MapPlayer> {
+    if state.compact.get() != compact || state.modal() || (compact && state.layout.get().keyboard) {
+        None
+    } else {
+        state.map_player.get()
+    }
+}
+
 pub fn marker(state: UiState) -> Element {
     rerender(move || {
-        let player = state.map_player.get();
-        let Some(player) = player.filter(|_| state.places_open.get()) else {
+        let Some(player) = places_player(state) else {
             return canvas().is_hit_test_visible(false).into_element();
         };
         let map = state.map_view.get();
@@ -63,7 +81,7 @@ pub fn locate(state: UiState, dispatch: Dispatch) -> El<ferroui_controls::Button
         icons::Icon::Explore,
         move || dispatch(UiAction::LocateMapPlayer),
     )
-    .is_visible(move || state.map_player.get().is_some())
+    .is_visible(move || places_player(state).is_some())
     .background("#173C52")
 }
 
@@ -71,7 +89,7 @@ pub fn locate(state: UiState, dispatch: Dispatch) -> El<ferroui_controls::Button
 pub fn details(state: UiState, dispatch: Dispatch) -> Element {
     border()
         .name("MapPlayerDetails")
-        .is_visible(move || state.map_player.get().is_some())
+        .is_visible(move || places_player(state).is_some())
         .background("#173546")
         .border_brush("#42647A")
         .border_thickness(1.0)
@@ -82,7 +100,7 @@ pub fn details(state: UiState, dispatch: Dispatch) -> Element {
             grid().column_definitions("*,Auto").children((
                 text_block()
                     .name("MapPlayerHeading")
-                    .text(move || state.map_player.get().map_or_else(String::new, |p| p.heading()))
+                    .text(move || places_player(state).map_or_else(String::new, |p| p.heading()))
                     .font_size(18.0)
                     .font_weight(FontWeight::SemiBold)
                     .foreground(LOCATION),
@@ -90,7 +108,7 @@ pub fn details(state: UiState, dispatch: Dispatch) -> Element {
                     .grid_column(1)
                     .vertical_alignment(V::Center)
                     .text(move || {
-                        state.map_player.get().map_or_else(String::new, |p| {
+                        places_player(state).map_or_else(String::new, |p| {
                             format!("{} from start", p.distance())
                         })
                     })
@@ -99,7 +117,7 @@ pub fn details(state: UiState, dispatch: Dispatch) -> Element {
             )),
             text_block()
                 .name("MapPlayerCoordinates")
-                .text(move || state.map_player.get().map_or_else(String::new, |p| p.coordinates()))
+                .text(move || places_player(state).map_or_else(String::new, |p| p.coordinates()))
                 .font_size(12.0)
                 .foreground("#DCECF8"),
             controls::caption("Blue arrow: your location and heading. Gold pin: the place selected for your next build."),
@@ -115,11 +133,11 @@ pub fn details(state: UiState, dispatch: Dispatch) -> Element {
 pub fn summary(state: UiState) -> Element {
     stack_panel()
         .spacing(4.0)
-        .is_visible(move || state.map_player.get().is_some())
+        .is_visible(move || hud_player(state, false).is_some())
         .children((
             text_block()
                 .text(move || {
-                    state.map_player.get().map_or_else(String::new, |p| {
+                    hud_player(state, false).map_or_else(String::new, |p| {
                         format!("{}   ·   {} from start", p.heading(), p.distance())
                     })
                 })
@@ -129,10 +147,7 @@ pub fn summary(state: UiState) -> Element {
                 .text_wrapping(TextWrapping::Wrap),
             text_block()
                 .text(move || {
-                    state
-                        .map_player
-                        .get()
-                        .map_or_else(String::new, |p| p.coordinates())
+                    hud_player(state, false).map_or_else(String::new, |p| p.coordinates())
                 })
                 .font_size(11.0)
                 .foreground(theme::MUTED),
@@ -143,7 +158,7 @@ pub fn summary(state: UiState) -> Element {
 pub fn mobile(state: UiState, dispatch: Dispatch) -> Element {
     button()
         .name("MobileMapNavigation")
-        .is_visible(move || state.map_player.get().is_some())
+        .is_visible(move || hud_player(state, true).is_some())
         .grid_column(2)
         .margin((6.0, 0.0, 0.0, 0.0))
         .width(88.0)
@@ -158,12 +173,7 @@ pub fn mobile(state: UiState, dispatch: Dispatch) -> Element {
         .child(
             stack_panel().spacing(3.0).children((
                 text_block()
-                    .text(move || {
-                        state
-                            .map_player
-                            .get()
-                            .map_or_else(String::new, |p| p.heading())
-                    })
+                    .text(move || hud_player(state, true).map_or_else(String::new, |p| p.heading()))
                     .font_size(11.0)
                     .font_weight(FontWeight::SemiBold)
                     .foreground(LOCATION),
