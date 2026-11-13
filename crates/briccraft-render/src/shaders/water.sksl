@@ -1,3 +1,12 @@
+// Mapped rivers and lakes are actual brick geometry. A negative level disables
+// the island's decorative ocean instead of placing another infinite plane
+// beneath the mapped terrain. Zero remains a valid enabled sea level.
+float waterSurfaceDistance(float3 origin,float3 ray) {
+    if(sun_direction.w<0.0 || abs(ray.y)<=0.000001) return FAR;
+    float distance=(sun_direction.w-origin.y)/ray.y;
+    return distance>0.0?distance:FAR;
+}
+
 float3 waterColor(float3 position,float3 ray,float distance) {
     float time=camera_position.w;
     float2 uv=position.xz;

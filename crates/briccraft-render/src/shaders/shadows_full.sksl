@@ -8,20 +8,28 @@ float sunlight(float3 point,float3 direction,float ownId) {
     float3 gridRd=direction/float3(1.0,PLATE,1.0);
     float3 gridBase=floor(gridRo),gridFraction=fract(gridRo);
     float3 steps=float3(gridRd.x<0.0?-1.0:1.0,gridRd.y<0.0?-1.0:1.0,gridRd.z<0.0?-1.0:1.0);
-    float3 delta=abs(safeInverse(gridRd));
-    float3 next=(cell+max(steps,float3(0.0))-gridRo)*safeInverse(gridRd);
+    float3 inverse=safeInverse(gridRd),delta=abs(inverse);
+    float3 next=(cell+max(steps,float3(0.0))-gridRo)*inverse;
     float shadowDistance=quality==2?64.0:32.0;
+    float3 blockSize=float3(4.0,6.0,4.0);
+    float3 coarseDimensions=ceil((world_dimensions.xyz+float3(0.0,1.0,0.0))/blockSize);
+    // Several fine cells share one occupancy tile. Retain its exact result;
+    // moving into another tile is the only reason to sample it again.
+    float3 previousCoarse=float3(-1.0);
+    float coarseOccupied=0.0;
     for(int i=0;i<96;++i) {
-        float3 blockSize=float3(4.0,6.0,4.0);
         float3 coarse=floor(cell/blockSize);
-        float3 coarseDimensions=ceil((world_dimensions.xyz+float3(0.0,1.0,0.0))/blockSize);
-        if(cellId(coarse,coarseDimensions,world_dimensions.w)<0.5) {
+        if(any(notEqual(coarse,previousCoarse))) {
+            coarseOccupied=cellId(coarse,coarseDimensions,world_dimensions.w);
+            previousCoarse=coarse;
+        }
+        if(coarseOccupied<0.5) {
             float3 blockEdge=(coarse+max(steps,float3(0.0)))*blockSize;
-            float3 blockNext=(blockEdge-gridRo)*safeInverse(gridRd);
+            float3 blockNext=(blockEdge-gridRo)*inverse;
             float t=min(min(blockNext.x,blockNext.y),blockNext.z)+0.0002;
             if(t>shadowDistance) break;
             cell=gridBase+floor(gridFraction+gridRd*t);
-            next=(cell+max(steps,float3(0.0))-gridRo)*safeInverse(gridRd);
+            next=(cell+max(steps,float3(0.0))-gridRo)*inverse;
             if(cell.y>=world_dimensions.y || cell.x<0.0 || cell.z<0.0 || cell.x>=world_dimensions.x || cell.z>=world_dimensions.z) break;
             continue;
         }

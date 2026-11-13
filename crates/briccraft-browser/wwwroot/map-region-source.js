@@ -1,5 +1,6 @@
 import { planMapRegion } from './map-region-plan.js';
 import { MapTileCache } from './map-tile-cache.js';
+import { createMapRegionConverter } from './map-region-converter.js';
 import { fetchElevationPlan } from './elevation-source.js';
 import { abortError, SourceHttpError, throwIfAborted } from './source-errors.js';
 
@@ -13,50 +14,15 @@ function delay(milliseconds, signal) {
     });
 }
 
-function convert(workerFactory, request, vectors, elevation, signal, progress) {
-    throwIfAborted(signal);
-    return new Promise((resolve, reject) => {
-        const worker = workerFactory();
-        let finished = false;
-        const finish = (error, value) => {
-            if (finished) return;
-            finished = true;
-            signal?.removeEventListener('abort', abort);
-            worker.terminate();
-            if (error) reject(error); else resolve(value);
-        };
-        const abort = () => finish(signal?.reason ?? abortError());
-        signal?.addEventListener('abort', abort, { once: true });
-        worker.onerror = event => finish(new Error(event.message || 'Mapped terrain conversion failed'));
-        worker.onmessage = ({ data }) => {
-            if (finished) return;
-            try {
-                throwIfAborted(signal);
-                if (data.type === 'progress') progress(data.progress);
-                else if (data.type === 'error') finish(new Error(data.message));
-                else if (data.type === 'complete') {
-                    if (typeof data.source !== 'string' || !data.report || typeof data.report !== 'object')
-                        throw new Error('The map conversion worker returned an invalid plan');
-                    finish(null, { source: data.source, report: data.report, name: data.name });
-                }
-            } catch (error) { finish(error); }
-        };
-        if (signal?.aborted) { abort(); return; }
-        const transfers = [vectors.bytes];
-        if (elevation?.bytes) transfers.push(elevation.bytes);
-        try { worker.postMessage({ request, vectors, elevation }, transfers); }
-        catch (error) { finish(error); }
-    });
-}
-
 export function createMapRegionLoader({
     cache = new MapTileCache(), elevationSource = fetchElevationPlan,
     workerFactory = () => new Worker(new URL('./map-region-worker.js', import.meta.url), { type: 'module' }),
-    now = () => Date.now(), wait = delay, minimumIntervalMs = 250,
+    now = () => Date.now(), wait = delay, minimumIntervalMs = 250, workerIdleTimeoutMs = 60_000,
 } = {}) {
     // A single conversion/fetch job is active. Cancellation reaches both the
     // request bodies and worker; a queued, cancelled region never contacts a source.
     let tail = Promise.resolve(), nextStart = 0;
+    const convert = createMapRegionConverter({ workerFactory, idleTimeoutMs: workerIdleTimeoutMs });
     return function load(request, signal, progress = () => {}) {
         const snapshot = { ...request, origin: request.origin?.slice(), clip: request.clip?.slice(),
             vertical_scale: request.vertical_scale ? { ...request.vertical_scale } : undefined };
@@ -91,7 +57,7 @@ export function createMapRegionLoader({
                 }) : null;
                 throwIfAborted(signal);
                 progress({ stage: 'Building the next mapped region', completed: 0, total: 1 });
-                return await convert(workerFactory, { ...snapshot, bounds: plan.bounds, tiles },
+                return await convert({ ...snapshot, bounds: plan.bounds, tiles },
                     { bytes: bytes.buffer }, elevation, signal, progress);
             } catch (error) {
                 if (error instanceof SourceHttpError && [429, 503].includes(error.status))

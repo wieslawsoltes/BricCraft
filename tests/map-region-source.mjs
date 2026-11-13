@@ -15,9 +15,10 @@ const success = { type: 'complete', source: '{"placements":[]}', report: { parts
 function workerFactory(workers, automatic = true) {
     return () => {
         const worker = {
-            terminated: false, postMessage(data, transfers) {
+            terminated: false, messages: [], postMessage(data, transfers) {
                 this.data = data; this.transfers = transfers;
-                if (automatic) queueMicrotask(() => this.onmessage?.({ data: success }));
+                this.messages.push(data);
+                if (automatic) queueMicrotask(() => this.onmessage?.({ data: { ...success, id: data.id } }));
             }, terminate() { this.terminated = true; },
         };
         workers.push(worker); return worker;
@@ -83,16 +84,18 @@ test('a cancelled tile read cannot populate memory or bypass the per-tile byte b
     await assert.rejects(large.get('a'),/2 MB/);
 });
 
-test('loader serializes jobs, reuses source bytes and transfers only copies to conversion', async () => {
+test('loader serializes jobs, reuses one warm engine and transfers only copies of cached source bytes', async () => {
     const workers=[]; let fetches=0;
     const cache=new MapTileCache({fetchTile:async()=>{fetches++;return new Uint8Array([26,0]).buffer;}});
     const load=createMapRegionLoader({...loaderOptions(workers),cache});
     const [a,b]=await Promise.all([load(request),load({...request,clip:[128,0,256,128]})]);
     assert.equal(a.source,success.source);assert.equal(b.source,success.source);
     assert.equal(fetches,2,'The same two source tiles serve adjacent regions');
-    assert.equal(workers.length,2);assert(workers.every(w=>w.terminated));
-    assert.equal(workers[0].data.request.clip[0],0);assert.equal(workers[1].data.request.clip[0],128);
-    assert.equal(workers[0].data.vectors.bytes.byteLength,4);
+    assert.equal(workers.length,1);assert.equal(workers[0].terminated,false);
+    assert.equal(workers[0].messages[0].request.clip[0],0);
+    assert.equal(workers[0].messages[1].request.clip[0],128);
+    assert.notEqual(workers[0].messages[0].id,workers[0].messages[1].id);
+    assert.equal(workers[0].messages[0].vectors.bytes.byteLength,4);
     assert([...cache.items.values()].every(v=>v.bytes.byteLength===2));
 });
 
@@ -103,7 +106,8 @@ test('queued cancellation performs no source request and leaves an active job in
     const first=load(request);await settle();
     const controller=new AbortController();const second=load(request,controller.signal);
     const rejected=assert.rejects(second,{name:'AbortError'});controller.abort();
-    assert.equal(workers[0].terminated,false);workers[0].onmessage({data:success});
+    assert.equal(workers[0].terminated,false);
+    workers[0].onmessage({data:{...success,id:workers[0].data.id}});
     await first;await rejected;
     assert.equal(workers.length,1);assert.equal(fetches,2);
 });
@@ -112,8 +116,68 @@ test('active conversion cancellation terminates the worker and discards late res
     const workers=[];const controller=new AbortController();
     const load=createMapRegionLoader({...loaderOptions(workers),workerFactory:workerFactory(workers,false)});
     const job=load(request,controller.signal);await settle();
+    const lateReply=workers[0].onmessage;
     const rejected=assert.rejects(job,{name:'AbortError'});controller.abort();await rejected;
-    assert.equal(workers[0].terminated,true);workers[0].onmessage({data:success});
+    assert.equal(workers[0].terminated,true);
+    const next=load(request);await settle();
+    assert.equal(workers.length,2);
+    lateReply({data:{...success,id:workers[0].data.id}});
+    workers[1].onmessage({data:{...success,id:workers[1].data.id}});
+    assert.equal((await next).source,success.source);
+});
+
+test('late messages from a completed region cannot publish into the next warm conversion', async () => {
+    const workers=[],updates=[];
+    const load=createMapRegionLoader({...loaderOptions(workers),workerFactory:workerFactory(workers,false)});
+    const first=load(request);await settle();
+    const oldId=workers[0].data.id;
+    workers[0].onmessage({data:{...success,id:oldId}});await first;
+    let completed=false;
+    const next=load(request,undefined,p=>updates.push(p)).then(value=>{completed=true;return value;});
+    await settle();const count=updates.length;
+    workers[0].onmessage({data:{id:oldId,type:'progress',progress:{stage:'Stale'}}});
+    workers[0].onmessage({data:{...success,id:oldId,source:'stale'}});
+    await settle();assert.equal(completed,false);assert.equal(updates.length,count);
+    workers[0].onmessage({data:{...success,id:workers[0].data.id,source:'current'}});
+    assert.equal((await next).source,'current');assert.equal(workers.length,1);
+});
+
+test('worker failure discards the warm engine and the next request starts cleanly', async () => {
+    const workers=[];
+    const load=createMapRegionLoader({...loaderOptions(workers),workerFactory:workerFactory(workers,false)});
+    const first=load(request);await settle();
+    workers[0].onmessage({data:{...success,id:workers[0].data.id}});await first;
+    const failed=load(request);const rejection=assert.rejects(failed,/WASM conversion failed/);
+    await settle();workers[0].onerror({message:'WASM conversion failed'});await rejection;
+    assert.equal(workers[0].terminated,true);
+    const next=load(request);await settle();assert.equal(workers.length,2);
+    workers[1].onmessage({data:{...success,id:workers[1].data.id}});await next;
+});
+
+test('invalid worker output retires the engine instead of retaining corrupt state', async () => {
+    const workers=[];
+    const load=createMapRegionLoader({...loaderOptions(workers),workerFactory:workerFactory(workers,false)});
+    const job=load(request);const rejection=assert.rejects(job,/invalid plan/);await settle();
+    workers[0].onmessage({data:{id:workers[0].data.id,type:'complete',source:7,report:{}}});
+    await rejection;assert.equal(workers[0].terminated,true);
+});
+
+test('an idle worker failure cannot leave the next conversion attached to a dead engine', async () => {
+    const workers=[];
+    const load=createMapRegionLoader(loaderOptions(workers));
+    await load(request);
+    workers[0].onerror({message:'Idle worker crashed'});
+    assert.equal(workers[0].terminated,true);
+    await load(request);assert.equal(workers.length,2);
+});
+
+test('idle conversion engines are released without affecting a subsequent request', async () => {
+    const workers=[];
+    const load=createMapRegionLoader({...loaderOptions(workers),workerIdleTimeoutMs:15});
+    await load(request);assert.equal(workers[0].terminated,false);
+    await new Promise(resolve=>setTimeout(resolve,40));
+    assert.equal(workers[0].terminated,true);
+    await load(request);assert.equal(workers.length,2);assert.equal(workers[1].terminated,false);
 });
 
 test('conversion requests retain a snapshot when caller state changes', async () => {

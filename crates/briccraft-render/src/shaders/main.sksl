@@ -3,11 +3,7 @@
 // prevents separate solid/water branches from duplicating the shadow call graph.
 float3 shadeScene(float3 ray) {
     float3 origin=camera_position.xyz;
-    float waterT=FAR;
-    if(abs(ray.y)>0.000001) {
-        float candidate=(sun_direction.w-origin.y)/ray.y;
-        if(candidate>0.0) waterT=candidate;
-    }
+    float waterT=waterSurfaceDistance(origin,ray);
     // Water only transmits the first eight world units.
     Hit hit=traceScene(origin,ray,min(360.0,waterT+8.0));
     bool solid=hit.t<waterT && hit.t<FAR;

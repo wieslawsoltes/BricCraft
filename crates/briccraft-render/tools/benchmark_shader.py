@@ -52,7 +52,7 @@ half4 main(float2 coord) {
         -camera_up.xyz*uv.y*camera_forward.w);
     float3 origin=camera_position.xyz;
     float waterT=FAR;
-    if(abs(ray.y)>0.000001) {
+    if(sun_direction.w>=0.0 && abs(ray.y)>0.000001) {
         float candidate=(sun_direction.w-origin.y)/ray.y;
         if(candidate>0.0) waterT=candidate;
     }

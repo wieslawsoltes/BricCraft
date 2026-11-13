@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   application:
-    uses: wieslawsoltes/FerroUI/.github/workflows/app.yml@44be8b24138d4996ca9a68677259a36a339f9b50
+    uses: wieslawsoltes/FerroUI/.github/workflows/app.yml@00ce4476c21bc279c167ba972390d0175b3afd79
     with:
       test: ''
       check: ''

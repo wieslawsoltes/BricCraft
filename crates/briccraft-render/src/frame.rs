@@ -38,6 +38,8 @@ pub struct RenderFrame {
     pub time: f32,
     /// 0 = moonlit, 1 = sunny. Lighting changes without rebuilding geometry.
     pub daylight: f32,
+    /// Decorative infinite ocean height. A negative value disables the plane;
+    /// mapped water remains ordinary scene geometry at its measured elevation.
     pub water_level: f32,
     pub selected_id: Option<u32>,
     pub preview: Option<PlacementPreview>,
