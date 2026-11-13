@@ -34,6 +34,7 @@ fn choices(state: UiState) -> Element {
                                 .on_click(move |_| {
                                     let mut map = state.map_view.get_untracked();
                                     map.radius = radius;
+                                    state.import_status.set(String::new());
                                     state.map_view.set(map);
                                 })
                                 .into_element()
@@ -70,6 +71,7 @@ fn choices(state: UiState) -> Element {
                             .on_click(move |_| {
                                 let mut map = state.map_view.get_untracked();
                                 map.meters_per_stud = scale;
+                                state.import_status.set(String::new());
                                 state.map_view.set(map);
                             })
                             .into_element()
@@ -87,6 +89,7 @@ fn choices(state: UiState) -> Element {
                 .on_click(move |_| {
                     let mut map = state.map_view.get_untracked();
                     map.terrain = !map.terrain;
+                    state.import_status.set(String::new());
                     state.map_view.set(map);
                 }),
         ))
@@ -170,6 +173,7 @@ fn coordinates(state: UiState, dispatch: Dispatch) -> Element {
                                 map.label = "Your location".into();
                                 map.zoom = map.zoom.max(14);
                                 error.set(String::new());
+                                state.import_status.set(String::new());
                                 state.map_view.set(map);
                                 go(UiAction::MapViewportChanged);
                                 return;
@@ -206,6 +210,7 @@ pub fn presets(state: UiState, dispatch: Dispatch) -> Element {
                     map.selected_longitude = longitude;
                     map.zoom = 16;
                     map.label = label.into();
+                    state.import_status.set(String::new());
                     state.map_view.set(map);
                     changed(UiAction::MapViewportChanged);
                 })
@@ -225,7 +230,9 @@ pub fn view(state: UiState, dispatch: Dispatch) -> Element {
     let retry = dispatch.clone();
     let stop = dispatch.clone();
     stack_panel().spacing(13.0).children((
-        stack_panel().spacing(5.0).children((
+        stack_panel().spacing(13.0).children((
+          crate::map_navigation::details(state, dispatch.clone()),
+          stack_panel().spacing(5.0).children((
             controls::label("YOUR SELECTED PLACE"),
             text_block().text(move || state.map_view.get().label).font_size(18.0)
                 .font_weight(FontWeight::SemiBold).text_wrapping(TextWrapping::Wrap),
@@ -237,6 +244,7 @@ pub fn view(state: UiState, dispatch: Dispatch) -> Element {
                 .is_visible(move || !state.import_busy.get() && !state.import_status.get().is_empty())
                 .text(state.import_status).font_size(11.0).foreground(theme::MUTED)
                 .text_wrapping(TextWrapping::Wrap),
+          )),
         )),
         button().name("BuildMapSelection").class("primary").min_height(48.0)
             .content("Build this area").is_enabled(move || !state.import_busy.get() && !state.world_busy.get())

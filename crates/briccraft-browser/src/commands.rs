@@ -132,6 +132,7 @@ pub fn command(name: &str, value: &str) {
                         map.terrain = terrain;
                     }
                     r.state.map_view.set(map);
+                    r.state.import_status.set(String::new());
                     Some(UiAction::MapViewportChanged)
                 }),
             "map-roam" => {
@@ -144,6 +145,7 @@ pub fn command(name: &str, value: &str) {
                 })
             }
             "map-pause" => Some(UiAction::StopMapRoam),
+            "map-locate" => Some(UiAction::LocateMapPlayer),
             "map-retry" => Some(UiAction::RetryMapRoam),
             "map-build" => {
                 let map = r.state.map_view.get_untracked();

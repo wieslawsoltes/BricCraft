@@ -50,6 +50,14 @@ impl Runtime {
         let world_id = game.world_info.id.clone();
         let streamed = game.is_streamed();
         let p = game.global_camera_position();
+        let map_player = game
+            .mapped_location()
+            .map(|location| briccraft_ui::MapPlayer {
+                latitude: location.latitude,
+                longitude: location.longitude,
+                bearing_degrees: location.bearing_degrees,
+                distance_from_start_m: location.distance_from_start_m,
+            });
         let coordinates = if game.is_streamed() {
             format!("X {:.0} · Y {:.1} · Z {:.0}", p[0], p[1], p[2])
         } else {
@@ -110,6 +118,7 @@ impl Runtime {
             state.world_id.set_if_changed(world_id);
             state.streamed.set_if_changed(streamed);
             state.coordinates.set_if_changed(coordinates);
+            state.map_player.set_if_changed(map_player);
             state.attribution.set_if_changed(attribution);
             state.credits.set_if_changed(credits);
             state.attribution_url.set_if_changed(attribution_url);

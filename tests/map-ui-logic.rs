@@ -8,5 +8,7 @@ mod map_geometry;
 mod map_gestures;
 #[path = "../crates/briccraft-ui/src/map_location.rs"]
 mod map_location;
+#[path = "../crates/briccraft-ui/src/navigation_model.rs"]
+mod navigation_model;
 pub use layout::UiLayout;
 pub use map_location::MapView;

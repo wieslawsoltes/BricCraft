@@ -1,5 +1,39 @@
 # Renderer traversal measurements
 
+## Full-shadow occupancy reuse — 2026-11-13
+
+Compared with `4ab92c9297cd1b7dfbeee4b3e20d8d0aa751bc23`, the Full shadow
+walker retains coarse occupancy until its ray enters another coarse tile, and
+computes the ray inverse and coarse dimensions once. Geometry intersections,
+shadow distance, materials, resolution and antialiasing sample counts are unchanged.
+[Raw measurements](benchmarks/2026-11-13-full-shadows.json) retain every draw,
+shader source hashes, driver information and exact image differences.
+
+Native Skia Ganesh OpenGL, Mesa llvmpipe (LLVM 19.1.7, 256 bits), Full quality,
+320 × 200 pixels, one spatial sample:
+
+| Scene | Completed-draw median before | After | Process CPU before | After |
+| --- | ---: | ---: | ---: | ---: |
+| Generated island, 7,438 parts; 12 frames | 5.906 ms | 4.755 ms | 32.803 ms | 30.832 ms |
+| Mixed fixture, 250 parts; 8 frames | 4.507 ms | 3.935 ms | 18.964 ms | 17.621 ms |
+
+The first draw is excluded. These synchronized software-OpenGL results have
+shared-runner variance and do not establish hardware GPU or browser FPS. The
+generated-island completed-draw median is 19.5% lower in this run. Both enabled-ocean
+images are byte-identical to the baseline. The mixed-fixture CPU raster control is
+417.300 → 412.762 ms, also with identical pixels. The existing antialiasing gate
+passes all three variants at 1/2/4 samples.
+
+The mapped-world water fix is separately tested: a negative water level disables
+the decorative island ocean; zero remains valid; mapped water geometry remains
+visible. `test_shader_water.py` contributes 45 production probes alongside the
+54 primary-ray probes. It intentionally changes pixels where a mapped world
+previously showed an unrequested infinite ocean below its terrain.
+
+Reproduce this comparison with the commands below using baseline `4ab92c9`,
+`--qualities 2`, and 12 frames for the generated scene. The measurements below this
+section describe the earlier, separate hierarchy optimization.
+
 Measured on 2026-11-11 against commit `03e25226ec80f837fda226026b9c7b38a13f113f`.
 [Raw measurements](benchmarks/2026-11-11-hierarchy.json) contain every draw,
 source hashes, image differences, traversal counts and driver identification.

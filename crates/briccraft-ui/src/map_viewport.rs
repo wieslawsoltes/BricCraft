@@ -28,6 +28,7 @@ fn select(state: UiState, point: [f64; 2], size: [f64; 2]) {
     map.selected_latitude = location[0];
     map.selected_longitude = location[1];
     map.label = "Selected on map".into();
+    state.import_status.set(String::new());
     state.map_view.set_if_changed(map);
 }
 
@@ -154,6 +155,7 @@ pub fn view(state: UiState, dispatch: Dispatch) -> Element {
     let zoom_in = dispatch.clone();
     let zoom_out = dispatch.clone();
     let center = dispatch.clone();
+    let locate = dispatch.clone();
     let credit = dispatch;
     grid()
         .name("PlaceMap")
@@ -174,7 +176,11 @@ pub fn view(state: UiState, dispatch: Dispatch) -> Element {
                     "Arrow keys pan. Page Up and Page Down zoom. Enter selects the map center."
                         .into(),
                 ))
-                .child(grid().children((tile_layer(state), selection_layer(state))))
+                .child(grid().children((
+                    tile_layer(state),
+                    selection_layer(state),
+                    crate::map_navigation::marker(state),
+                )))
                 .on_pointer_pressed(move |event| {
                     // The phone layout places this viewport inside a ScrollViewer.
                     // Its gesture class handlers observe handled events as well.
@@ -345,6 +351,10 @@ pub fn view(state: UiState, dispatch: Dispatch) -> Element {
                     )
                     .background(theme::HUD),
                 )),
+            crate::map_navigation::locate(state, locate)
+                .horizontal_alignment(H::Left)
+                .vertical_alignment(V::Top)
+                .margin(8.0),
             scale_bar(state),
             button()
                 .name("MapAttribution")

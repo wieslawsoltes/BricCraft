@@ -24,8 +24,10 @@ mod map_geometry;
 mod map_gestures;
 mod map_location;
 mod map_model;
+mod map_navigation;
 mod map_viewport;
 mod model;
+mod navigation_model;
 mod objectives;
 mod place_options;
 mod places;
@@ -44,6 +46,7 @@ pub use layout::UiLayout;
 pub use map_geometry::{map_view_size, visible_map_tiles, zoom_at as zoom_map_at};
 pub use map_location::MapView;
 pub use map_model::MapTile;
+pub use navigation_model::MapPlayer;
 pub use model::{
     ColorSwatch, Dispatch, PartCard, SourceCredit, UiAction, UiState, WorldSummary, HOTBAR_PARTS,
 };

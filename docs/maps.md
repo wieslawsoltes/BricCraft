@@ -15,12 +15,32 @@ outline follows the radius. Presets open Berlin, London, Kraków or San Francisc
 | **Use real terrain elevation** | Adds a measured DEM. Turning it off keeps geographic features on flat ground. |
 | **Pause streaming / Resume / retry** | Stops or resumes new source work while retaining loaded terrain and constructions. |
 | **3D models & advanced imports** | Existing Overpass endpoint/local-file controls, bundled samples and model conversion. |
+| **Locate / Show my position on the map** | Centers the map on the current walker, vehicle or orbit subject. It preserves the selected gold pin, radius, world scale and elevation option. |
 
 The radius applies to **Build this area**. Free roam uses 128 × 128-stud source regions
 and continues beyond that selection. Walk with WASD or the touch pad, Space to jump,
 and Shift to run. The normal construction tools, designs and world saves remain available.
 Cars and aircraft can cross mapped regions. Boats currently need the island sea;
 guided trains still use the island railway.
+
+## Orient yourself while exploring
+
+The live-map card shows a compass bearing, geographic coordinates and horizontal
+distance from the starting pin. On phones, the compact compass button opens the
+map at your current position; ordinary construction and vehicle feedback remains
+visible alongside it. The Places panel contains the full location details.
+
+The **blue arrow** represents your current location and heading. The **gold pin**
+represents the place selected for the next build. **Locate** moves only the map
+view: panning, zooming and selecting a new build location remain independent of
+the player position. The marker tracks the walking body or active vehicle; in
+orbit mode it tracks the subject rather than the offset camera eye. Resident
+window rebases do not change the reported geographic location.
+
+Bearing is clockwise from geographic north. Distance means straight horizontal
+displacement under the world's fixed projection, not distance travelled along a
+route. UI updates are throttled with the regular HUD; they do not request new map
+tiles while Places is closed. Locate samples the current position immediately.
 
 ## Sources and fidelity
 
@@ -46,6 +66,15 @@ source region is fetched and converted in a dedicated Web Worker, then validated
 publication. Requests follow current/requested resident windows, with one region producer
 at a time. Source generation does not reset the session, move the camera, spend Studs or
 add an undo action. Player edits retain stable global identities.
+
+The conversion worker retains its initialized WASM engine between successful
+regions, with a 60-second idle lease. Cancellation terminates active conversion;
+errors discard the engine; per-request identities reject stale replies. Retained
+world snapshots share immutable occupancy and instance storage until an edit.
+An unchanged edit capture proves snapshot identity without scanning every part
+or copying the occupancy grid. Source regions still undergo full validation;
+only redundant checks of already validated source against absent player edits
+are skipped.
 
 The map reference and horizontal scale stay fixed. With terrain enabled, the first area
 also establishes the elevation reference and metres per plate with headroom. Neighboring

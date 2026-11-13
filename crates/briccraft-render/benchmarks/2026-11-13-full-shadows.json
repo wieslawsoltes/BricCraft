@@ -1,0 +1,336 @@
+{
+  "measured_on": "2026-11-13",
+  "baseline_ref": "4ab92c9297cd1b7dfbeee4b3e20d8d0aa751bc23",
+  "scope": "Full-quality shadow coarse-occupancy reuse; exact-pixel comparison; shared Linux runner, software rendering, not browser or hardware GPU FPS",
+  "scenes": {
+    "generated_island": {
+      "baseline_ref": "4ab92c9",
+      "scene": "generated_island",
+      "samples": 1,
+      "measurements": [
+        {
+          "quality": 2,
+          "baseline": {
+            "shader": "compiled",
+            "backend": "native Skia Ganesh OpenGL / llvmpipe (LLVM 19.1.7, 256 bits)",
+            "context": {
+              "renderer": "llvmpipe (LLVM 19.1.7, 256 bits)",
+              "vendor": "Mesa",
+              "version": "4.5 (Compatibility Profile) Mesa 25.0.7-2+deb13u1"
+            },
+            "uniform_updates": true,
+            "parts": 7438,
+            "channel_std": 60.196154569061505,
+            "warm_fixture_pixels": null,
+            "size": [
+              320,
+              200
+            ],
+            "quality": 2,
+            "samples": 1,
+            "requested_samples": 1,
+            "variant": "full-geometry",
+            "compile_ms": 3.6914279999109567,
+            "draw_ms": [
+              2547.954389000097,
+              6.306432999735989,
+              6.337279000035778,
+              6.7775760003314645,
+              6.1036360002617585,
+              5.923070999870106,
+              5.90642699989985,
+              5.111421000037808,
+              4.263786999672448,
+              4.603263000262814,
+              4.5161540001572575,
+              4.382214000088425
+            ],
+            "draw_cpu_ms": [
+              2578.403864,
+              35.6820120000001,
+              37.371728000000104,
+              31.569977999999832,
+              34.80412100000008,
+              32.8025369999998,
+              34.834138999999986,
+              33.30521499999995,
+              29.41245799999992,
+              29.71585199999982,
+              31.756118000000555,
+              32.01389299999935
+            ],
+            "steady_draw_ms_median": 5.90642699989985,
+            "steady_draw_cpu_ms_median": 32.8025369999998,
+            "texture_bytes": 2809856,
+            "source_sha256": "b7850c1f7c6516c0330dc273fc22424553793a8d18da669c05464b6b1333ca0f"
+          },
+          "current": {
+            "shader": "compiled",
+            "backend": "native Skia Ganesh OpenGL / llvmpipe (LLVM 19.1.7, 256 bits)",
+            "context": {
+              "renderer": "llvmpipe (LLVM 19.1.7, 256 bits)",
+              "vendor": "Mesa",
+              "version": "4.5 (Compatibility Profile) Mesa 25.0.7-2+deb13u1"
+            },
+            "uniform_updates": true,
+            "parts": 7438,
+            "channel_std": 60.196154569061505,
+            "warm_fixture_pixels": null,
+            "size": [
+              320,
+              200
+            ],
+            "quality": 2,
+            "samples": 1,
+            "requested_samples": 1,
+            "variant": "full-geometry",
+            "compile_ms": 3.0641480002486787,
+            "draw_ms": [
+              2359.7864210000807,
+              5.6884609998633096,
+              7.424484999773995,
+              6.058718000076624,
+              5.8586350000950915,
+              6.2906289999773435,
+              4.702938000264112,
+              4.72206999984337,
+              4.441993000000366,
+              4.387771999972756,
+              4.648861000077886,
+              4.75527000025977
+            ],
+            "draw_cpu_ms": [
+              2388.900145,
+              34.732129,
+              36.36877200000033,
+              30.831509000000423,
+              32.93556399999975,
+              34.91071400000045,
+              32.79463999999965,
+              29.22282499999973,
+              27.774041999999888,
+              29.467877000000087,
+              29.47687099999996,
+              26.95291400000066
+            ],
+            "steady_draw_ms_median": 4.75527000025977,
+            "steady_draw_cpu_ms_median": 30.831509000000423,
+            "texture_bytes": 2809856,
+            "source_sha256": "e837efe10d139103c5b9fad467533169c2d121dfc5956e0d98105d607590d8be"
+          },
+          "difference": {
+            "mean_absolute_channel": 0.0,
+            "maximum_channel": 0,
+            "fraction_pixels_over_8": 0.0
+          }
+        }
+      ]
+    },
+    "mixed_fixture_egl": {
+      "baseline_ref": "4ab92c9",
+      "scene": "mixed_fixture_egl",
+      "samples": 1,
+      "measurements": [
+        {
+          "quality": 2,
+          "baseline": {
+            "shader": "compiled",
+            "backend": "native Skia Ganesh OpenGL / llvmpipe (LLVM 19.1.7, 256 bits)",
+            "context": {
+              "renderer": "llvmpipe (LLVM 19.1.7, 256 bits)",
+              "vendor": "Mesa",
+              "version": "4.5 (Compatibility Profile) Mesa 25.0.7-2+deb13u1"
+            },
+            "uniform_updates": true,
+            "parts": 250,
+            "channel_std": 49.35491188007527,
+            "warm_fixture_pixels": 2044,
+            "size": [
+              320,
+              200
+            ],
+            "quality": 2,
+            "samples": 1,
+            "requested_samples": 1,
+            "variant": "full-geometry",
+            "compile_ms": 3.679383999951824,
+            "draw_ms": [
+              2908.469100000275,
+              4.676053999901342,
+              3.6195149996274267,
+              3.5990250003123947,
+              3.8031480003155593,
+              4.6296860000438755,
+              4.638778999833448,
+              4.506733000198437
+            ],
+            "draw_cpu_ms": [
+              2928.441138,
+              17.751929000000555,
+              17.227117000000014,
+              19.617781,
+              18.964244000000186,
+              19.34179700000005,
+              19.868923999999843,
+              17.801813000000166
+            ],
+            "steady_draw_ms_median": 4.506733000198437,
+            "steady_draw_cpu_ms_median": 18.964244000000186,
+            "texture_bytes": 2691072,
+            "source_sha256": "b7850c1f7c6516c0330dc273fc22424553793a8d18da669c05464b6b1333ca0f"
+          },
+          "current": {
+            "shader": "compiled",
+            "backend": "native Skia Ganesh OpenGL / llvmpipe (LLVM 19.1.7, 256 bits)",
+            "context": {
+              "renderer": "llvmpipe (LLVM 19.1.7, 256 bits)",
+              "vendor": "Mesa",
+              "version": "4.5 (Compatibility Profile) Mesa 25.0.7-2+deb13u1"
+            },
+            "uniform_updates": true,
+            "parts": 250,
+            "channel_std": 49.35491188007527,
+            "warm_fixture_pixels": 2044,
+            "size": [
+              320,
+              200
+            ],
+            "quality": 2,
+            "samples": 1,
+            "requested_samples": 1,
+            "variant": "full-geometry",
+            "compile_ms": 3.5080790003121365,
+            "draw_ms": [
+              2812.6106730001084,
+              4.052318000049127,
+              3.935315000035189,
+              17.136338999989675,
+              3.521999999975378,
+              3.462632999799098,
+              4.012719999991532,
+              3.5046839998358337
+            ],
+            "draw_cpu_ms": [
+              2829.3781339999996,
+              17.6211550000005,
+              20.548364000000596,
+              38.332071000000134,
+              20.475875999999893,
+              17.43595199999959,
+              15.854113999999697,
+              17.555880000000634
+            ],
+            "steady_draw_ms_median": 3.935315000035189,
+            "steady_draw_cpu_ms_median": 17.6211550000005,
+            "texture_bytes": 2691072,
+            "source_sha256": "e837efe10d139103c5b9fad467533169c2d121dfc5956e0d98105d607590d8be"
+          },
+          "difference": {
+            "mean_absolute_channel": 0.0,
+            "maximum_channel": 0,
+            "fraction_pixels_over_8": 0.0
+          }
+        }
+      ]
+    },
+    "mixed_fixture_raster": {
+      "baseline_ref": "4ab92c9",
+      "scene": "mixed_fixture_raster",
+      "samples": 1,
+      "measurements": [
+        {
+          "quality": 2,
+          "baseline": {
+            "shader": "compiled",
+            "backend": "native Skia CPU raster",
+            "context": null,
+            "uniform_updates": true,
+            "parts": 250,
+            "channel_std": 49.3541280686955,
+            "warm_fixture_pixels": 2045,
+            "size": [
+              320,
+              200
+            ],
+            "quality": 2,
+            "samples": 1,
+            "requested_samples": 1,
+            "variant": "full-geometry",
+            "compile_ms": 3.5989719999633962,
+            "draw_ms": [
+              430.5481950000285,
+              415.53529899965724,
+              417.29982300012125,
+              426.9154109997544,
+              416.2981419999596,
+              419.1711349999423,
+              417.25171600000976,
+              432.0077739998851
+            ],
+            "draw_cpu_ms": [
+              430.538079,
+              415.1771110000001,
+              417.277058,
+              426.51432700000004,
+              416.27215400000006,
+              418.34089000000006,
+              417.17089,
+              431.6830039999999
+            ],
+            "steady_draw_ms_median": 417.29982300012125,
+            "steady_draw_cpu_ms_median": 417.277058,
+            "texture_bytes": 2691072,
+            "source_sha256": "b7850c1f7c6516c0330dc273fc22424553793a8d18da669c05464b6b1333ca0f"
+          },
+          "current": {
+            "shader": "compiled",
+            "backend": "native Skia CPU raster",
+            "context": null,
+            "uniform_updates": true,
+            "parts": 250,
+            "channel_std": 49.3541280686955,
+            "warm_fixture_pixels": 2045,
+            "size": [
+              320,
+              200
+            ],
+            "quality": 2,
+            "samples": 1,
+            "requested_samples": 1,
+            "variant": "full-geometry",
+            "compile_ms": 2.770592999695509,
+            "draw_ms": [
+              423.7699530003738,
+              417.10526199995,
+              414.79396200020346,
+              413.922409999941,
+              412.7619490000143,
+              410.39339200006,
+              410.5203980002443,
+              408.41472100009923
+            ],
+            "draw_cpu_ms": [
+              423.5377770000004,
+              415.97127,
+              414.56211999999937,
+              413.86161600000014,
+              412.447448,
+              410.037848,
+              409.39842800000025,
+              408.2253659999999
+            ],
+            "steady_draw_ms_median": 412.7619490000143,
+            "steady_draw_cpu_ms_median": 412.447448,
+            "texture_bytes": 2691072,
+            "source_sha256": "e837efe10d139103c5b9fad467533169c2d121dfc5956e0d98105d607590d8be"
+          },
+          "difference": {
+            "mean_absolute_channel": 0.0,
+            "maximum_channel": 0,
+            "fraction_pixels_over_8": 0.0
+          }
+        }
+      ]
+    }
+  }
+}

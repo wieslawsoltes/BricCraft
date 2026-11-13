@@ -315,7 +315,7 @@ pub fn activity(state: UiState, dispatch: Dispatch) -> Element {
         .vertical_alignment(V::Top)
         .margin(move || (12.0, state.layout.get().header_bottom() + 6.0, 12.0, 0.0))
         .width(move || (state.layout.get().width - 24.0).clamp(1.0, 600.0))
-        .column_definitions("Auto,*")
+        .column_definitions("Auto,*,Auto")
         .is_visible(move || state.compact.get() && !state.modal() && !state.layout.get().keyboard)
         .children((
             button()
@@ -355,28 +355,17 @@ pub fn activity(state: UiState, dispatch: Dispatch) -> Element {
                 .background(theme::HUD)
                 .border_brush("#53647786")
                 .tool_tip_tip("Read the complete activity message")
-                .on_click(move |_| {
-                    if !state.roam_status.get_untracked().is_empty() {
-                        dispatch(UiAction::ShowPlaces);
-                    } else {
-                        crate::world_details::toggle(state);
-                    }
-                })
+                .on_click(move |_| crate::world_details::toggle(state))
                 .child(
                     text_block()
-                        .text(move || {
-                            if !state.roam_status.get().is_empty() {
-                                state.roam_status.get()
-                            } else {
-                                state.status.get()
-                            }
-                        })
+                        .text(state.status)
                         .font_size(11.0)
                         .foreground("#DCE9F3")
                         .text_wrapping(TextWrapping::Wrap)
                         .max_lines(2)
                         .text_trimming(<dyn TextTrimming>::character_ellipsis()),
                 ),
+            crate::map_navigation::mobile(state, dispatch),
         ))
         .into()
 }

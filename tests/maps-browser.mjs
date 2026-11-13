@@ -2,6 +2,7 @@ import path from 'node:path';
 import { assert } from '../FerroUI/scripts/browser/harness.mjs';
 import { installMapFixtures } from './map-fixtures.mjs';
 import { checkMapPicker } from './map-picker-browser.mjs';
+import { checkMapNavigation } from './map-navigation-browser.mjs';
 
 export async function checkMappedWorlds(context) {
     const {page,state,command,wait,current,out}=context;
@@ -72,6 +73,7 @@ export async function checkMappedWorlds(context) {
         assert(JSON.stringify(walkedSave.stream.edits)===construction && walkedSave.stream.next_user_id===nextUserId,
             'Source arrival and movement must preserve exact player edits and user identities');
         assert(walkedSave.gameplay.studs===beforeWalk.gameplay.studs,'Streaming source data must not spend construction resources');
+        result.navigation=await checkMapNavigation(context);
 
         await command('map-pause'); await wait(`!${mapCurrent}.active`);
         const frozenRegions=(await mapped()).regions.length;

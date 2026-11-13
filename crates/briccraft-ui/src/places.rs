@@ -72,6 +72,7 @@ pub fn roam_card(state: UiState, dispatch: Dispatch) -> Element {
                     .font_size(10.0)
                     .foreground(theme::MUTED)
                     .font_weight(FontWeight::SemiBold),
+                crate::map_navigation::summary(state),
                 text_block()
                     .text(state.roam_status)
                     .font_size(11.0)

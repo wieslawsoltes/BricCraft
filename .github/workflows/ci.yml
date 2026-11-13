@@ -41,7 +41,7 @@ jobs:
         timeout 2m node tests/storage.mjs
         timeout 30m node tests/browser.mjs "$SITE" "$RUNNER_TEMP/smoke"
         mkdir -p "$SITE/previews"
-        for name in island rover world-library brandenburg telegraph-hill expedition mobile-expedition compact-world-library mobile-terrain mobile-studio mobile-landscape quality-desktop quality-mobile settings mobile-settings design-library mobile-designs map-picker mobile-map-picker map-roam; do
+        for name in island rover world-library brandenburg telegraph-hill expedition mobile-expedition compact-world-library mobile-terrain mobile-studio mobile-landscape quality-desktop quality-mobile settings mobile-settings design-library mobile-designs map-picker mobile-map-picker map-roam map-navigation mobile-map-navigation mobile-map-navigation-hud; do
           cp "$RUNNER_TEMP/smoke/$name.png" "$SITE/previews/$name.png"
         done
         cp "$RUNNER_TEMP/smoke/browser-metrics.json" "$SITE/previews/metrics.json"

@@ -11,6 +11,7 @@ Create a collection of editable brick worlds: open meadows, alpine landscapes, d
 - **Open worlds:** deterministic 16-stud chunks, signed 64-bit global coordinates, a floating origin, bounded terrain residency, sparse persistent edits and global undo across region changes.
 - **Choose a place on a map:** a native FerroUI map supports drag, wheel/pinch zoom, a selected-location pin, area preview, city presets and coordinate entry. Build the selected area or begin walking from that location.
 - **Live mapped free roam:** nearby OpenStreetMap Shortbread vector geometry and optional measured elevation become editable bricks as the resident view moves. Fixed geographic and height scales keep neighboring regions aligned; saved constructions survive streaming and reopening.
+- **Know where you are:** a live compass, geographic coordinates and distance from the starting pin accompany mapped exploration. The blue player arrow and Locate action show your current position while the gold build-selection pin stays independent. Phones have a dedicated navigation button beside action feedback.
 - **World library:** named browser saves, automatic save before switching, separate copies, reversible archiving and migration of the original single-world save.
 - **Expedition gameplay:** an optional per-world Stud budget, harvesting/recycling, catalog and blueprint prices, eight rewarded objectives, and a workshop that assesses the actual connected construction. Creative remains unlimited; both modes preserve your world and expedition progress.
 - **Complete mapped areas:** coordinate-based OSM imports combine measured terrain elevation, mapped buildings, roads, water and land cover. Roads follow the ground; buildings receive level foundations. The included Telegraph Hill area contains real San Francisco elevation and 1,351 mapped building features, and works offline after the app assets load. A smaller Brandenburg Gate example remains available.
@@ -44,6 +45,12 @@ failed sources leave loaded terrain and constructions available; movement waits 
 the loaded boundary until the next complete view can publish. New source regions
 preserve the camera and construction history. Save the world through the normal
 world library to retain its generated geography, edits and fixed map reference.
+
+Use **Locate** in Places, or the phone compass button, to center the map on your
+current position. The blue arrow shows your heading; the gold pin remains the
+place selected for your next build. Distance is horizontal displacement from the
+starting pin, not cumulative route length. Locating yourself never changes the
+world, moves your character, or changes the selected build area.
 
 The source store retains at most 32 regions and 250,000 source parts, independently
 of the small renderer window. It evicts distant pristine regions while protecting

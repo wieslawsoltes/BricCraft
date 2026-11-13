@@ -10,10 +10,34 @@ impl Runtime {
                 }
                 let open = !self.state.places_open.get_untracked();
                 self.state.close_panels();
+                if open {
+                    // This result belongs to an attempt in the current picker.
+                    // An earlier model/area import must not label a new place.
+                    self.state.import_status.set(String::new());
+                }
                 self.state.places_open.set(open);
                 self.refresh_map_tiles(true);
             }
             UiAction::MapViewportChanged => self.refresh_map_tiles(true),
+            UiAction::LocateMapPlayer => {
+                if self.state.world_busy.get_untracked() || self.state.import_busy.get_untracked() {
+                    return true;
+                }
+                // Sample now rather than using the 300-ms HUD projection. The
+                // command moves only the display map, never the world or pin.
+                self.sync_hud();
+                if let Some(player) = self.state.map_player.get_untracked() {
+                    let mut view = self.state.map_view.get_untracked();
+                    player.center_view(&mut view);
+                    if !self.state.places_open.get_untracked() {
+                        self.state.import_status.set(String::new());
+                    }
+                    self.state.close_panels();
+                    self.state.map_view.set_if_changed(view);
+                    self.state.places_open.set(true);
+                    self.refresh_map_tiles(false);
+                }
+            }
             UiAction::StartMapRoam {
                 latitude,
                 longitude,
@@ -39,6 +63,7 @@ impl Runtime {
                     return true;
                 }
                 self.map_epoch.set(self.map_epoch.get().wrapping_add(1));
+                self.state.import_status.set(String::new());
                 self.state.roam_active.set(true);
                 self.state
                     .roam_status
@@ -116,5 +141,9 @@ impl Runtime {
         self.map_epoch.set(self.map_epoch.get().wrapping_add(1));
         self.state.roam_active.set(false);
         self.state.roam_status.set(String::new());
+        self.state.map_player.set(None);
+        if !self.state.import_busy.get_untracked() {
+            self.state.import_status.set(String::new());
+        }
     }
 }

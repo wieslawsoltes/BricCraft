@@ -64,6 +64,10 @@ pub fn state() -> String {
             })
             .flatten();
         let picker = r.state.map_view.get_untracked();
+        let player = r.state.map_player.get_untracked().map(|player| json!({
+            "latitude":player.latitude,"longitude":player.longitude,
+            "bearing":player.bearing_degrees,"distance":player.distance_from_start_m,
+        }));
         let picker = json!({
             "open":r.state.places_open.get_untracked(),
             "latitude":picker.latitude,"longitude":picker.longitude,"zoom":picker.zoom,
@@ -72,6 +76,8 @@ pub fn state() -> String {
             "size":briccraft_ui::map_view_size(r.state.layout.get_untracked()),
             "tiles":r.state.map_tiles.get_untracked().len(),"status":r.state.map_status.get_untracked(),
             "rect":map_rect,
+            "player":player,
+            "area_status":r.state.import_status.get_untracked(),
         });
         source = json!({
             "epoch":r.map_epoch.get(),"world_id":game.world_info.id,

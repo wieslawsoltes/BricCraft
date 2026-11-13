@@ -8,6 +8,7 @@ mod gameplay;
 mod importing;
 pub mod input;
 mod mapped;
+mod navigation;
 mod persistence;
 pub mod session;
 mod streaming;
@@ -22,6 +23,7 @@ pub use briccraft_stream::{
 pub use camera::{CameraMode, CameraRig};
 pub use designs::DesignCaptureStatus;
 pub use input::Input;
+pub use navigation::MappedLocation;
 pub use session::Session;
 pub use streaming::StreamSession;
 pub use vehicle::WorkshopStatus;

@@ -60,6 +60,8 @@ pub enum UiAction {
     ShowPlaces,
     /// The view and logical viewport size are available in UiState.
     MapViewportChanged,
+    /// Reveal the current mapped body/subject, preserving the selected build pin.
+    LocateMapPlayer,
     StartMapRoam {
         latitude: f64,
         longitude: f64,
@@ -178,6 +180,7 @@ pub struct UiState {
     pub imports_open: Signal<bool>,
     pub places_open: Signal<bool>,
     pub map_view: Signal<crate::MapView>,
+    pub map_player: Signal<Option<crate::MapPlayer>>,
     pub map_tiles: Signal<Vec<crate::MapTile>>,
     pub map_status: Signal<String>,
     pub roam_active: Signal<bool>,
@@ -241,6 +244,7 @@ impl UiState {
             imports_open: signal(false),
             places_open: signal(false),
             map_view: signal(crate::MapView::default()),
+            map_player: signal(None),
             map_tiles: signal(Vec::new()),
             map_status: signal("Choose a place on the map.".into()),
             roam_active: signal(false),
